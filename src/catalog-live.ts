@@ -14,7 +14,6 @@ export interface LiveOptions {
 
 /** 구역마다 실제 자리 배치를 한 번 조회해서 고정 목록과 비교한다. */
 export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions): Promise<string> {
-  if (!adapter.listSeats) return `${adapter.id}는 실제 자리 목록 조회를 지원하지 않는다\n`;
   const ctx: AdapterContext = {
     http: createHttpClient({ transport: opts.transport, version: opts.version, userAgentSuffix: opts.userAgentSuffix ?? "" }),
   };

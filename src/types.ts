@@ -81,5 +81,5 @@ export interface ProviderAdapter {
   queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]>;
   deepLink(q: AvailabilityQuery): string;
   /** 예약 여부와 관계없이 구역의 모든 자리 id를 읽는다. catalog --live가 고정 목록과 비교한다. */
-  listSeats?(q: AvailabilityQuery, ctx: AdapterContext): Promise<string[]>;
+  listSeats(q: AvailabilityQuery, ctx: AdapterContext): Promise<string[]>;
 }

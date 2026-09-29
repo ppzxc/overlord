@@ -28,7 +28,7 @@ export interface RequestOptions {
   unpaced?: boolean;
 }
 
-/** 예약처 하나가 쓰는 HTTP 클라이언트. 받은 쿠키를 들고 있다가 같은 클라이언트의 다음 요청에 싣는다. */
+/** 예약처 하나가 쓰는 HTTP 클라이언트. 예약처가 쿠키 세션을 쓰면 받은 쿠키를 같은 클라이언트의 다음 요청에 싣는다. */
 export interface HttpClient {
   get(url: string, opts?: RequestOptions): Promise<TransportResponse>;
   post(url: string, form: Record<string, string>, opts?: RequestOptions): Promise<TransportResponse>;
@@ -66,6 +66,8 @@ export interface ProviderInfo {
   openingRule: OpeningRule;
   /** 어떤 경우에도 호출하지 않는 경로 접두어. 예: robots.txt가 막은 /bbs/ */
   blockedPaths: string[];
+  /** 받은 쿠키를 들고 다음 요청에 싣는다. 세션이 필요한 예약처만 켠다. */
+  cookieSession: boolean;
 }
 
 export interface AvailabilityQuery {

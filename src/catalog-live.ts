@@ -32,6 +32,7 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
       version: opts.version,
       userAgentSuffix: "",
       blockedPaths: info.blockedPaths,
+      cookieSession: info.cookieSession,
     }),
   };
   // 당일 입실은 18:00에 마감되므로 내일 날짜로 묻는다.

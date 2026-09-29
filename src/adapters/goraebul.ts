@@ -40,6 +40,8 @@ const INFO: ProviderInfo = {
   openingRule: { openDaysBefore: 30, openTime: "10:00", sameDayCutoff: "18:00" },
   // robots.txt가 막은 경로다.
   blockedPaths: ["/bbs/"],
+  // 응답마다 PHPSESSID를 주지만(2026-09-29 확인) 조회에는 세션이 필요 없다. 받은 쿠키를 돌려보내지 않는다.
+  cookieSession: false,
 };
 
 // 예약처가 차단 페이지를 HTTP 200으로 준다.

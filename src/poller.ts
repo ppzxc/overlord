@@ -96,6 +96,7 @@ async function runProvider(
       version: deps.version,
       userAgentSuffix: config.userAgentSuffix,
       blockedPaths: info.blockedPaths,
+      cookieSession: info.cookieSession,
       pacing: { clock, random, signal },
     }),
   };

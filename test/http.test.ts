@@ -14,7 +14,7 @@ const recording = (respond: (req: TransportRequest) => TransportResponse = () =>
 };
 
 const client = (transport: Transport, over: Partial<Parameters<typeof createHttpClient>[0]> = {}) =>
-  createHttpClient({ transport, version: "0.1.0", userAgentSuffix: "", blockedPaths: [], ...over });
+  createHttpClient({ transport, version: "0.1.0", userAgentSuffix: "", blockedPaths: [], cookieSession: true, ...over });
 
 describe("HTTP 요청", () => {
   it("GET은 본문 없이, POST는 form 본문과 Content-Type을 싣는다", async () => {
@@ -87,6 +87,18 @@ describe("쿠키 세션", () => {
     await goraebul.get("https://example.com/next");
     expect(requests[1]!.headers.Cookie).toBeUndefined();
     expect(requests[1]!.headers).toEqual({ "User-Agent": "overlord-availability-poller/0.1.0" });
+  });
+
+  it("쿠키 세션을 쓰지 않는 예약처는 Set-Cookie를 받아도 싣지 않는다", async () => {
+    const { requests, transport } = withCookies();
+    const http = client(transport, { cookieSession: false });
+    await http.get("https://example.com/enter");
+    await http.get("https://example.com/next");
+    expect(requests[1]!.headers).toEqual({ "User-Agent": "overlord-availability-poller/0.1.0" });
+  });
+
+  it("고래불은 쿠키 세션을 쓰지 않는다", () => {
+    expect(goraebulAdapter.describe().cookieSession).toBe(false);
   });
 
   it("세션을 버리면 쿠키를 더 싣지 않는다", async () => {

@@ -93,6 +93,7 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
     const other: ProviderAdapter = {
       ...goraebulAdapter,
       id: "other",
+      describe: () => ({ ...goraebulAdapter.describe(), id: "other", cookieSession: true }),
       queryAvailabilityBatch: undefined,
       queryAvailability: async (_q, ctx) => {
         await ctx.http.get("https://other.example/enter");
@@ -105,7 +106,11 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
       `  - { name: 다른곳, provider: other, zones: [DKA], checkIn: { from: 2026-09-29, to: 2026-09-29 }, nights: 1, notify: [default] }`,
     ).replace("providers:\n", "providers:\n  other: { pollIntervalSeconds: 150 }\n");
     const p = startPoller(
-      (req) => (req.url.endsWith("/enter") ? { status: 200, body: "", setCookie: ["SID=other"] } : open()),
+      // 고래불도 실제처럼 PHPSESSID를 주지만 쿠키 세션을 쓰지 않으니 돌려보내지 않는다.
+      (req) =>
+        req.url.endsWith("/enter")
+          ? { status: 200, body: "", setCookie: ["SID=other"] }
+          : { ...open(), setCookie: ["PHPSESSID=goraebul; path=/; HttpOnly"] },
       { yaml, adapters: { goraebul: goraebulAdapter, other } },
     );
     await settle();

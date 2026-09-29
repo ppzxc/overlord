@@ -45,6 +45,8 @@ export function createHttpClient(opts: {
   userAgentSuffix: string;
   /** 어떤 경우에도 호출하지 않는 경로 접두어. 어댑터가 선언한다. */
   blockedPaths: string[];
+  /** 켜면 받은 쿠키를 들고 다음 요청에 싣는다. 끄면 Set-Cookie를 무시한다. */
+  cookieSession: boolean;
   /** 주면 요청을 하나씩 순서대로 보내고 요청 사이에 최소 간격과 지터를 둔다. */
   pacing?: Pacing;
 }): HttpClient {
@@ -60,7 +62,7 @@ export function createHttpClient(opts: {
     if (body !== undefined) headers["Content-Type"] = FORM_CONTENT_TYPE;
     if (jar.size > 0) headers.Cookie = [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
     const res = await opts.transport({ method, url, headers, body, timeoutMs: TIMEOUT_MS });
-    if (res.setCookie) storeCookies(jar, res.setCookie, (pacing?.clock.now() ?? new Date()).getTime());
+    if (opts.cookieSession && res.setCookie) storeCookies(jar, res.setCookie, (pacing?.clock.now() ?? new Date()).getTime());
     return res;
   };
 

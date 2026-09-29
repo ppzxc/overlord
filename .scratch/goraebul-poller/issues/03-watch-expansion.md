@@ -8,7 +8,7 @@
 
 **Blocked by:** 01 (워킹 스켈레톤)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] 입실일 범위와 요일 필터에 맞는 날짜만 조회한다.
 - [ ] `nights`를 생략하면 1박으로 조회하고, N을 주면 N박으로 조회한다.

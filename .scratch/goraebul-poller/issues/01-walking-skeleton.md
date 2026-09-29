@@ -10,7 +10,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] 빈 자리가 있는 fixture를 주면 자리 번호와 딥링크가 담긴 Telegram 메시지가 Sink에 한 건 기록된다.
 - [ ] 빈 자리가 없는 fixture를 주면 메시지가 나가지 않는다.

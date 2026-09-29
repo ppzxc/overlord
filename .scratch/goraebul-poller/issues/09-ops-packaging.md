@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (워킹 스켈레톤)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `/healthz`는 기본으로 localhost에 바인드한다. 메인 루프의 마지막 틱이 기준 시간 안에 있으면 200을 돌려준다. 예약처가 `stopped`여도 200이다.
 - [ ] 틱이 오래 멈추면 watchdog이 프로세스를 종료한다.

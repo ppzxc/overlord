@@ -7,6 +7,7 @@ import {
   type HttpClient,
   type ProviderAdapter,
   type ProviderInfo,
+  type ZoneObservation,
   type ZoneInfo,
 } from "../types.js";
 
@@ -295,8 +296,8 @@ function warnZoneDrift(counts: Map<string, number>, ctx: AdapterContext): void {
   }
 }
 
-/** 하룻밤 응답에서 구역 이름 → 남은 수. 임시 중단 호실은 이름이 정확히 같을 때만 뺀다. */
-function parseNight(body: string, reduced: Map<string, number>, ctx: AdapterContext): Map<string, number> {
+/** 하룻밤 응답을 구역 이름과 값 문자열로 나눈다. 응답 구조가 깨졌으면 던진다. */
+function splitNight(body: string): { name: string; value: string }[] {
   let json: { result?: unknown; value?: unknown; message?: unknown };
   try {
     json = JSON.parse(body);
@@ -309,16 +310,22 @@ function parseNight(body: string, reduced: Map<string, number>, ctx: AdapterCont
     throw new AdapterError("unrecognized", `날짜 조회가 실패했다: ${message}`);
   }
   if (typeof json.value !== "string") throw new AdapterError("unrecognized", "날짜 조회 응답에 value가 없다");
-  const counts = new Map<string, number>();
-  for (const item of json.value.split("|^|")) {
+  return json.value.split("|^|").map((item) => {
     const i = item.lastIndexOf(":");
-    const name = item.slice(0, i);
-    const value = item.slice(i + 1);
     if (i <= 0) throw new AdapterError("unrecognized", `날짜 조회 값 구조가 깨졌다: ${item}`);
-    let n: number;
-    if (/^\d+$/.test(value)) n = Number(value);
-    else if (CLOSED_VALUES.has(value)) n = 0;
-    else throw new AdapterError("unrecognized", `모르는 값: ${name}=${value}`);
+    return { name: item.slice(0, i), value: item.slice(i + 1) };
+  });
+}
+
+/** 값이 숫자이거나 닫힘을 뜻하는 알려진 문자열이면 남은 수, 아니면 undefined. */
+const countOf = (value: string): number | undefined => (/^\d+$/.test(value) ? Number(value) : CLOSED_VALUES.has(value) ? 0 : undefined);
+
+/** 하룻밤 응답에서 구역 이름 → 남은 수. 임시 중단 호실은 이름이 정확히 같을 때만 뺀다. */
+function parseNight(body: string, reduced: Map<string, number>, ctx: AdapterContext): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const { name, value } of splitNight(body)) {
+    const n = countOf(value);
+    if (n === undefined) throw new AdapterError("unrecognized", `모르는 값: ${name}=${value}`);
     const cut = reduced.get(name);
     counts.set(name, cut === undefined ? n : Math.max(0, n - cut));
   }
@@ -383,6 +390,23 @@ async function readCalendars(
   return { days };
 }
 
+/** 하룻밤 조회 응답 본문. 바퀴와 catalog --live가 같은 요청을 보낸다. */
+function fetchNight(date: string, ctx: AdapterContext, pass: QueuePass): Promise<string> {
+  const [year, month, day] = date.split("-");
+  return fetchOk(
+    ctx.http.post(`${RESERVATION}/ND_selectFcltyCalendarDetail.do`, {
+      trrsrtCode: TRRSRT_CODE,
+      q_year: year!,
+      q_month: month!,
+      qDay: String(Number(day)),
+      passResv1: "",
+      passNfTime: String(pass.waitedMs),
+      netfunnel_key: pass.key,
+    }),
+    `날짜 조회 ${date}`,
+  );
+}
+
 /** 필요한 밤을 차례로 읽는다. 첫 실패에서 멈추고, 그때까지 읽은 밤과 실패를 함께 돌려준다. */
 async function readNights(
   dates: string[],
@@ -393,20 +417,8 @@ async function readNights(
   const nights = new Map<string, Map<string, number>>();
   for (const date of dates) {
     if (ctx.signal?.aborted) return { nights, failure: new AdapterError("transient", "중단되었다") };
-    const [year, month, day] = date.split("-");
     try {
-      const body = await fetchOk(
-        ctx.http.post(`${RESERVATION}/ND_selectFcltyCalendarDetail.do`, {
-          trrsrtCode: TRRSRT_CODE,
-          q_year: year!,
-          q_month: month!,
-          qDay: String(Number(day)),
-          passResv1: "",
-          passNfTime: String(pass.waitedMs),
-          netfunnel_key: pass.key,
-        }),
-        `날짜 조회 ${date}`,
-      );
+      const body = await fetchNight(date, ctx, pass);
       nights.set(date, parseNight(body, reduced, ctx));
     } catch (e) {
       if (isUnitFailure(e)) return { nights, failure: e };
@@ -489,6 +501,28 @@ export const donghaeAdapter: ProviderAdapter = {
       if (e instanceof NoPassError) sessions.delete(ctx.http);
       throw e;
     }
+  },
+
+  /** 내일(query의 입실일) 하룻밤만 읽어 구역 이름 집합과 모르는 값을 돌려준다. 달력은 읽지 않는다. */
+  async listZones(q, ctx): Promise<ZoneObservation> {
+    const read = async (): Promise<ZoneObservation> => {
+      const { state, waitedMs } = await acquireSession(ctx);
+      const pass: QueuePass = { key: state.key, waitedMs };
+      const body = await fetchNight(q.checkIn, ctx, pass);
+      const items = splitNight(body);
+      return {
+        zones: items.map((i) => i.name),
+        unknown: items.filter((i) => countOf(i.value) === undefined).map((i) => ({ zone: i.name, value: i.value })),
+      };
+    };
+    try {
+      return await read();
+    } catch (e) {
+      if (!(e instanceof NoPassError)) throw e;
+    }
+    sessions.delete(ctx.http);
+    ctx.http.clearSession();
+    return read();
   },
 
   async close(ctx) {

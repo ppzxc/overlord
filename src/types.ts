@@ -108,6 +108,12 @@ export interface AvailableSite {
   remaining?: number;
 }
 
+/** 예약처 응답에서 실제로 본 구역 이름과, 어댑터가 모르는 값을 준 구역. */
+export interface ZoneObservation {
+  zones: string[];
+  unknown: { zone: string; value: string }[];
+}
+
 export class AdapterError extends Error {
   constructor(
     readonly kind: "transient" | "blocked" | "unrecognized" | "unavailable",
@@ -139,4 +145,9 @@ export interface ProviderAdapter {
    * 자리 단위로 보지 않는 예약처는 구현하지 않는다.
    */
   listSeats?(q: AvailabilityQuery, ctx: AdapterContext): Promise<string[]>;
+  /**
+   * 자리 목록 대신 구역 이름 집합만 알 수 있는 예약처가 구현한다. catalog --live가 고정 구역과 비교한다.
+   * 모르는 값은 실패가 아니라 관찰 결과에 담는다.
+   */
+  listZones?(q: AvailabilityQuery, ctx: AdapterContext): Promise<ZoneObservation>;
 }

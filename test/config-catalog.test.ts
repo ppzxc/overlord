@@ -7,7 +7,7 @@ import { parseArgs } from "../src/cli.js";
 import { liveGapMs, readConfig, runCatalog, runTelegram } from "../src/commands.js";
 import { ConfigError, loadConfig } from "../src/config.js";
 import type { Transport } from "../src/types.js";
-import { ENV, configWith, fixture } from "./harness.js";
+import { DONGHAE_ZONES, ENV, configWith, donghaeServer, fixture } from "./harness.js";
 
 const watch = (extra: string, name = "w") =>
   `  - name: ${name}\n    provider: goraebul\n    zones: [DKA]\n    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n${extra}`;
@@ -343,5 +343,74 @@ describe("telegram chats", () => {
     const r = await run(new Error("fetch https://api.telegram.org/bottok/getUpdates"));
     expect(r.code).toBe(1);
     expect(r.err).not.toContain("tok/");
+  });
+});
+
+describe("catalog donghae --live 구역 대조", () => {
+  const run = (server: ReturnType<typeof donghaeServer>, requests: string[] = []) =>
+    renderLiveDiff(donghaeAdapter, {
+      transport: async (req) => {
+        requests.push(`${req.method} ${new URL(req.url).pathname}`);
+        return server(req);
+      },
+      version: "0.1.0",
+      now: new Date("2026-09-29T00:00:00Z"),
+      pause: async () => {},
+    });
+  const detail = (items: string[]) => JSON.stringify({ result: true, value: items.join("|^|"), message: null });
+
+  it("구역이 모두 같으면 일치를 보고하고 하룻밤만 조회한다", async () => {
+    const requests: string[] = [];
+    const result = await run(donghaeServer({ counts: () => 3 }), requests);
+    expect(result.text).toContain("구역 일치 (9곳)");
+    expect(result.failed).toBe(false);
+    expect(requests.filter((r) => r.endsWith("ND_selectFcltyCalendarDetail.do"))).toHaveLength(1);
+    expect(requests.some((r) => r.endsWith("BD_reservationOrigin.do"))).toBe(false);
+    expect(requests.filter((r) => r.includes("/user/reservation/"))).toEqual([
+      "POST /user/reservation/ND_setNfKey.do",
+      "POST /user/reservation/BD_reservation.do",
+      "POST /user/reservation/ND_selectFcltyCalendarDetail.do",
+    ]);
+  });
+
+  it("사라지거나 새로 생긴 구역과 모르는 값을 보고한다", async () => {
+    const items = [...DONGHAE_ZONES.filter((z) => z !== "든바다").map((z) => `${z}:3`), "신규바다:3", "난바다:점검중"];
+    const result = await run(donghaeServer({ detailBody: () => detail(items) }));
+    expect(result.text).toContain("예약처에서 사라진 구역 든바다");
+    expect(result.text).toContain("예약처에 새로 생긴 구역 신규바다");
+    expect(result.text).not.toContain("구역 일치");
+  });
+
+  it("모르는 값은 실패가 아니라 관찰 결과로 보고한다", async () => {
+    const items = DONGHAE_ZONES.map((z) => `${z}:${z === "난바다" ? "점검중" : 3}`);
+    const result = await run(donghaeServer({ detailBody: () => detail(items) }));
+    expect(result.text).toContain("모르는 값: 난바다=점검중");
+    expect(result.failed).toBe(false);
+  });
+
+  it("대기열이 201을 주면 서버가 준 간격대로 5002를 다시 보낸다", async () => {
+    const opcodes: string[] = [];
+    const server = donghaeServer({
+      counts: () => 3,
+      queue: ["5002:201:key=KEYW&nwait=5&nnext=1&tps=1&ttl=1&ip=x&port=443", "5002:200:key=KEYW&nwait=0&nnext=0&tps=0&ttl=0&ip=x&port=443"],
+    });
+    const result = await renderLiveDiff(donghaeAdapter, {
+      transport: async (req) => {
+        const u = new URL(req.url);
+        if (u.hostname.startsWith("nf.")) opcodes.push(u.searchParams.get("opcode")!);
+        return server(req);
+      },
+      version: "0.1.0",
+      now: new Date("2026-09-29T00:00:00Z"),
+      pause: async () => {},
+    });
+    expect(opcodes.slice(0, 2)).toEqual(["5101", "5002"]);
+    expect(result.text).toContain("구역 일치");
+  });
+
+  it("조회에 실패하면 failed다", async () => {
+    const result = await run(donghaeServer({ detailBody: () => "not json" }));
+    expect(result.text).toContain("조회 실패(unrecognized)");
+    expect(result.failed).toBe(true);
   });
 });

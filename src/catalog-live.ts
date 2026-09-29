@@ -2,7 +2,7 @@ import { systemClock } from "./clock.js";
 import { compact } from "./catalog.js";
 import { createHttpClient } from "./http.js";
 import { addDays, kstDate } from "./schedule.js";
-import { AdapterError, type AdapterContext, type ProviderAdapter, type Transport } from "./types.js";
+import { AdapterError, type AdapterContext, type ProviderAdapter, type Transport, type ZoneInfo, type ZoneObservation } from "./types.js";
 
 export interface LiveOptions {
   transport: Transport;
@@ -24,7 +24,7 @@ export interface LiveResult {
  */
 export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions): Promise<LiveResult> {
   const info = adapter.describe();
-  if (!adapter.listSeats) {
+  if (!adapter.listZones && !adapter.listSeats) {
     return { text: `${info.id}는 자리 단위로 보지 않는 예약처라 비교할 자리 목록이 없다\n`, failed: false };
   }
   const ctx: AdapterContext = {
@@ -39,6 +39,8 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
   };
   // 당일 입실은 18:00에 마감되므로 내일 날짜로 묻는다.
   const checkIn = addDays(kstDate(opts.now), 1);
+  if (adapter.listZones) return renderZoneDiff(adapter, info.zones, checkIn, ctx);
+  const listSeats = adapter.listSeats!;
   const lines: string[] = [];
   let differences = 0;
   let failures = 0;
@@ -48,7 +50,7 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
     first = false;
     let actual: string[];
     try {
-      actual = await adapter.listSeats({ zone: zone.code, checkIn, nights: 1 }, ctx);
+      actual = await listSeats.call(adapter, { zone: zone.code, checkIn, nights: 1 }, ctx);
     } catch (e) {
       if (!(e instanceof AdapterError)) throw e;
       failures++;
@@ -77,4 +79,29 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
   if (differences > 0) lines.push(`차이 있는 구역 ${differences}곳: 어댑터의 고정 목록을 갱신해야 한다`);
   if (failures === 0 && differences === 0) lines.push("차이 없음");
   return { text: `${lines.join("\n")}\n`, failed: failures > 0 };
+}
+
+/** 구역 이름 집합만 알 수 있는 예약처: 한 번 조회해서 고정 구역과 비교한다. */
+async function renderZoneDiff(
+  adapter: ProviderAdapter,
+  zones: ZoneInfo[],
+  checkIn: string,
+  ctx: AdapterContext,
+): Promise<LiveResult> {
+  let seen: ZoneObservation;
+  try {
+    seen = await adapter.listZones!({ zone: "", checkIn, nights: 1 }, ctx);
+  } catch (e) {
+    if (!(e instanceof AdapterError)) throw e;
+    return { text: `조회 실패(${e.kind}): ${e.message}\n`, failed: true };
+  }
+  const fixed = zones.map((z) => z.name);
+  const missing = fixed.filter((n) => !seen.zones.includes(n));
+  const added = seen.zones.filter((n) => !fixed.includes(n));
+  const lines: string[] = [];
+  for (const u of seen.unknown) lines.push(`모르는 값: ${u.zone}=${u.value}`);
+  if (missing.length) lines.push(`예약처에서 사라진 구역 ${missing.join(", ")}`);
+  if (added.length) lines.push(`예약처에 새로 생긴 구역 ${added.join(", ")}`);
+  if (lines.length === 0) lines.push(`구역 일치 (${fixed.length}곳)`);
+  return { text: `${lines.join("\n")}\n`, failed: false };
 }

@@ -57,9 +57,14 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
   // 예약처가 여럿이면 첫 바퀴 시작 시각을 분산한다. 첫 예약처는 바로 시작한다.
   const random = deps.random ?? Math.random;
   const shared = createShared(deps, signal);
+  for (const id of providers) deps.liveness?.beat(id, 0);
   await Promise.all([
     ...providers.map(async (id, i) => {
-      if (i > 0) await deps.clock.sleep(i * STAGGER_MS + random() * STAGGER_MS, signal);
+      if (i > 0) {
+        const wait = i * STAGGER_MS + random() * STAGGER_MS;
+        deps.liveness?.beat(id, wait); // 시작 전에 멈추는 것도 잡는다.
+        await deps.clock.sleep(wait, signal);
+      }
       await runProvider(deps, id, random, signal, shared);
     }),
     runDailySummary(deps, providers, shared, signal),
@@ -116,7 +121,7 @@ async function runProvider(
   };
 
   while (!signal.aborted) {
-    deps.liveness?.beat(providerId, 0);
+    deps.liveness?.beat(providerId, 0); // 바퀴 시작. 쉬는 동안은 sleep이 예정 시각을 알린다.
     // 멈춘 예약처는 조회하지 않고, 같은 상태가 이어지면 24시간마다 리마인드만 한다.
     if (health.stopped) {
       await sleep(health.stoppedWaitMs(intervalMs, clock.now().getTime()));

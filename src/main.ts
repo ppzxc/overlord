@@ -106,7 +106,14 @@ const logger = pino({
   timestamp: pino.stdTimeFunctions.isoTime,
   redact: { paths: ["botToken", "deadManPingUrl", "url", "*.botToken", "*.deadManPingUrl", "*.url"], censor: "***" },
 });
-const log = (msg: string, fields?: Record<string, unknown>) => logger.info(fields ?? {}, msg);
+// 오류 문구에 URL이 섞여 들어와도 비밀값은 남기지 않는다.
+const secrets = [
+  ...Object.values(config.notifiers).map((n) => n.botToken),
+  ...(config.deadManPingUrl ? [config.deadManPingUrl] : []),
+];
+const scrub = (text: string) => secrets.reduce((t, secret) => t.replaceAll(secret, "***"), text);
+const log = (msg: string, fields?: Record<string, unknown>) =>
+  logger.info(JSON.parse(scrub(JSON.stringify(fields ?? {}))) as object, scrub(msg));
 
 const controller = new AbortController();
 process.on("SIGINT", () => controller.abort());

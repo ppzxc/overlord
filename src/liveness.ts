@@ -27,11 +27,11 @@ export class Liveness {
   }
 }
 
-/** 메인 루프가 살아 있는지만 답한다. 예약처가 stopped여도 200이다. */
+/** 정체(Stall)가 없으면 200, 있으면 503. 예약처가 stopped여도 200이다. */
 export function startHealthz(bind: string, liveness: Liveness): Promise<Server> {
-  const at = bind.lastIndexOf(":");
-  const host = bind.slice(0, at);
-  const port = Number(bind.slice(at + 1));
+  const colon = bind.lastIndexOf(":");
+  const host = bind.slice(0, colon);
+  const port = Number(bind.slice(colon + 1));
   const server = createServer((req, res) => {
     if (req.url !== "/healthz") {
       res.writeHead(404).end();

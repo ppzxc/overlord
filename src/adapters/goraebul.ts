@@ -25,7 +25,7 @@ const ZONES = [
 
 const INFO: ProviderInfo = { id: "goraebul", facility: "goraebul", zones: ZONES, maxNights: 2 };
 
-// 사이트가 차단 페이지를 HTTP 200으로 준다.
+// 예약처가 차단 페이지를 HTTP 200으로 준다.
 const BLOCK_MARKER = "영덕군 전산팀";
 
 function parseOpenSites(html: string, zone: string): AvailableSite[] {

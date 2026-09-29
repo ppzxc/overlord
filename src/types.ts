@@ -45,7 +45,7 @@ export interface AvailabilityQuery {
 }
 
 export interface AvailableSite {
-  /** 사이트가 쓰는 자리 이름. 예: 텐트사이트 A02호 */
+  /** 예약처가 쓰는 자리 이름. 예: 텐트사이트 A02호 */
   name: string;
 }
 

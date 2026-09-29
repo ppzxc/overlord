@@ -76,6 +76,9 @@ const addDays = (date: string, days: number) =>
 
 const nightsOf = (q: AvailabilityQuery) => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 
+/** 조회 단위 하나의 실패로 담을 오류인지. NOPASS는 바퀴 전체를 다시 진입해야 하므로 던져 올린다. */
+const isUnitFailure = (e: unknown): e is AdapterError => e instanceof AdapterError && !(e instanceof NoPassError);
+
 /** 예약처가 `NOPASS:`로 키·세션을 거절했다. 바퀴가 한 번만 다시 진입한다. */
 class NoPassError extends AdapterError {
   constructor(what: string) {
@@ -143,10 +146,10 @@ async function enterQueue(ctx: AdapterContext): Promise<QueuePass> {
 }
 
 /** 진입 페이지가 대기열 키를 서버에 등록하는 흐름. 하나라도 사라지면 예약처 구조가 바뀐 것이다. */
-const ENTRY_MARKERS: [RegExp, string][] = [
-  [/name="netfunnel_key"/, "netfunnel_key 필드"],
-  [/ND_setNfKey\.do/, "ND_setNfKey.do 호출"],
-  [/NetFunnel_Action\(\{action_id:"reserve"\}/, 'NetFunnel_Action({action_id:"reserve"}'],
+const ENTRY_MARKERS: { pattern: RegExp; label: string }[] = [
+  { pattern: /name="netfunnel_key"/, label: "netfunnel_key 필드" },
+  { pattern: /ND_setNfKey\.do/, label: "ND_setNfKey.do 호출" },
+  { pattern: /NetFunnel_Action\(\{action_id:"reserve"\}/, label: 'NetFunnel_Action({action_id:"reserve"}' },
 ];
 
 /**
@@ -224,8 +227,8 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
     }),
     "예약 화면 진입",
   );
-  for (const [marker, what] of ENTRY_MARKERS) {
-    if (!marker.test(entry)) throw new AdapterError("unrecognized", `예약 화면 흐름 문자열이 사라졌다: ${what}`);
+  for (const { pattern, label } of ENTRY_MARKERS) {
+    if (!pattern.test(entry)) throw new AdapterError("unrecognized", `예약 화면 흐름 문자열이 사라졌다: ${label}`);
   }
   const state: KeyState = {
     key: pass.key,
@@ -372,7 +375,7 @@ async function readCalendars(
       if (cal.month !== month) throw new AdapterError("unrecognized", `월 달력 ${month}을(를) 요청했는데 ${cal.month}이(가) 왔다`);
       for (const [d, state] of cal.days) days.set(d, state);
     } catch (e) {
-      if (e instanceof AdapterError && !(e instanceof NoPassError)) return { days, failure: e };
+      if (isUnitFailure(e)) return { days, failure: e };
       throw e;
     }
   }
@@ -405,7 +408,7 @@ async function readNights(
       );
       nights.set(date, parseNight(body, reduced, ctx));
     } catch (e) {
-      if (e instanceof AdapterError && !(e instanceof NoPassError)) return { nights, failure: e };
+      if (isUnitFailure(e)) return { nights, failure: e };
       throw e;
     }
   }

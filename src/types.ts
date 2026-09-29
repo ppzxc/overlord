@@ -73,12 +73,20 @@ export interface OpeningRule {
   sameDayCutoff: string; // HH:MM
 }
 
+/** 예약처가 새 날짜를 여는 시각 앞뒤로 바퀴를 돌지 않는 구간. 한국 시각 HH:MM, from 포함 to 제외. */
+export interface OpeningRush {
+  from: string;
+  to: string;
+}
+
 export interface ProviderInfo {
   id: string;
   facility: string;
   zones: ZoneInfo[];
   maxNights: number;
   openingRule: OpeningRule;
+  /** 오픈 경쟁 시간의 기본값. 설정의 `providers.<id>.openingRush`가 덮어쓴다. 없으면 쉬지 않는다. */
+  openingRush?: OpeningRush;
   /** 어떤 경우에도 호출하지 않는 경로 접두어. 예: robots.txt가 막은 /bbs/ */
   blockedPaths: string[];
   /** 받은 쿠키를 들고 다음 요청에 싣는다. 세션이 필요한 예약처만 켠다. */

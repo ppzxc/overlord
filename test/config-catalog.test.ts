@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
+import { donghaeAdapter } from "../src/adapters/donghae.js";
 import { renderCatalog } from "../src/catalog.js";
 import { renderLiveDiff } from "../src/catalog-live.js";
 import { parseArgs } from "../src/cli.js";
@@ -205,6 +206,16 @@ describe("catalog 명령", () => {
     const d = deps();
     expect(await runCatalog({ kind: "catalog", provider: undefined, live: false }, d.deps)).toBe(1);
     expect(d.err.join("")).toContain("goraebul");
+  });
+
+  it("동해시 --live는 오픈 경쟁 시간 안에서 실행을 거부하고 예약처에 묻지 않는다", async () => {
+    const d = deps({
+      adapters: { donghae: donghaeAdapter },
+      now: () => new Date("2026-09-29T11:00:00+09:00"),
+      transport: async () => { throw new Error("호출되면 안 된다"); },
+    });
+    expect(await runCatalog({ kind: "catalog", provider: "donghae", live: true }, d.deps)).toBe(1);
+    expect(d.err.join("")).toContain("오픈 경쟁 시간");
   });
 
   it("--live 없이는 표만 출력하고 예약처에 묻지 않는다", async () => {

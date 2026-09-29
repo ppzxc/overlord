@@ -7,6 +7,7 @@ dailySummary: { enabled: true, at: "09:00" }
 healthz: { bind: "127.0.0.1:8080" }
 providers:
   goraebul: { pollIntervalSeconds: 150 }
+  # donghae: { pollIntervalSeconds: 150, openingRush: { from: "10:55", to: "11:30" } }  # 오픈 경쟁 시간(KST). 생략하면 예약처 기본값(동해시 10:55~11:30)
 notifiers:
   default: { type: telegram, botToken: ${TELEGRAM_BOT_TOKEN}, chatId: ${TELEGRAM_CHAT_ID} }
 watches:

@@ -3,7 +3,7 @@ import { ProviderHealth, worstFailure, type Failure } from "./health.js";
 import { LOOP_TURN, type Liveness } from "./liveness.js";
 import { createHttpClient } from "./http.js";
 import { createShared, errMessage, type DayStats, type Shared } from "./notify.js";
-import { addDays, expandWatch, isExpired, isQuiet, kstDate, unitKey } from "./schedule.js";
+import { addDays, expandWatch, isExpired, isQuiet, kstDate, msUntilRushEnd, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
 import { runDailySummary } from "./summary.js";
 import {
@@ -91,6 +91,8 @@ async function runProvider(
   const watches = config.watches.filter((w) => w.provider === providerId);
   const intervalMs = (config.providers[providerId]?.pollIntervalSeconds ?? 150) * 1000;
 
+  const rush = config.providers[providerId]?.openingRush ?? info.openingRush;
+
   const ctx: AdapterContext = {
     clock,
     signal,
@@ -140,6 +142,13 @@ async function runProvider(
     if (health.stopped) {
       await sleep(health.stoppedWaitMs(intervalMs, clock.now().getTime()));
       if (!signal.aborted) await announceHealth();
+      continue;
+    }
+    // 오픈 경쟁 시간에는 조회하지 않고 구간 끝까지 쉰다. 예약처 상태는 건드리지 않는다.
+    const rushWait = msUntilRushEnd(clock.now(), rush);
+    if (rushWait > 0) {
+      log("opening rush wait", { provider: providerId, waitMs: rushWait });
+      await sleep(rushWait);
       continue;
     }
     const now = clock.now();
@@ -261,7 +270,9 @@ async function runProvider(
     // 바퀴가 끝났고 알림 채널이 정상일 때만 살아 있다고 알린다.
     if (!signal.aborted && shared.channelOk()) await shared.pingDeadMan();
     const quiet = isQuiet(clock.now(), config.quietHours) ? QUIET_INTERVAL_FACTOR : 1;
-    await sleep(jittered(health.nextIntervalMs(intervalMs) * quiet, INTERVAL_JITTER, random));
+    const wait = jittered(health.nextIntervalMs(intervalMs) * quiet, INTERVAL_JITTER, random);
+    // 다음 바퀴 예정 시각이 오픈 경쟁 시간 안이면 구간 끝으로 미룬다.
+    await sleep(wait + msUntilRushEnd(new Date(clock.now().getTime() + wait), rush));
   }
   try {
     await adapter.close?.(ctx);

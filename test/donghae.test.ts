@@ -358,12 +358,13 @@ describe("동해시 대기열 키 재사용과 수명", () => {
   });
 
   it("2시간이 지난 키는 확인하지 않고 새로 진입한다", async () => {
+    // 7_000_000ms 뒤는 10:56로 오픈 경쟁 시간 안이라 바퀴가 11:30까지 미뤄진다.
     const p = run(donghaeServer({ counts: () => 3 }));
     await settle();
     await p.clock.advance(7_000_000);
     await settle();
     expect(opcodes(p).filter((o) => o === "5101")).toHaveLength(1);
-    await p.clock.advance(300_000);
+    await p.clock.advance(2_100_000);
     await settle();
     expect(opcodes(p).filter((o) => o === "5101")).toHaveLength(2);
     const seq = paths(p);
@@ -573,5 +574,51 @@ describe("동해시 대기열 키 재사용과 수명", () => {
       expect(p.allRequests.filter((r) => r.url.endsWith("netfunnel.js"))).toHaveLength(1);
       await p.stop();
     });
+  });
+});
+
+describe("동해시 오픈 경쟁 시간", () => {
+  const MIN = 60_000;
+  const cycles = (p: ReturnType<typeof run>) => p.allRequests.filter((r) => wwwPath(r) === "BD_reservation.do").length;
+  const toRush = async (p: ReturnType<typeof run>) => {
+    await settle();
+    await p.clock.advance(114 * MIN); // 10:54. 다음 바퀴 예정은 10:56:30
+  };
+
+  it("다음 바퀴 예정 시각이 10:55~11:30 안이면 11:30으로 미루고 그 사이 요청이 없다", async () => {
+    const p = run(donghaeServer({ counts: () => 3 }));
+    await toRush(p);
+    const before = p.allRequests.length;
+    await p.clock.advance(35 * MIN); // 11:29
+    expect(p.allRequests.length).toBe(before);
+    expect(p.liveness.stalled()).toEqual([]);
+    await p.clock.advance(1 * MIN); // 11:30
+    expect(p.allRequests.length).toBeGreaterThan(before);
+    await p.stop();
+  });
+
+  it("구간 안에서는 헬스 알림이 없고 상태가 바뀌지 않는다", async () => {
+    const p = run(donghaeServer({ counts: () => 3 }));
+    await toRush(p);
+    await p.clock.advance(35 * MIN);
+    expect(p.sent.filter((m) => /상태|점검|중단|일시/.test(m.text))).toEqual([]);
+    await p.stop();
+  });
+
+  it("설정의 openingRush로 구간을 바꿀 수 있다", async () => {
+    const custom = yaml().replace("watches:", "watches:").replace("providers:", "providers:\n  donghae: { openingRush: { from: \"09:00\", to: \"09:20\" } }");
+    const p = startPoller(() => ({ status: 404, body: "" }), { yaml: custom, server: donghaeServer({ counts: () => 3 }) });
+    await settle();
+    expect(p.allRequests).toHaveLength(0); // 시작 시각 09:00이 구간 안이다
+    await p.clock.advance(19 * MIN);
+    expect(p.allRequests).toHaveLength(0);
+    await p.clock.advance(1 * MIN);
+    expect(cycles(p)).toBeGreaterThan(0);
+    await p.stop();
+  });
+
+  it("openingRush에서 from과 to가 같으면 설정을 거부한다", () => {
+    const bad = yaml().replace("providers:", "providers:\n  donghae: { openingRush: { from: \"10:00\", to: \"10:00\" } }");
+    expect(() => loadConfig(bad, ENV)).toThrow(/from과 to/);
   });
 });

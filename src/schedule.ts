@@ -68,6 +68,12 @@ export function isQuiet(now: Date, quiet: { from: string; to: string } | undefin
   return from < to ? t >= from && t < to : t >= from || t < to;
 }
 
+/** now가 오픈 경쟁 시간 안이면 구간 끝까지 남은 ms, 아니면 0. from > to면 자정을 넘는 구간이다. */
+export function msUntilRushEnd(now: Date, rush: { from: string; to: string } | undefined): number {
+  if (!rush || !isQuiet(now, rush)) return 0;
+  return msUntilNext(now, rush.to);
+}
+
 /** now 이후(같은 시각 제외) 처음 오는 한국 시각 hhmm까지 남은 ms. */
 export function msUntilNext(now: Date, hhmm: string): number {
   const today = kstDate(now);

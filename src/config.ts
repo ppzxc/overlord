@@ -31,7 +31,16 @@ const configSchema = z.strictObject({
     })
     .default({ bind: { host: "127.0.0.1", port: 8080 } }),
   providers: z
-    .record(z.string(), z.strictObject({ pollIntervalSeconds: z.number().int("정수여야 한다").min(60, "60초 이상이어야 한다").default(150) }))
+    .record(
+      z.string(),
+      z.strictObject({
+        pollIntervalSeconds: z.number().int("정수여야 한다").min(60, "60초 이상이어야 한다").default(150),
+        openingRush: z
+          .strictObject({ from: hhmm, to: hhmm })
+          .refine((q) => q.from !== q.to, "from과 to가 같을 수 없다")
+          .optional(),
+      }),
+    )
     .default({}),
   notifiers: z.record(
     z.string(),

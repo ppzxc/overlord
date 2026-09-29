@@ -51,6 +51,8 @@ export interface AdapterContext {
   clock: Clock;
   /** 종료 중이면 쉬는 것을 바로 끝낸다. */
   signal?: AbortSignal;
+  /** 경고처럼 알림까진 필요 없는 관찰을 남긴다. */
+  log?: (msg: string, fields?: Record<string, unknown>) => void;
 }
 
 export interface ZoneInfo {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 import { createHttpClient } from "../src/http.js";
-import { DONGHAE_ZONES, ENV, configWith, donghaeServer, settle, startPoller } from "./harness.js";
+import { DONGHAE_ENTRY, DONGHAE_ZONES, ENV, configWith, donghaeServer, settle, startPoller } from "./harness.js";
 
 const HEAD_WATCH = (extra = "") => `
   - name: 망상 가을
@@ -414,5 +414,164 @@ describe("동해시 대기열 키 재사용과 수명", () => {
     await settle();
     expect(nf()).toBe(1);
     await p.stop();
+  });
+
+  describe("신호 분류", () => {
+    const failedKinds = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "query failed").map((l) => l.fields?.kind);
+    const json = (o: object) => ({ status: 200, body: JSON.stringify(o) });
+    const detailReq = (r: { url: string }) => r.url.endsWith("ND_selectFcltyCalendarDetail.do");
+
+    it("NetFunnel 302도 차단으로 멈추고 가상 대기에 참여하지 않는다", async () => {
+      const p = run(donghaeServer({ queue: ["5002:302:key=&nwait=0"] }));
+      await settle();
+      expect(p.sent.some((m) => /blocked|차단/.test(m.text))).toBe(true);
+      expect(p.allRequests.filter((r) => new URL(r.url).hostname.startsWith("nf."))).toHaveLength(1);
+      expect(p.allRequests.some((r) => new URL(r.url).hostname === "www.campingkorea.or.kr")).toBe(false);
+      await p.stop();
+    });
+
+    it("로그인·인증을 요구하는 result:false는 blocked다", async () => {
+      const p = run(donghaeServer({ detailBody: () => JSON.stringify({ result: false, message: "로그인이 필요합니다" }) }));
+      await settle();
+      expect(failedKinds(p)).toEqual(["blocked"]);
+      expect(p.sent.some((m) => /blocked|차단/.test(m.text))).toBe(true);
+      await p.stop();
+    });
+
+    it("그 밖의 result:false는 unrecognized이고 알림 없이 다음 바퀴에 다시 시도한다", async () => {
+      const p = run(donghaeServer({ detailBody: () => JSON.stringify({ result: false, message: "오류" }) }));
+      await settle();
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
+      expect(p.sent).toHaveLength(0);
+      await p.stop();
+    });
+
+    it("NOPASS는 키와 쿠키를 버리고 같은 바퀴에서 한 번 다시 진입해 성공하면 실패로 치지 않는다", async () => {
+      let first = true;
+      const p = run(
+        donghaeServer({
+          counts: () => 3,
+          intercept: (req) => {
+            if (req.url.endsWith("BD_reservationOrigin.do") && first) {
+              first = false;
+              return { status: 200, body: "NOPASS:" };
+            }
+          },
+        }),
+      );
+      await settle();
+      expect(opcodes(p)).toEqual(["5101", "5101"]);
+      const www = p.allRequests.filter((r) => new URL(r.url).hostname === "www.campingkorea.or.kr");
+      const reentrySetKey = www.filter((r) => r.url.endsWith("ND_setNfKey.do"))[1]!;
+      expect(reentrySetKey.headers.Cookie).toBeUndefined();
+      expect(failedKinds(p)).toEqual([]);
+      expect(p.sent).toHaveLength(1);
+      await p.stop();
+    });
+
+    it("NOPASS가 재진입 뒤에도 반복되면 unrecognized이고 세션을 다시 만든다", async () => {
+      const p = run(donghaeServer({ counts: () => 3, intercept: (req) => (req.url.endsWith("BD_reservationOrigin.do") ? { status: 200, body: "NOPASS:" } : undefined) }));
+      await settle();
+      expect(opcodes(p)).toEqual(["5101", "5101"]);
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
+      await p.stop();
+    });
+
+    it("공통 404(div.mError1)는 unrecognized다", async () => {
+      const p = run(donghaeServer({ intercept: (req) => (req.url.endsWith("ND_selectFcltyCalendarDetail.do") ? { status: 404, body: '<div class="mError1"></div>' } : undefined) }));
+      await settle();
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
+      expect(p.logs.find((l) => l.msg === "query failed")!.fields?.message).toContain("공통 404");
+      await p.stop();
+    });
+
+    it.each([
+      ['<input name="netfunnel_key"', "netfunnel_key 필드"],
+      ["ND_setNfKey.do", "ND_setNfKey.do 호출"],
+      ['NetFunnel_Action({action_id:"reserve"}', "NetFunnel_Action"],
+    ])("진입 페이지에서 %s가 사라지면 unrecognized다", async (gone, what) => {
+      const p = run(donghaeServer({ entryBody: (r) => DONGHAE_ENTRY(r).replace(gone.startsWith("<") ? /<input[^>]*>/ : gone, "") }));
+      await settle();
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
+      expect(p.logs.find((l) => l.msg === "query failed")!.fields?.message).toContain(what);
+      expect(p.allRequests.some(detailReq)).toBe(false);
+      await p.stop();
+    });
+
+    it("temporaryReducedCounts가 없으면 unrecognized이고 빈 {}는 정상이다", async () => {
+      const gone = run(donghaeServer({ entryBody: () => `<input name="netfunnel_key"/>ND_setNfKey.do NetFunnel_Action({action_id:"reserve"}` }));
+      await settle();
+      expect(failedKinds(gone)).toEqual(["unrecognized"]);
+      await gone.stop();
+      const empty = run(donghaeServer({ counts: () => 3 }));
+      await settle();
+      expect(failedKinds(empty)).toEqual([]);
+      await empty.stop();
+    });
+
+    it.each([
+      ["구조 깨짐", "자동차캠핑장"],
+      ["모르는 값", "자동차캠핑장:곧오픈"],
+    ])("value %s는 빈자리 없음으로 넘기지 않고 unrecognized다", async (_n, value) => {
+      const p = run(donghaeServer({ detailBody: () => JSON.stringify({ result: true, value, message: null }) }));
+      await settle();
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
+      await p.stop();
+    });
+
+    it("감시 조건이 쓰는 구역이 응답에서 사라지면 unrecognized다", async () => {
+      const value = DONGHAE_ZONES.filter((z) => z !== "자동차캠핑장").map((z) => `${z}:3`).join("|^|");
+      const p = run(donghaeServer({ detailBody: () => JSON.stringify({ result: true, value, message: null }) }));
+      await settle();
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
+      await p.stop();
+    });
+
+    it("쓰지 않는 구역이 사라지거나 새로 생기면 경고만 한 번 남기고 감시를 계속한다", async () => {
+      const value = [...DONGHAE_ZONES.filter((z) => z !== "캐라반").map((z) => `${z}:${z === "자동차캠핑장" ? 7 : "예약완료"}`), "새구역:1"].join("|^|");
+      const p = run(donghaeServer({ detailBody: () => JSON.stringify({ result: true, value, message: null }) }));
+      await settle();
+      await p.clock.advance(150_000);
+      await settle();
+      expect(failedKinds(p)).toEqual([]);
+      expect(p.sent[0]!.text).toContain("남은 7");
+      const warns = p.logs.filter((l) => l.msg === "donghae zone drift").map((l) => `${l.fields?.change}:${l.fields?.zone}`);
+      expect(warns.sort()).toEqual(["gone:캐라반", "new:새구역"]);
+      await p.stop();
+    });
+
+    it("netfunnel.js 버전이나 TS_HOST가 바뀌면 경고만 남기고 감시를 계속한다", async () => {
+      const js = "/* Version 9.9.9 */\nNetFunnel.TS_HOST = 'other.example';\n";
+      const p = run(donghaeServer({ counts: () => 3, intercept: (req) => (req.url.endsWith("netfunnel.js") ? { status: 200, body: js } : undefined) }));
+      await settle();
+      const msgs = p.logs.map((l) => l.msg);
+      expect(msgs).toContain("donghae netfunnel.js version changed");
+      expect(msgs).toContain("donghae TS_HOST changed");
+      expect(failedKinds(p)).toEqual([]);
+      expect(p.sent).toHaveLength(1);
+      await p.stop();
+    });
+
+    it("netfunnel.js가 확인한 값 그대로면 경고가 없고, 받지 못해도 감시는 계속된다", async () => {
+      const ok = "/* Version 2.2.25_hotfix */\nNetFunnel.TS_HOST = 'nf.campingkorea.or.kr';\n";
+      const same = run(donghaeServer({ counts: () => 3, intercept: (req) => (req.url.endsWith("netfunnel.js") ? { status: 200, body: ok } : undefined) }));
+      await settle();
+      expect(same.logs.some((l) => /changed/.test(l.msg))).toBe(false);
+      await same.stop();
+      const missing = run(donghaeServer({ counts: () => 3 }));
+      await settle();
+      expect(failedKinds(missing)).toEqual([]);
+      expect(missing.sent).toHaveLength(1);
+      await missing.stop();
+    });
+
+    it("netfunnel.js는 세션당 한 번만 받는다", async () => {
+      const p = run(donghaeServer({ counts: () => 3 }));
+      await settle();
+      await p.clock.advance(150_000);
+      await settle();
+      expect(p.allRequests.filter((r) => r.url.endsWith("netfunnel.js"))).toHaveLength(1);
+      await p.stop();
+    });
   });
 });

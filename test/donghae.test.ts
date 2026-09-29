@@ -27,11 +27,11 @@ describe("동해시 폴러", () => {
     await p.stop();
   });
 
-  it("요청 순서는 5101 → ND_setNfKey → BD_reservation → 날짜 조회이고 화면 구성용 요청은 없다", async () => {
+  it("요청 순서는 5101 → ND_setNfKey → BD_reservation → 월 달력 → 날짜 조회이고 화면 구성용 요청은 없다", async () => {
     const p = run(donghaeServer({ counts: () => 3 }));
     await settle();
     const seq = p.allRequests.map((r) => (new URL(r.url).hostname.startsWith("nf.") ? `nf:${new URL(r.url).searchParams.get("opcode")}` : `${r.method} ${wwwPath(r)}`));
-    expect(seq.slice(0, 4)).toEqual(["nf:5101", "POST ND_setNfKey.do", "POST BD_reservation.do", "POST ND_selectFcltyCalendarDetail.do"]);
+    expect(seq.slice(0, 5)).toEqual(["nf:5101", "POST ND_setNfKey.do", "POST BD_reservation.do", "POST BD_reservationOrigin.do", "POST ND_selectFcltyCalendarDetail.do"]);
     expect(p.allRequests.some((r) => /ND_globalConfig|ND_massageConfig|ND_popupConfig/.test(r.url))).toBe(false);
     const setKey = p.allRequests[1]!;
     expect(setKey.body).toBe("KEY1");
@@ -39,7 +39,7 @@ describe("동해시 폴러", () => {
     const enter = new URLSearchParams(p.allRequests[2]!.body);
     expect(enter.get("q_complete")).toBe("Y");
     expect(enter.get("netfunnel_key")).toBe("KEY1");
-    const detail = new URLSearchParams(p.allRequests[3]!.body);
+    const detail = new URLSearchParams(p.allRequests[4]!.body);
     expect(Object.fromEntries(detail)).toMatchObject({ trrsrtCode: "1000", q_year: "2026", q_month: "10", qDay: "3", netfunnel_key: "KEY1", passNfTime: "0" });
     await p.stop();
   });
@@ -176,6 +176,44 @@ describe("동해시 폴러", () => {
     expect(p.sent).toHaveLength(1);
     expect(p.sent[0]!.text).toContain("2026-10-03");
     expect(p.sent[0]!.text).not.toContain("2026-10-04");
+    await p.stop();
+  });
+
+  it("필요한 밤이 예약마감이면 그 조회 단위는 날짜 조회 없이 끝난다", async () => {
+    const w = HEAD_WATCH().replace("nights: 1", "nights: 2");
+    const p = run(donghaeServer({ counts: () => 5, closed: (d) => d === "2026-10-04" }), w);
+    await settle();
+    expect(p.sent).toHaveLength(0);
+    expect(p.allRequests.some((r) => wwwPath(r) === "ND_selectFcltyCalendarDetail.do")).toBe(false);
+    await p.stop();
+  });
+
+  it("진입한 달 밖의 밤은 BD_reservationOrigin으로 그 달 달력을 읽는다", async () => {
+    const p = run(donghaeServer({ counts: () => 5, closed: (d) => d === "2026-10-03" }));
+    await settle();
+    const origin = p.allRequests.filter((r) => wwwPath(r) === "BD_reservationOrigin.do");
+    expect(origin).toHaveLength(1);
+    expect(Object.fromEntries(new URLSearchParams(origin[0]!.body))).toMatchObject({ trrsrtCode: "1000", q_year: "2026", q_month: "10", netfunnel_key: "KEY1" });
+    expect(p.allRequests.some((r) => wwwPath(r) === "ND_selectFcltyCalendarDetail.do")).toBe(false);
+    await p.stop();
+  });
+
+  it("진입한 달에 든 밤은 달력을 다시 읽지 않는다", async () => {
+    const p = run(donghaeServer({ counts: () => 5, entryMonth: "2026-10" }));
+    await settle();
+    expect(p.allRequests.some((r) => wwwPath(r) === "BD_reservationOrigin.do")).toBe(false);
+    expect(p.sent).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("달력을 읽지 못하면 그 바퀴는 실패하고 날짜 조회를 보내지 않는다", async () => {
+    const p = startPoller(() => ({ status: 404, body: "" }), {
+      yaml: yaml(),
+      server: (req) => (req.url.endsWith("BD_reservationOrigin.do") ? { status: 200, body: "<html></html>" } : donghaeServer({ counts: () => 5 })(req)),
+    });
+    await settle();
+    expect(p.allRequests.some((r) => wwwPath(r) === "ND_selectFcltyCalendarDetail.do")).toBe(false);
+    expect(p.sent).toHaveLength(0);
     await p.stop();
   });
 

@@ -1,3 +1,4 @@
+import * as cheerio from "cheerio";
 import {
   AdapterError,
   type AdapterContext,
@@ -159,6 +160,63 @@ function parseNight(body: string, reduced: Map<string, number>): Map<string, num
   return counts;
 }
 
+/** 월 달력 화면에서 날짜 → 열림 여부. 열림도 예약마감도 아닌 칸(지난 날짜, 열리지 않은 날짜)은 넣지 않는다. */
+function parseCalendar(html: string): { month: string; days: Map<string, boolean> } | undefined {
+  const $ = cheerio.load(html);
+  const y = $("#q_year").attr("value");
+  const m = $("#q_month").attr("value");
+  const cells = $("div.mCalendar1 td");
+  if (!y || !m || cells.length === 0) return undefined;
+  const month = `${y}-${m.padStart(2, "0")}`;
+  const days = new Map<string, boolean>();
+  cells.each((_, td) => {
+    const day = $(td).find("div.da").first().text().trim();
+    if (!/^\d+$/.test(day)) return;
+    const date = `${month}-${day.padStart(2, "0")}`;
+    if ($(td).find("a.reserve").length > 0) days.set(date, true);
+    else if ($(td).find("li.end").text().includes("예약마감")) days.set(date, false);
+  });
+  return { month, days };
+}
+
+/**
+ * 필요한 밤이 있는 달마다 월 달력을 읽는다. 진입한 달은 진입 응답을 쓰고, 그 밖의 달은 BD_reservationOrigin이다.
+ * 첫 실패에서 멈추고 그때까지 읽은 날짜와 실패를 함께 돌려준다.
+ */
+async function readCalendars(
+  dates: string[],
+  entry: string,
+  ctx: AdapterContext,
+  pass: QueuePass,
+): Promise<{ days: Map<string, boolean>; failure?: AdapterError }> {
+  const days = new Map<string, boolean>();
+  const seen = parseCalendar(entry);
+  if (seen) for (const [d, open] of seen.days) days.set(d, open);
+  const months = [...new Set(dates.map((d) => d.slice(0, 7)))].filter((m) => m !== seen?.month);
+  for (const month of months) {
+    if (ctx.signal?.aborted) return { days, failure: new AdapterError("transient", "중단되었다") };
+    const [year, mm] = month.split("-");
+    try {
+      const body = await fetchOk(
+        ctx.http.post(`${RESERVATION}/BD_reservationOrigin.do`, {
+          trrsrtCode: TRRSRT_CODE,
+          q_year: year!,
+          q_month: mm!,
+          netfunnel_key: pass.key,
+        }),
+        `월 달력 ${month}`,
+      );
+      const cal = parseCalendar(body);
+      if (!cal || cal.month !== month) throw new AdapterError("unrecognized", `월 달력 ${month}을(를) 읽지 못했다`);
+      for (const [d, open] of cal.days) days.set(d, open);
+    } catch (e) {
+      if (e instanceof AdapterError) return { days, failure: e };
+      throw e;
+    }
+  }
+  return { days };
+}
+
 /** 필요한 밤을 차례로 읽는다. 첫 실패에서 멈추고, 그때까지 읽은 밤과 실패를 함께 돌려준다. */
 async function readNights(
   dates: string[],
@@ -227,10 +285,19 @@ export const donghaeAdapter: ProviderAdapter = {
     );
     const reduced = parseReduced(entry);
 
-    const dates = [...new Set(units.flatMap(nightsOf))].sort();
-    const { nights, failure } = await readNights(dates, ctx, reduced, pass);
+    const allDates = [...new Set(units.flatMap(nightsOf))].sort();
+    const calendar = await readCalendars(allDates, entry, ctx, pass);
+    // 필요한 밤 하나라도 예약마감이면 날짜 조회 없이 빈 결과다.
+    const closed = (q: AvailabilityQuery) => nightsOf(q).some((d) => calendar.days.get(d) === false);
+    for (const q of units) if (closed(q)) results.set(q, []);
+    const live = units.filter((q) => !closed(q));
 
-    for (const q of units) {
+    const dates = calendar.failure ? [] : [...new Set(live.flatMap(nightsOf))].sort();
+    const read = await readNights(dates, ctx, reduced, pass);
+    const nights = read.nights;
+    const failure = calendar.failure ?? read.failure;
+
+    for (const q of live) {
       const needed = nightsOf(q);
       const counts = needed.map((d) => nights.get(d));
       if (counts.some((c) => !c)) {

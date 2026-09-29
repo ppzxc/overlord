@@ -216,6 +216,83 @@ opcode는 5101(getTidChkEnter), 5002(chkEnter), 5003(aliveNotice), 5004(setCompl
 
 **다음 단계 제안.** 위 항목은 한 가지 관찰로 풀린다. 사용자가 자기 브라우저로 정상 경로를 한 번 따라가면서 개발자 도구 Network 탭의 XHR과 문서 요청을 기록하면 된다. 로그아웃 상태로 한 번, 로그인 상태로 한 번 한다. 대기열 참여도 사람이 브라우저에서 한다. 에이전트가 대기열에 참여하는 것은 이번 조사 범위 밖이다. #25와 #26은 모두 이 기록에 달려 있다. 별도 티켓으로 만드는 것을 권한다.
 
+## 8. 대기열 뒤 기록 (2026-09-29 14:27~14:29 KST)
+
+[동해시 대기열 뒤 요청 기록](https://github.com/ppzxc/overlord/issues/27)으로 한 관찰이다. 사용자 요청에 따라 에이전트가 헤드리스 Chromium(Playwright)으로 실제 페이지 JS를 돌렸다. 체크리스트의 "본인 브라우저"와 다르다. 조건은 다음과 같았다.
+
+- UA: `overlord-availability-poller/0.1 (research)`
+- 로그아웃 상태, 사용자 IP
+- 문서·XHR 요청 약 13회, 사람이 클릭하는 간격(4초 이상)
+
+captcha 입력과 "다음" 버튼은 건드리지 않았다. 대기열 우회 경로도 쓰지 않았다. 차단 신호는 없었다. 요청 목록은 `raw/donghae/requests-queue.txt`에 있다.
+
+**대기열.** `ts.wseq` opcode 5101 한 번에 `5002:200:key=…&nwait=0`이 돌아왔다(대기 0명). 이어서 페이지가 두 요청을 보냈다.
+
+1. `ND_setNfKey.do` POST(본문은 키)
+2. `BD_reservation.do` POST(`q_complete=Y&netfunnel_key=<키>`, 나머지는 빈 값)
+
+기록 동안 setComplete(5004)는 관찰되지 않았다. 페이지 코드상으로는 5분 타이머나 페이지를 벗어날 때 부른다.
+
+**로그인 없이 예약 1단계(날짜 선택)가 열린다.** 관광지 탭(망상 1000, 망상2 2000, 무릉 3000, 추암 4000)과 월 달력이 보인다. 날짜 칸은 셋 중 하나다.
+
+- `예약현황보기` 링크(`getFcltyCntAll('<일>')`)
+- `예약마감`(`li.end`)
+- `예약종료`(지난 날짜)
+
+D+30 뒤의 날짜 칸은 비어 있다. 이 화면을 보면 월 달력을 선필터로 쓸 수 있다.
+
+**구역별 남은 수 조회는 captcha 없이 된다.** `예약현황보기`는 아래 요청을 보낸다.
+
+```
+POST /user/reservation/ND_selectFcltyCalendarDetail.do
+trrsrtCode=1000&q_year=2026&q_month=10&qDay=1&passResv1=&passNfTime=<대기 ms>&netfunnel_key=<키>
+```
+
+응답은 JSON이다.
+
+```json
+{"ipAdres":null,"paramMap":{},"result":true,"value":"전통한옥:16|^|캐빈하우스:예약완료|^|든바다:예약완료|^|난바다:7|^|허허바다:예약완료|^|자동차캠핑장:20|^|캐라반:4|^|글램핑(4인):1|^|글램핑(2인):예약완료","message":null}
+```
+
+- `value`는 `표시이름:값`을 `|^|`로 이은 문자열이다.
+- 값은 남은 수(숫자), `예약완료`, `예약불가`, `준비중` 가운데 하나다.
+- 구역은 **코드가 아니라 표시 이름**으로 온다. 망상은 9개다: 전통한옥, 캐빈하우스, 든바다, 난바다, 허허바다, 자동차캠핑장, 캐라반, 글램핑(4인), 글램핑(2인).
+- 한 번 부르면 **하루 하룻밤** 치를 준다.
+- 9/30에는 자동차캠핑장이 31이었고, 10/1에는 20이었다.
+
+이 요청에 대해 확인한 사항은 다음과 같다.
+
+- `passNfTime`은 페이지가 대기열에서 **실제로 기다린 시간(ms)**이다(`dhscamp_pass_netfunnelt`). 이번에는 99였다.
+- `passResv1`은 비어 있었다.
+- 서버는 이 요청마다 pass 키를 검사한다. 실패하면 `message`에 `NOPASS:` 접두가 붙는다. 그러면 페이지는 세션 저장값을 지우고 `history.go(-2)`로 돌아간다.
+- `result:false`이면 `message`를 alert로 띄운다.
+
+**클라이언트가 남은 수를 보정한다.** 페이지 JS의 `temporaryReducedCounts = { 'A-zone 자동차캠핑장' : 20 }`에 적힌 이름과 일치하는 항목은 남은 수에서 그만큼 뺀다. 이유는 "임시 사용 중단 호실"이다. 이번 응답의 이름("자동차캠핑장")과는 일치하지 않았다. 이 상수는 페이지를 고치면 바뀐다.
+
+**월 이동**은 `BD_reservationOrigin.do` POST다. 본문은 `trrsrtCode=1000&q_year=2026&q_month=10&netfunnel_key=<키>&…`이고, 새 달력 페이지가 통째로 온다(`raw/donghae/BD_reservationOrigin.do_2026-10.html`). 다음 달이 `mxResPosMth`(202610)를 넘으면 페이지가 막는다.
+
+**박수**는 `stayngPd` 1001~1003(1~3박)이다. "다음"을 누르기 전까지는 클라이언트에서만 체크아웃 날짜를 계산한다.
+
+**2단계(자리 선택)는 captcha 뒤에 있다.** "다음"을 누르면 순서가 이렇다.
+
+1. `무단예약방지문구` 이미지 captcha(`ND_ncaptcha.do`)의 답을 `ND_chkAnswer.do`로 검사한다.
+2. 통과하면 `BD_reservationReq.do`로 POST한다.
+
+페이지에는 "기존 선점하신 시설"을 이어서 할지, `ND_deletePreOcpcInfo.do`로 해제할지 묻는 분기가 있다. 그래서 2단계 흐름은 **선점(임시 점유)**을 만드는 것으로 보인다(추정, 요청은 보내지 않았다). 개별 자리 번호는 이 captcha 뒤에서만 보인다.
+
+**그 밖의 사항**
+
+- 페이지 코드에는 `sessionStorage.dhscamp_pass_nonetfunnel`이 `Y`면 대기열을 건너뛰는 분기가 있다. 우회 경로이므로 쓰지 않는다.
+- 로그인하지 않아도 1단계와 구역별 남은 수 조회에 막힘이 없었다. 로그인 상태 기록은 하지 않았다.
+
+**7장 미검증 항목의 상태**
+
+- 대기열 뒤 조회 요청: 위와 같이 확인했다.
+- 로그인 필요 여부: 구역별 남은 수에는 필요 없다.
+- 월 달력 선필터: 가능하다.
+- `fcltyCode`와 자리 번호: captcha 뒤에 있어 관찰할 수 없다. 조회 응답은 구역 표시 이름 단위다.
+- NICE 재인증: 로그인하지 않았으므로 해당이 없다.
+
 ## 출처
 
 - `raw/donghae/root.html`: `GET /` (JS 리다이렉트)
@@ -230,4 +307,7 @@ opcode는 5101(getTidChkEnter), 5002(chkEnter), 5003(aliveNotice), 5004(setCompl
 - `raw/donghae/notice_20260721173512015_one_room_per_day.html`: 1인 1일 1객실
 - 원본을 저장하지 않고 본문만 인용한 공지: 20241113132431455(점검 중단), 20251016190925018(당일 자정 결제)
 - 원본을 저장하지 않고 본문만 인용한 페이지: 회원가입 약관(`BD_NiceAuthentication.do` 본인인증), 1200·1800 상세
-- `raw/donghae/requests.log`: 보낸 요청 전체 목록
+- `raw/donghae/requests.log`: 1~7장 조사 때 보낸 요청 목록. `.gitignore`의 `*.log`에 걸려 커밋되지 않았고, 워크트리를 지울 때 함께 사라졌다.
+- `raw/donghae/requests-queue.txt`: 8장 기록 때 보낸 요청 목록
+- `raw/donghae/queue_step1_enter.requests.json`, `queue_step2_calendar.requests.json`: 8장 기록의 문서·XHR 요청과 응답 본문(헤더·쿠키 제외, 값 가림)
+- `raw/donghae/BD_reservationOrigin.do_2026-10.html`: 2026-10 달력 화면

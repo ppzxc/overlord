@@ -63,19 +63,20 @@ describe("쿠키 세션", () => {
     expect(requests[1]!.headers.Cookie).toBe("DHCMP_JSESSIONID=abc; NetFunnel_ID=k%3D1");
   });
 
-  it("같은 이름의 쿠키는 새 값으로 바꾸고 Max-Age=0이면 지운다", async () => {
+  it("같은 이름의 쿠키는 새 값으로 바꾸고 Max-Age=0이거나 Expires가 지났으면 지운다", async () => {
     let step = 0;
     const { requests, transport } = recording(() => {
       step++;
-      if (step === 1) return { status: 200, body: "", setCookie: ["a=1", "b=2"] };
-      if (step === 2) return { status: 200, body: "", setCookie: ["a=3", "b=; Max-Age=0"] };
+      if (step === 1) return { status: 200, body: "", setCookie: ["a=1", "b=2", "c=3", "d=4"] };
+      if (step === 2)
+        return { status: 200, body: "", setCookie: ["a=5", "b=; Max-Age=0", "c=; Expires=Thu, 01 Jan 1970 00:00:00 GMT", "d="] };
       return { status: 200, body: "" };
     });
     const http = client(transport);
     await http.get("https://example.com/1");
     await http.get("https://example.com/2");
     await http.get("https://example.com/3");
-    expect(requests[2]!.headers.Cookie).toBe("a=3");
+    expect(requests[2]!.headers.Cookie).toBe("a=5; d=");
   });
 
   it("다른 예약처의 클라이언트에는 쿠키가 새지 않는다", async () => {
@@ -129,6 +130,15 @@ describe("간격 큐 밖 요청", () => {
     expect(times["/u"]).toBe(aAt + 3_000); // 6.5초를 기다리지 않았다
     await http.get("https://example.com/c");
     expect(times["/c"]).toBe(aAt + 6_500); // /u가 아니라 /a를 기준으로 쟀다
+  });
+
+  it("중단된 뒤에는 큐 밖 요청도 보내지 않는다", async () => {
+    const { requests, transport } = recording();
+    const controller = new AbortController();
+    const http = client(transport, { pacing: { clock: new FakeClock(), random: () => 0.5, signal: controller.signal } });
+    controller.abort();
+    await expect(http.get("https://example.com/u", { unpaced: true })).rejects.toThrow(/중단/);
+    expect(requests).toEqual([]);
   });
 
   it("큐 안 요청이 응답을 기다리는 중에도 바로 나간다", async () => {

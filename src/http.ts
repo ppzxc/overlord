@@ -20,16 +20,21 @@ export function userAgent(version: string, suffix: string): string {
   return suffix.trim() ? `${base} ${suffix.trim()}` : base;
 }
 
-/** Set-Cookie 값들을 쿠키 이름별로 담는다. Max-Age=0이거나 값이 비면 지운다. 도메인과 경로는 보지 않는다. */
-function storeCookies(jar: Map<string, string>, setCookie: string[]): void {
+/** Set-Cookie 값들을 쿠키 이름별로 담는다. Max-Age가 0 이하이거나 Expires가 지났으면 지운다. 도메인과 경로는 보지 않는다. */
+function storeCookies(jar: Map<string, string>, setCookie: string[], now: number): void {
   for (const line of setCookie) {
     const [pair, ...attrs] = line.split(";");
     const eq = pair!.indexOf("=");
     if (eq <= 0) continue;
     const name = pair!.slice(0, eq).trim();
     const value = pair!.slice(eq + 1).trim();
-    const expired = attrs.some((a) => /^\s*max-age\s*=\s*(0|-\d+)\s*$/i.test(a));
-    if (expired || value === "") jar.delete(name);
+    const expired = attrs.some((a) => {
+      const [key = "", val = ""] = a.split("=").map((x) => x.trim());
+      if (/^max-age$/i.test(key)) return Number(val) <= 0;
+      if (/^expires$/i.test(key)) return Date.parse(val) <= now;
+      return false;
+    });
+    if (expired) jar.delete(name);
     else jar.set(name, value);
   }
 }
@@ -55,7 +60,7 @@ export function createHttpClient(opts: {
     if (body !== undefined) headers["Content-Type"] = FORM_CONTENT_TYPE;
     if (jar.size > 0) headers.Cookie = [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
     const res = await opts.transport({ method, url, headers, body, timeoutMs: TIMEOUT_MS });
-    if (res.setCookie) storeCookies(jar, res.setCookie);
+    if (res.setCookie) storeCookies(jar, res.setCookie, (pacing?.clock.now() ?? new Date()).getTime());
     return res;
   };
 
@@ -68,6 +73,7 @@ export function createHttpClient(opts: {
     const { pathname } = new URL(url);
     const blocked = opts.blockedPaths.find((p) => pathname.startsWith(p));
     if (blocked) return Promise.reject(new Error(`접근 금지 경로(${blocked})는 호출하지 않는다: ${url}`));
+    if (pacing?.signal.aborted) return Promise.reject(new Error("중단되었다"));
     if (!pacing || reqOpts.unpaced) return send(method, url, body);
     const run = queue.then(async () => {
       if (lastAt !== undefined) {

@@ -1,9 +1,8 @@
 import { readFileSync } from "node:fs";
 import { adapters } from "./adapters/index.js";
-import { renderCatalog } from "./catalog.js";
-import { renderLiveDiff } from "./catalog-live.js";
 import { parseArgs } from "./cli.js";
-import { ConfigError, loadConfig } from "./config.js";
+import { readConfig, runCatalog } from "./commands.js";
+import { ConfigError } from "./config.js";
 import { runPoller } from "./poller.js";
 import type { TelegramSink } from "./telegram.js";
 import type { Clock, Transport } from "./types.js";
@@ -42,40 +41,24 @@ const sink: TelegramSink = {
 const command = parseArgs(process.argv.slice(2));
 
 if (command.kind === "catalog") {
-  const adapter = adapters[command.provider ?? ""];
-  if (!adapter) {
-    console.error(`사용법: catalog <예약처> [--live]. 쓸 수 있는 예약처: ${Object.keys(adapters).join(", ")}`);
-    process.exit(1);
-  }
-  process.stdout.write(renderCatalog(adapter));
-  if (command.live) {
-    process.stdout.write("\n실제 예약처와 비교:\n");
-    try {
-      process.stdout.write(
-        await renderLiveDiff(adapter, {
-          transport,
-          version: pkg.version,
-          now: new Date(),
-          pause: () => clock.sleep(3000),
-        }),
-      );
-    } catch (e) {
-      console.error(`예약처 조회에 실패했다: ${(e as Error).message}`);
-      process.exit(1);
-    }
-  }
-  process.exit(0);
+  process.exit(
+    await runCatalog(command, {
+      adapters,
+      transport,
+      version: pkg.version,
+      now: () => new Date(),
+      sleep: (ms) => clock.sleep(ms),
+      random: Math.random,
+      out: (text) => process.stdout.write(text),
+      err: (text) => process.stderr.write(text),
+    }),
+  );
 }
 
-const configPath = command.configPath;
 let config;
 try {
-  config = loadConfig(readFileSync(configPath, "utf8"), process.env);
+  config = readConfig(command.configPath, process.env);
 } catch (e) {
-  if ((e as NodeJS.ErrnoException).code === "ENOENT") {
-    console.error(`설정 파일을 찾을 수 없다: ${configPath}`);
-    process.exit(1);
-  }
   if (e instanceof ConfigError) {
     console.error(e.message);
     process.exit(1);

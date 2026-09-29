@@ -196,7 +196,7 @@ watches:
     provider: goraebul
     facility: goraebul          # 예약처에 시설이 하나뿐이면 생략 가능
     zones: [DKA, DKB]
-    sites: [A01, A02, "A10-A15"] # 생략하면 구역 안의 모든 자리
+    seats: [A01, A02, "A10-A15"] # 생략하면 구역 안의 모든 자리
     checkIn: { from: 2026-10-01, to: 2026-10-31 }   # 입실일 기준
     weekdays: [fri, sat]
     nights: 1                   # 최소 N박, 예약처 maxNights 이하

@@ -1,7 +1,7 @@
 import { compact } from "./catalog.js";
 import { createHttpClient } from "./http.js";
 import { addDays, kstDate } from "./schedule.js";
-import type { AdapterContext, ProviderAdapter, Transport } from "./types.js";
+import { AdapterError, type AdapterContext, type ProviderAdapter, type Transport } from "./types.js";
 
 export interface LiveOptions {
   transport: Transport;
@@ -11,8 +11,17 @@ export interface LiveOptions {
   pause: () => Promise<void>;
 }
 
-/** 구역마다 실제 자리 배치를 한 번 조회해서 고정 목록과 비교한다. */
-export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions): Promise<string> {
+export interface LiveResult {
+  text: string;
+  /** 조회에 실패한 구역이 있거나 차단되어 중단했다. */
+  failed: boolean;
+}
+
+/**
+ * 구역마다 실제 자리 배치를 한 번 조회해서 고정 목록과 비교한다.
+ * 한 구역이 실패해도 나머지는 계속 조회한다. 차단되면 더 부담을 주지 않도록 멈춘다.
+ */
+export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions): Promise<LiveResult> {
   const ctx: AdapterContext = {
     http: createHttpClient({ transport: opts.transport, version: opts.version, userAgentSuffix: "" }),
   };
@@ -20,11 +29,24 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
   const checkIn = addDays(kstDate(opts.now), 1);
   const lines: string[] = [];
   let differences = 0;
+  let failures = 0;
   let first = true;
   for (const zone of adapter.describe().zones) {
     if (!first) await opts.pause();
     first = false;
-    const actual = await adapter.listSeats({ zone: zone.code, checkIn, nights: 1 }, ctx);
+    let actual: string[];
+    try {
+      actual = await adapter.listSeats({ zone: zone.code, checkIn, nights: 1 }, ctx);
+    } catch (e) {
+      if (!(e instanceof AdapterError)) throw e;
+      failures++;
+      lines.push(`${zone.code}: 조회 실패(${e.kind}): ${e.message}`);
+      if (e.kind === "blocked") {
+        lines.push("차단되어 나머지 구역 조회를 멈춘다");
+        break;
+      }
+      continue;
+    }
     if (!zone.seats) {
       lines.push(`${zone.code}: 고정 목록이 없다. 실제 ${actual.length}자리: ${compact(actual)}`);
       continue;
@@ -39,6 +61,8 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
     if (missing.length) lines.push(`${zone.code}: 예약처에서 사라진 자리 ${compact(missing)}`);
     if (added.length) lines.push(`${zone.code}: 예약처에 새로 생긴 자리 ${compact(added)}`);
   }
-  lines.push(differences === 0 ? "차이 없음" : `차이 있는 구역 ${differences}곳: 어댑터의 고정 목록을 갱신해야 한다`);
-  return `${lines.join("\n")}\n`;
+  if (failures > 0) lines.push(`조회에 실패한 구역 ${failures}곳: 결과가 완전하지 않다`);
+  if (differences > 0) lines.push(`차이 있는 구역 ${differences}곳: 어댑터의 고정 목록을 갱신해야 한다`);
+  if (failures === 0 && differences === 0) lines.push("차이 없음");
+  return { text: `${lines.join("\n")}\n`, failed: failures > 0 };
 }

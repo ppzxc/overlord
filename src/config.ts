@@ -1,7 +1,7 @@
-import { parse } from "yaml";
+import { LineCounter, isNode, parseDocument } from "yaml";
 import { z } from "zod";
 import type { ProviderAdapter } from "./types.js";
-import { checkAgainstProviders } from "./provider-check.js";
+import { checkAgainstProviders, type Problem } from "./provider-check.js";
 import { adapters as knownAdapters } from "./adapters/index.js";
 import { isValidSeatToken } from "./seats.js";
 import { WEEKDAY_KEYS } from "./schedule.js";
@@ -26,6 +26,7 @@ const configSchema = z.strictObject({
       z.strictObject({
         name: z.string().min(1),
         provider: z.string(),
+        facility: z.string().optional(),
         zones: z.array(z.string()).min(1),
         seats: z
           .array(z.string().refine(isValidSeatToken, "자리 번호(A02) 또는 범위(A10-A15) 형식이어야 한다"))
@@ -61,24 +62,37 @@ export class ConfigError extends Error {
   }
 }
 
-const where = (path: PropertyKey[]) => path.map(String).join(".") || "(최상위)";
+const dotted = (path: PropertyKey[]) => path.map(String).join(".") || "(최상위)";
 
 export function loadConfig(
   yamlText: string,
   env: Record<string, string | undefined>,
   adapters: Record<string, ProviderAdapter> = knownAdapters,
 ): Config {
-  let raw: unknown;
+  const lineCounter = new LineCounter();
+  let doc;
   try {
-    raw = parse(substituteEnv(yamlText, env));
+    doc = parseDocument(substituteEnv(yamlText, env), { lineCounter });
   } catch (e) {
     throw new ConfigError([(e as Error).message]);
   }
-  const parsed = configSchema.safeParse(raw);
+  if (doc.errors.length > 0) throw new ConfigError(doc.errors.map((e) => e.message));
+
+  /** 위치의 줄 번호. 그 위치가 없으면 가까운 윗단계 위치를 쓴다. */
+  const describe = (path: (string | number)[], message: string) => {
+    for (let n = path.length; n > 0; n--) {
+      const node = doc.getIn(path.slice(0, n), true);
+      const offset = isNode(node) ? node.range?.[0] : undefined;
+      if (offset !== undefined) return `${lineCounter.linePos(offset).line}번째 줄 ${dotted(path)}: ${message}`;
+    }
+    return `${dotted(path)}: ${message}`;
+  };
+
+  const parsed = configSchema.safeParse(doc.toJS());
   if (!parsed.success) {
-    throw new ConfigError(parsed.error.issues.map((i) => `${where(i.path)}: ${i.message}`));
+    throw new ConfigError(parsed.error.issues.map((i) => describe(i.path as (string | number)[], i.message)));
   }
-  const problems = checkAgainstProviders(parsed.data, adapters);
-  if (problems.length > 0) throw new ConfigError(problems);
+  const problems: Problem[] = checkAgainstProviders(parsed.data, adapters);
+  if (problems.length > 0) throw new ConfigError(problems.map((p) => describe(p.path, p.message)));
   return parsed.data;
 }

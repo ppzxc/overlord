@@ -186,6 +186,20 @@ export const fakeHttp = (get: (url: string) => Promise<TransportResponse>): Http
 
 export const DONGHAE_ZONES = ["전통한옥", "캐빈하우스", "든바다", "난바다", "허허바다", "자동차캠핑장", "캐라반", "글램핑(4인)", "글램핑(2인)"];
 
+/** 동해시 월 달력 화면의 조각. 열린 날은 예약현황보기 링크, 닫힌 날은 예약마감이다. */
+function donghaeCalendar(month: string, closed?: (date: string) => boolean): string {
+  const [y, m] = month.split("-") as [string, string];
+  const last = new Date(Date.UTC(Number(y), Number(m), 0)).getUTCDate();
+  const cells = Array.from({ length: last }, (_, i) => {
+    const d = i + 1;
+    const date = `${month}-${String(d).padStart(2, "0")}`;
+    return closed?.(date)
+      ? `<td class=""><div class="gDay"><div class="day"><div class="da">${d}</div></div><div class="lst"><ul><li class="end"><span>예약마감</span></li></ul></div></div></td>`
+      : `<td class="pointer" onclick="jsChkInDt('${y}','${Number(m)}','${d}',this);"><div class="gDay"><div class="day"><div class="da">${d}</div></div><div class="lst forW"><ul id="${d}"><li><a class="reserve" href="#none" onclick="getFcltyCntAll('${d}'); return false;"><span>예약현황보기</span></a></li></ul></div></div></td>`;
+  });
+  return `<input type="hidden" id="q_year" name="q_year" value="${y}"><input type="hidden" id="q_month" name="q_month" value="${m}"><div class="mCalendar1"><table><tbody><tr>${cells.join("")}</tr></tbody></table></div>`;
+}
+
 /** 가짜 동해시 서버. 대기열 서버와 www를 함께 흉내 낸다. 값을 문자열로 주면 그대로 응답에 넣는다. */
 export function donghaeServer(
   opts: {
@@ -195,6 +209,8 @@ export function donghaeServer(
     /** 대기열 응답 순서. 다 쓰면 마지막을 되풀이한다. 기본은 바로 통과다. */
     queue?: string[];
     detailBody?: (date: string) => string | undefined;
+    /** 월 달력에서 예약마감으로 보일 날짜. 기본은 모두 열려 있다. */
+    closed?: (date: string) => boolean;
   } = {},
 ) {
   let queueStep = 0;
@@ -212,6 +228,10 @@ export function donghaeServer(
     if (url.pathname.endsWith("/BD_reservation.do")) {
       const reduced = Object.entries(opts.reduced ?? {}).map(([k, v]) => `'${k}' : ${v}`).join(", ");
       return { status: 200, body: `<html><script>var temporaryReducedCounts = { ${reduced} };</script></html>` };
+    }
+    if (url.pathname.endsWith("/BD_reservationOrigin.do")) {
+      const form = new URLSearchParams(req.body ?? "");
+      return { status: 200, body: `<html>${donghaeCalendar(`${form.get("q_year")}-${form.get("q_month")}`, opts.closed)}</html>` };
     }
     if (url.pathname.endsWith("/ND_selectFcltyCalendarDetail.do")) {
       const form = new URLSearchParams(req.body ?? "");

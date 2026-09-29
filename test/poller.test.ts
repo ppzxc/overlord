@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 import { CONFIG_YAML, ENV, fixture, settle, startPoller } from "./harness.js";
 
+const POLL_MS = 150_000;
 const open = () => ({ status: 200, body: fixture("dka-2026-09-29-1night.htm") });
 const soldOut = () => ({ status: 200, body: fixture("dka-2026-09-30-2nights-soldout.htm") });
 
@@ -34,7 +35,7 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
   it("모든 요청에 정직한 UA만 붙고 From 등 다른 식별 헤더는 없다", async () => {
     const p = startPoller(open);
     await settle();
-    await p.clock.advance(150_000);
+    await p.clock.advance(POLL_MS);
     expect(p.requests.length).toBeGreaterThan(0);
     for (const r of p.requests) {
       expect(r.headers).toEqual({ "User-Agent": "overlord-availability-poller/0.1.0 (ops)" });
@@ -46,7 +47,7 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
   it("/bbs/ 경로로는 요청하지 않는다", async () => {
     const p = startPoller(open);
     await settle();
-    await p.clock.advance(150_000);
+    await p.clock.advance(POLL_MS);
     for (const r of p.requests) expect(new URL(r.url).pathname.startsWith("/bbs/")).toBe(false);
     await p.stop();
   });
@@ -59,7 +60,7 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
     expect(p.requests).toHaveLength(1);
     await p.clock.advance(1_000);
     expect(p.requests).toHaveLength(2);
-    await p.clock.advance(150_000);
+    await p.clock.advance(POLL_MS);
     expect(p.requests).toHaveLength(3);
     await p.stop();
   });
@@ -73,36 +74,46 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
 });
 
 describe("새 빈자리만 알림", () => {
-  let respond = open;
-  const swap = (r: typeof open) => () => r();
-
   it("같은 빈자리가 연속 두 바퀴 잡히면 첫 바퀴에만 알린다", async () => {
     const p = startPoller(open);
     await settle();
-    await p.clock.advance(150_000);
-    await p.clock.advance(150_000);
+    await p.clock.advance(POLL_MS);
+    await p.clock.advance(POLL_MS);
     expect(p.requests).toHaveLength(3);
     expect(p.sent).toHaveLength(1);
     await p.stop();
   });
 
   it("빈자리가 사라졌다가 다시 나타나면 다시 알린다", async () => {
-    respond = open;
-    const p = startPoller(swap(() => respond()));
+    let respond = open;
+    const p = startPoller(() => respond());
     await settle();
     respond = soldOut;
-    await p.clock.advance(150_000);
+    await p.clock.advance(POLL_MS);
     respond = open;
-    await p.clock.advance(150_000);
+    await p.clock.advance(POLL_MS);
     expect(p.sent).toHaveLength(2);
-    expect(p.sent[1]!.text).not.toContain("재시작 직후 현황");
+    expect(p.sent[1]!.text).toContain("🏕 빈자리 발견");
     await p.stop();
   });
 
-  it("프로세스 시작 뒤 첫 알림에만 재시작 직후 현황 표시가 있다", async () => {
+  it("첫 바퀴에 잡힌 빈자리 알림에만 재시작 직후 현황 표시가 있다", async () => {
     const p = startPoller(open);
     await settle();
-    expect(p.sent[0]!.text).toContain("재시작 직후 현황");
+    expect(p.sent[0]!.text).toContain("🔄 재시작 직후 현황");
+    expect(p.sent[0]!.text).not.toContain("🏕");
+    await p.stop();
+  });
+
+  it("첫 바퀴 뒤에 새로 생긴 빈자리는 재시작 직후 현황으로 표시하지 않는다", async () => {
+    let respond = soldOut;
+    const p = startPoller(() => respond());
+    await settle();
+    respond = open;
+    await p.clock.advance(POLL_MS);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("🏕 빈자리 발견");
+    expect(p.sent[0]!.text).not.toContain("재시작 직후 현황");
     await p.stop();
   });
 
@@ -112,11 +123,9 @@ describe("새 빈자리만 알림", () => {
     await settle();
     expect(p.sent).toHaveLength(0);
     fail = false;
-    await p.clock.advance(150_000);
+    await p.clock.advance(POLL_MS);
     expect(p.sent).toHaveLength(1);
-    // 실패한 시도는 첫 알림으로 치지 않으므로 표시가 유지된다.
-    expect(p.sent[0]!.text).toContain("재시작 직후 현황");
-    await p.clock.advance(150_000);
+    await p.clock.advance(POLL_MS);
     expect(p.sent).toHaveLength(1);
     await p.stop();
   });

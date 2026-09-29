@@ -29,14 +29,13 @@ export function renderOpenings(opts: {
   query: AvailabilityQuery;
   sites: AvailableSite[];
   link: string;
-  /** 프로세스를 시작한 뒤 이 알림 대상에 처음 나가는 메시지인가 */
-  afterRestart?: boolean;
+  /** 프로세스를 시작한 뒤 첫 바퀴에서 나가는 메시지인가 */
+  startupSnapshot?: boolean;
 }): TelegramMessage {
   const { query: q } = opts;
   const zoneName = opts.info.zones.find((z) => z.code === q.zone)?.name ?? q.zone;
   const text = [
-    "🏕 빈자리 발견",
-    ...(opts.afterRestart ? ["⏱ 재시작 직후 현황"] : []),
+    opts.startupSnapshot ? "🔄 재시작 직후 현황" : "🏕 빈자리 발견",
     `<b>${escapeHtml(opts.watchName)}</b>`,
     `${q.checkIn}(${weekday(q.checkIn)}) ${q.nights}박 · ${escapeHtml(zoneName)}`,
     opts.sites.map((s) => escapeHtml(s.name)).join(", "),

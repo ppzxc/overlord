@@ -46,10 +46,10 @@ export interface OpeningEntry {
 
 /** 메시지 한 건의 글자 수 한도. */
 const MAX_TEXT = 4096;
-/** "(2/3)" 같은 쪽 표시를 붙일 여유. */
+/** 첫 줄에 "(10/12)" 같은 쪽 표시가 붙어 늘어나는 글자 수의 여유. */
 const PAGE_MARK_ROOM = 12;
 const MAX_BUTTONS = 8;
-/** 한 줄이 한도를 넘지 않도록 자리 이름을 나누는 단위. */
+/** 자리가 아주 많은 구역 한 곳이 메시지 한 건을 혼자 넘지 않도록 한 줄에 쓰는 자리 수의 상한. */
 const MAX_SITES_PER_LINE = 60;
 
 /**
@@ -72,9 +72,9 @@ export function renderOpenings<E extends OpeningEntry>(opts: {
     items: Map<E, AvailableSite[]>;
     watchName?: string;
   }
-  const fresh = (): Page => ({ lines: [header], length: header.length, buttons: [], items: new Map() });
+  const newPage = (): Page => ({ lines: [header], length: header.length, buttons: [], items: new Map() });
   const pages: Page[] = [];
-  let page = fresh();
+  let page = newPage();
 
   for (const entry of opts.entries) {
     const q = entry.query;
@@ -85,7 +85,7 @@ export function renderOpenings<E extends OpeningEntry>(opts: {
         .map((s) => escapeHtml(s.name))
         .join(", ");
       const base = `${q.checkIn}(${weekday(q.checkIn)}) ${q.nights}박 · ${escapeHtml(zoneName)} · ${names}`;
-      const place = (p: Page) => {
+      const tryAdd = (p: Page) => {
         const linked = p.buttons.some((b) => b.url === entry.link);
         const room = linked || p.buttons.length < MAX_BUTTONS;
         const added = [
@@ -94,11 +94,11 @@ export function renderOpenings<E extends OpeningEntry>(opts: {
         ];
         return { added, addButton: room && !linked, size: added.reduce((n, l) => n + l.length + 1, 0) };
       };
-      let placed = place(page);
+      let placed = tryAdd(page);
       if (page.items.size > 0 && page.length + placed.size > limit) {
         pages.push(page);
-        page = fresh();
-        placed = place(page);
+        page = newPage();
+        placed = tryAdd(page);
       }
       page.lines.push(...placed.added);
       page.length += placed.size;
@@ -131,6 +131,16 @@ const BACKOFF_MS = [2_000, 4_000, 8_000];
 /** 이보다 오래 기다리라는 429는 다음 바퀴로 미룬다. */
 const MAX_RETRY_AFTER_MS = 120_000;
 
+/** 다시 시도할 만한 오류면 기다릴 시간(ms)을, 아니면 undefined를 돌려준다. */
+function retryDelayMs(err: unknown, attempt: number): number | undefined {
+  const status = err instanceof TelegramError ? err.status : undefined;
+  if (status === 429) {
+    const ms = ((err as TelegramError).retryAfterSeconds ?? 5) * 1000;
+    return ms > MAX_RETRY_AFTER_MS ? undefined : ms;
+  }
+  return status === undefined || status >= 500 ? BACKOFF_MS[attempt] : undefined;
+}
+
 /**
  * 메시지 한 건을 보낸다. 429는 retry_after만큼, 5xx와 네트워크 오류는 점점 늘려 가며 최대 3회 다시 시도한다.
  * 그 밖의 거절(잘못된 토큰이나 chat 등)은 다시 시도해도 소용없으므로 바로 던진다.
@@ -147,17 +157,9 @@ export async function sendWithRetry(
       return await sink.sendMessage(botToken, msg);
     } catch (err) {
       if (attempt >= MAX_RETRIES || aborted()) throw err;
-      const status = err instanceof TelegramError ? err.status : undefined;
-      let wait: number;
-      if (status === 429) {
-        wait = ((err as TelegramError).retryAfterSeconds ?? 5) * 1000;
-        if (wait > MAX_RETRY_AFTER_MS) throw err;
-      } else if (status === undefined || status >= 500) {
-        wait = BACKOFF_MS[attempt]!;
-      } else {
-        throw err;
-      }
-      await sleep(wait);
+      const waitMs = retryDelayMs(err, attempt);
+      if (waitMs === undefined) throw err;
+      await sleep(waitMs);
     }
   }
 }
@@ -165,7 +167,8 @@ export async function sendWithRetry(
 export interface TelegramChat {
   id: string;
   type: string;
-  title: string;
+  /** 그룹 이름이나 사용자 이름을 사람이 알아볼 수 있게 이어 붙인 값 */
+  name: string;
 }
 
 /** getUpdates 결과에서 chat을 중복 없이 모은다. */
@@ -180,7 +183,7 @@ export function chatsFromUpdates(updates: unknown[]): TelegramChat[] {
       const name = [chat.title, chat.username && `@${String(chat.username)}`, chat.first_name, chat.last_name]
         .filter((v): v is string => typeof v === "string" && v !== "")
         .join(" ");
-      chats.set(id, { id, type: String(chat.type ?? ""), title: name });
+      chats.set(id, { id, type: String(chat.type ?? ""), name });
     }
   }
   return [...chats.values()];

@@ -85,11 +85,7 @@ async function runProvider(
   let firstCycle = true;
 
   const trySend = async (notifierName: string, label: string, msg: (chatId: string) => TelegramMessage) => {
-    const notifier = config.notifiers[notifierName];
-    if (!notifier) {
-      log("unknown notifier", { watch: label, notifier: notifierName });
-      return true; // 다시 시도해도 소용없다
-    }
+    const notifier = config.notifiers[notifierName]!; // 설정을 읽을 때 notify 이름을 이미 검증했다.
     try {
       await sendWithRetry(
         deps.sink,
@@ -102,7 +98,8 @@ async function runProvider(
     } catch (err) {
       // 전송 실패는 기록하지 않아 다음 바퀴에 다시 보낸다. 다른 알림 대상은 계속 진행한다.
       if (!signal.aborted) {
-        const message = errMessage(err).replaceAll(notifier.botToken, "***").replaceAll(notifier.chatId, "***");
+        // sink가 던지는 오류에는 토큰이 없지만, 남의 오류 메시지를 그대로 믿지 않는다.
+        const message = errMessage(err).replaceAll(notifier.botToken, "***");
         log("notify failed", { watch: label, notifier: notifierName, message });
       }
       return false;
@@ -191,7 +188,7 @@ async function runProvider(
       }
     }
     for (const [name, entries] of pending) {
-      const chatId = config.notifiers[name]?.chatId ?? "";
+      const chatId = config.notifiers[name]!.chatId;
       for (const part of renderOpenings({ chatId, info, entries, startupSnapshot: firstCycle })) {
         const label = [...new Set(part.items.map((i) => i.entry.watchName))].join(", ");
         if (!(await trySend(name, label, () => part.message))) break; // 순서를 지키려고 뒤 메시지도 다음 바퀴로 미룬다.

@@ -1,6 +1,6 @@
 export type Command =
   | { kind: "catalog"; provider: string | undefined; live: boolean }
-  | { kind: "telegram"; sub: string | undefined }
+  | { kind: "telegram"; sub: "chats" | undefined }
   | { kind: "run"; configPath: string };
 
 /**
@@ -12,6 +12,6 @@ export function parseArgs(argv: string[]): Command {
   if (first === "catalog") {
     return { kind: "catalog", provider: rest.find((a) => !a.startsWith("--")), live: rest.includes("--live") };
   }
-  if (first === "telegram") return { kind: "telegram", sub: rest[0] };
+  if (first === "telegram") return { kind: "telegram", sub: rest[0] === "chats" ? "chats" : undefined };
   return { kind: "run", configPath: first ?? "config.yaml" };
 }

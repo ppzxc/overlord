@@ -1,11 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 import { TelegramError } from "../src/telegram.js";
-import { CONFIG_YAML, ENV, calendarHtml, configWith, fixture, queryOf, settle, startPoller } from "./harness.js";
+import {
+  CONFIG_YAML,
+  ENV,
+  calendarHtml,
+  configWith,
+  fixture,
+  queryOf,
+  settle,
+  startPoller,
+} from "./harness.js";
 
 const POLL_MS = 150_000;
-const open = () => ({ status: 200, body: fixture("dka-2026-09-29-1night.htm") });
-const soldOut = () => ({ status: 200, body: fixture("dka-2026-09-30-2nights-soldout.htm") });
+const open = () => ({
+  status: 200,
+  body: fixture("dka-2026-09-29-1night.htm"),
+});
+const soldOut = () => ({
+  status: 200,
+  body: fixture("dka-2026-09-30-2nights-soldout.htm"),
+});
 
 describe("고래불 폴러 워킹 스켈레톤", () => {
   it("빈 자리가 있으면 자리 번호와 딥링크가 담긴 메시지를 한 건 보낸다", async () => {
@@ -39,7 +54,9 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
     await p.clock.advance(POLL_MS);
     expect(p.allRequests.length).toBeGreaterThan(0);
     for (const r of p.allRequests) {
-      expect(r.headers).toEqual({ "User-Agent": "overlord-availability-poller/0.1.0 (ops)" });
+      expect(r.headers).toEqual({
+        "User-Agent": "overlord-availability-poller/0.1.0 (ops)",
+      });
       expect(r.timeoutMs).toBe(10_000);
     }
     await p.stop();
@@ -49,7 +66,8 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
     const p = startPoller(open);
     await settle();
     await p.clock.advance(POLL_MS);
-    for (const r of p.allRequests) expect(new URL(r.url).pathname.startsWith("/bbs/")).toBe(false);
+    for (const r of p.allRequests)
+      expect(new URL(r.url).pathname.startsWith("/bbs/")).toBe(false);
     await p.stop();
   });
 
@@ -67,7 +85,10 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
   });
 
   it("차단 페이지를 받으면 메시지 없이 다음 바퀴를 기다린다", async () => {
-    const p = startPoller(() => ({ status: 200, body: "<html>영덕군 전산팀 문의</html>" }));
+    const p = startPoller(() => ({
+      status: 200,
+      body: "<html>영덕군 전산팀 문의</html>",
+    }));
     await settle();
     expect(p.sent).toHaveLength(0);
     await p.stop();
@@ -134,11 +155,15 @@ describe("새 빈자리만 알림", () => {
 
 describe("설정 로딩", () => {
   it("${VAR}를 환경 변수로 치환한다", () => {
-    expect(loadConfig(CONFIG_YAML, ENV).notifiers["default"]?.botToken).toBe("tok");
+    expect(loadConfig(CONFIG_YAML, ENV).notifiers["default"]?.botToken).toBe(
+      "tok",
+    );
   });
 
   it("참조한 환경 변수가 비어 있으면 거부한다", () => {
-    expect(() => loadConfig(CONFIG_YAML, { ...ENV, TELEGRAM_BOT_TOKEN: "" })).toThrow(/TELEGRAM_BOT_TOKEN/);
+    expect(() =>
+      loadConfig(CONFIG_YAML, { ...ENV, TELEGRAM_BOT_TOKEN: "" }),
+    ).toThrow(/TELEGRAM_BOT_TOKEN/);
   });
 });
 
@@ -148,14 +173,18 @@ const watchYaml = (name: string, body: string) => `
     zones: [DKA]
     notify: [default]
 ${body}`;
-const days = (p: { requests: Parameters<typeof queryOf>[0][] }) => p.requests.map((r) => queryOf(r).checkIn);
+const days = (p: { requests: Parameters<typeof queryOf>[0][] }) =>
+  p.requests.map((r) => queryOf(r).checkIn);
 
 describe("감시 조건 전개", () => {
   it("입실일 범위 안에서 요일 필터에 맞는 날짜만 조회한다", async () => {
     // 2026-10-01(목) ~ 10-07(수). 금·토는 10-02, 10-03. 모두 오늘(09-29)+30일 안이라 열려 있다.
     const p = startPoller(open, {
       yaml: configWith(
-        watchYaml("주말", "    checkIn: { from: 2026-10-01, to: 2026-10-07 }\n    weekdays: [fri, sat]"),
+        watchYaml(
+          "주말",
+          "    checkIn: { from: 2026-10-01, to: 2026-10-07 }\n    weekdays: [fri, sat]",
+        ),
       ),
     });
     await settle();
@@ -165,10 +194,17 @@ describe("감시 조건 전개", () => {
 
   it("박수를 생략하면 1박으로, 주면 N박으로 조회한다", async () => {
     const one = startPoller(open, {
-      yaml: configWith(watchYaml("a", "    checkIn: { from: 2026-10-02, to: 2026-10-02 }")),
+      yaml: configWith(
+        watchYaml("a", "    checkIn: { from: 2026-10-02, to: 2026-10-02 }"),
+      ),
     });
     const two = startPoller(soldOut, {
-      yaml: configWith(watchYaml("b", "    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    nights: 2")),
+      yaml: configWith(
+        watchYaml(
+          "b",
+          "    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    nights: 2",
+        ),
+      ),
     });
     await settle();
     expect(one.requests.map((r) => queryOf(r).nights)).toEqual(["1"]);
@@ -180,7 +216,10 @@ describe("감시 조건 전개", () => {
   it("같은 조회 단위를 쓰는 감시 조건 둘은 요청 한 번으로 둘 다 알림을 받는다", async () => {
     const range = "    checkIn: { from: 2026-10-02, to: 2026-10-02 }";
     const p = startPoller(open, {
-      yaml: configWith(watchYaml("첫째", range), watchYaml("둘째", `${range}\n    seats: [A02]`)),
+      yaml: configWith(
+        watchYaml("첫째", range),
+        watchYaml("둘째", `${range}\n    seats: [A02]`),
+      ),
     });
     await settle();
     expect(p.requests).toHaveLength(1);
@@ -194,19 +233,28 @@ describe("감시 조건 전개", () => {
   it("자리 필터에 맞지 않는 빈자리는 알리지 않는다", async () => {
     const p = startPoller(open, {
       yaml: configWith(
-        watchYaml("필터", '    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [A02, "A10-A12"]'),
+        watchYaml(
+          "필터",
+          '    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [A02, "A10-A12"]',
+        ),
       ),
     });
     await settle();
     const text = p.sent[0]!.text;
-    for (const n of ["A02호", "A10호", "A11호", "A12호"]) expect(text).toContain(n);
+    for (const n of ["A02호", "A10호", "A11호", "A12호"])
+      expect(text).toContain(n);
     for (const n of ["A04호", "A13호", "A15호"]) expect(text).not.toContain(n);
     await p.stop();
   });
 
   it("필터에 맞는 자리가 하나도 없으면 메시지를 보내지 않는다", async () => {
     const p = startPoller(open, {
-      yaml: configWith(watchYaml("없음", "    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [A01]")),
+      yaml: configWith(
+        watchYaml(
+          "없음",
+          "    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [A01]",
+        ),
+      ),
     });
     await settle();
     expect(p.requests).toHaveLength(1);
@@ -217,7 +265,12 @@ describe("감시 조건 전개", () => {
   it("아직 열리지 않은 날짜는 조회하지 않고, 오픈 시각(D−30일 10:00)을 지나면 조회한다", async () => {
     // 10-29는 09-29 10:00(KST)에 열린다. 시작 시각은 09:00이다.
     const p = startPoller(open, {
-      yaml: configWith(watchYaml("먼 날짜", "    checkIn: { from: 2026-10-29, to: 2026-10-29 }")),
+      yaml: configWith(
+        watchYaml(
+          "먼 날짜",
+          "    checkIn: { from: 2026-10-29, to: 2026-10-29 }",
+        ),
+      ),
     });
     await settle();
     expect(p.requests).toHaveLength(0);
@@ -230,7 +283,9 @@ describe("감시 조건 전개", () => {
 
   it("당일 입실은 18:00 이후 조회하지 않는다", async () => {
     const p = startPoller(open, {
-      yaml: configWith(watchYaml("오늘", "    checkIn: { from: 2026-09-29, to: 2026-09-30 }")),
+      yaml: configWith(
+        watchYaml("오늘", "    checkIn: { from: 2026-09-29, to: 2026-09-30 }"),
+      ),
     });
     await settle();
     expect(days(p)).toEqual(["2026-09-29", "2026-09-30"]);
@@ -241,7 +296,12 @@ describe("감시 조건 전개", () => {
 
   it("지난 날짜는 조회하지 않는다", async () => {
     const p = startPoller(open, {
-      yaml: configWith(watchYaml("어제부터", "    checkIn: { from: 2026-09-27, to: 2026-09-29 }")),
+      yaml: configWith(
+        watchYaml(
+          "어제부터",
+          "    checkIn: { from: 2026-09-27, to: 2026-09-29 }",
+        ),
+      ),
     });
     await settle();
     expect(days(p)).toEqual(["2026-09-29"]);
@@ -250,7 +310,12 @@ describe("감시 조건 전개", () => {
 
   it("입실일 범위가 모두 지나면 만료 알림을 한 번만 보내고 더 조회하지 않는다", async () => {
     const p = startPoller(open, {
-      yaml: configWith(watchYaml("곧 만료", "    checkIn: { from: 2026-09-29, to: 2026-09-29 }")),
+      yaml: configWith(
+        watchYaml(
+          "곧 만료",
+          "    checkIn: { from: 2026-09-29, to: 2026-09-29 }",
+        ),
+      ),
     });
     await settle();
     expect(p.sent).toHaveLength(1); // 빈자리 알림
@@ -269,17 +334,28 @@ describe("감시 조건 전개", () => {
 
 describe("자리 필터 설정 검증", () => {
   const withSeats = (s: string) =>
-    configWith(watchYaml("x", `    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [${s}]`));
-  it.each(["A15-A10", "A10-B15", "abc", "10"])("잘못된 자리 표기 %s를 거부한다", (s) => {
-    expect(() => loadConfig(withSeats(`"${s}"`), ENV)).toThrow();
-  });
+    configWith(
+      watchYaml(
+        "x",
+        `    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [${s}]`,
+      ),
+    );
+  it.each(["A15-A10", "A10-B15", "abc", "10"])(
+    "잘못된 자리 표기 %s를 거부한다",
+    (s) => {
+      expect(() => loadConfig(withSeats(`"${s}"`), ENV)).toThrow();
+    },
+  );
   it("A02와 A10-A15는 받아들인다", () => {
-    expect(() => loadConfig(withSeats('A02, "A10-A15", "A20-25"'), ENV)).not.toThrow();
+    expect(() =>
+      loadConfig(withSeats('A02, "A10-A15", "A20-25"'), ENV),
+    ).not.toThrow();
   });
 });
 
 describe("캘린더 선필터와 요청 매너", () => {
-  const calendars = (p: { allRequests: { url: string }[] }) => p.allRequests.filter((r) => r.url.includes("view_cate="));
+  const calendars = (p: { allRequests: { url: string }[] }) =>
+    p.allRequests.filter((r) => r.url.includes("view_cate="));
 
   it("대상 날짜와 구역이 모두 매진이면 캘린더 요청만 한 번 나가고 알림은 없다", async () => {
     const p = startPoller(open, { remaining: () => 0 });
@@ -302,13 +378,16 @@ describe("캘린더 선필터와 요청 매너", () => {
 `);
     const p = startPoller(open, {
       yaml,
-      remaining: (zone, date) => (zone === "DKB" && date === "2026-09-30") || (zone === "CAA" && date === "2026-09-29") ? 3 : 0,
+      remaining: (zone, date) =>
+        (zone === "DKB" && date === "2026-09-30") ||
+        (zone === "CAA" && date === "2026-09-29")
+          ? 3
+          : 0,
     });
     await settle();
-    expect(p.requests.map((r) => `${queryOf(r).zone}|${queryOf(r).checkIn}`)).toEqual([
-      "DKB|2026-09-30",
-      "CAA|2026-09-29",
-    ]);
+    expect(
+      p.requests.map((r) => `${queryOf(r).zone}|${queryOf(r).checkIn}`),
+    ).toEqual(["DKB|2026-09-30", "CAA|2026-09-29"]);
     await p.stop();
   });
 
@@ -322,7 +401,9 @@ describe("캘린더 선필터와 요청 매너", () => {
 `);
     const p = startPoller(open, { yaml, remaining: () => 0 });
     await settle();
-    expect(calendars(p).map((r) => new URL(r.url).searchParams.get("view_cate2"))).toEqual(["9", "10"]);
+    expect(
+      calendars(p).map((r) => new URL(r.url).searchParams.get("view_cate2")),
+    ).toEqual(["9", "10"]);
     await p.stop();
   });
 
@@ -334,11 +415,17 @@ describe("캘린더 선필터와 요청 매너", () => {
     nights: 1
     notify: [default]
 `);
-    for (const [random, gap] of [[0, 5000], [0.5, 6500], [0.999, 7997]] as const) {
+    for (const [random, gap] of [
+      [0, 5000],
+      [0.5, 6500],
+      [0.999, 7997],
+    ] as const) {
       const p = startPoller(open, { yaml, random: () => random });
       await settle();
       expect(p.allRequests).toHaveLength(4); // 캘린더 1 + 구역 3
-      const gaps = p.requestTimes.slice(1).map((t, i) => t - p.requestTimes[i]!);
+      const gaps = p.requestTimes
+        .slice(1)
+        .map((t, i) => t - p.requestTimes[i]!);
       for (const g of gaps) expect(g).toBeGreaterThanOrEqual(gap - 3);
       for (const g of gaps) expect(g).toBeLessThanOrEqual(gap + 3);
       await p.stop();
@@ -349,17 +436,25 @@ describe("캘린더 선필터와 요청 매너", () => {
     const early = startPoller(open, { random: () => 0 });
     await settle();
     await early.clock.advance(119_000);
-    expect(early.allRequests.filter((r) => r.url.includes("view_cate="))).toHaveLength(1);
+    expect(
+      early.allRequests.filter((r) => r.url.includes("view_cate=")),
+    ).toHaveLength(1);
     await early.clock.advance(1_000);
-    expect(early.allRequests.filter((r) => r.url.includes("view_cate="))).toHaveLength(2);
+    expect(
+      early.allRequests.filter((r) => r.url.includes("view_cate=")),
+    ).toHaveLength(2);
     await early.stop();
 
     const late = startPoller(open, { random: () => 0.9999 });
     await settle();
     await late.clock.advance(179_000);
-    expect(late.allRequests.filter((r) => r.url.includes("view_cate="))).toHaveLength(1);
+    expect(
+      late.allRequests.filter((r) => r.url.includes("view_cate=")),
+    ).toHaveLength(1);
     await late.clock.advance(2_000);
-    expect(late.allRequests.filter((r) => r.url.includes("view_cate="))).toHaveLength(2);
+    expect(
+      late.allRequests.filter((r) => r.url.includes("view_cate=")),
+    ).toHaveLength(2);
     await late.stop();
   });
 });
@@ -369,7 +464,10 @@ describe("고래불 실제 캘린더 fixture", () => {
     http: {
       get: async (url: string) => {
         seen.push(url);
-        return { status: 200, body: url.includes("view_cate=") ? body : open().body };
+        return {
+          status: 200,
+          body: url.includes("view_cate=") ? body : open().body,
+        };
       },
     },
   });
@@ -382,7 +480,10 @@ describe("고래불 실제 캘린더 fixture", () => {
       { zone: "PEA", checkIn: "2026-09-29", nights: 1 }, // 캘린더에 없는 구역
       { zone: "DKA", checkIn: "2026-09-15", nights: 1 }, // 지난 날짜(td.not)
     ];
-    const res = await goraebulAdapter.queryAvailabilityBatch!(units, ctxFor(fixture("calendar-2026-09.htm"), seen));
+    const res = await goraebulAdapter.queryAvailabilityBatch!(
+      units,
+      ctxFor(fixture("calendar-2026-09.htm"), seen),
+    );
     expect(seen.filter((u) => u.includes("zoneAreaAjax"))).toHaveLength(1);
     expect(res.get(units[0]!)).not.toEqual([]);
     expect(res.get(units[1]!)).toEqual([]);
@@ -392,7 +493,10 @@ describe("고래불 실제 캘린더 fixture", () => {
   it("캘린더 구조를 읽지 못하면 unrecognized로 실패한다", async () => {
     const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
     const unit = { zone: "DKA", checkIn: "2026-09-29", nights: 1 };
-    const res = await goraebulAdapter.queryAvailabilityBatch!([unit], ctxFor("<html></html>"));
+    const res = await goraebulAdapter.queryAvailabilityBatch!(
+      [unit],
+      ctxFor("<html></html>"),
+    );
     expect(res.get(unit)).toMatchObject({ kind: "unrecognized" });
   });
 });
@@ -400,20 +504,34 @@ describe("고래불 실제 캘린더 fixture", () => {
 describe("캘린더 실패 격리", () => {
   const run = async (body: string, months: string[]) => {
     const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
-    const units = months.map((m) => ({ zone: "DKA", checkIn: `${m}-29`, nights: 1 }));
+    const units = months.map((m) => ({
+      zone: "DKA",
+      checkIn: `${m}-29`,
+      nights: 1,
+    }));
     const ctx = {
       http: {
         get: async (url: string) => {
-          if (!url.includes("view_cate=")) return { status: 200, body: open().body };
-          return { status: 200, body: url.includes("view_cate2=9") ? body : calendarHtml("2026-10") };
+          if (!url.includes("view_cate="))
+            return { status: 200, body: open().body };
+          return {
+            status: 200,
+            body: url.includes("view_cate2=9") ? body : calendarHtml("2026-10"),
+          };
         },
       },
     };
-    return { units, res: await goraebulAdapter.queryAvailabilityBatch!(units, ctx) };
+    return {
+      units,
+      res: await goraebulAdapter.queryAvailabilityBatch!(units, ctx),
+    };
   };
 
   it("구역 링크에서 type을 읽지 못하면 매진으로 착각하지 않고 unrecognized다", async () => {
-    const { units, res } = await run(calendarHtml("2026-09").replaceAll("type=", "kind="), ["2026-09"]);
+    const { units, res } = await run(
+      calendarHtml("2026-09").replaceAll("type=", "kind="),
+      ["2026-09"],
+    );
     expect(res.get(units[0]!)).toMatchObject({ kind: "unrecognized" });
   });
 
@@ -427,7 +545,10 @@ describe("캘린더 실패 격리", () => {
 describe("Telegram 알림 완성", () => {
   const watchesOver = (days: number, extra = "") =>
     configWith(
-      watchYaml("긴 범위", `    checkIn: { from: 2026-09-29, to: 2026-${days > 2 ? "10" : "09"}-${String(28 + days - (days > 2 ? 30 : 0)).padStart(2, "0")} }${extra}`),
+      watchYaml(
+        "긴 범위",
+        `    checkIn: { from: 2026-09-29, to: 2026-${days > 2 ? "10" : "09"}-${String(28 + days - (days > 2 ? 30 : 0)).padStart(2, "0")} }${extra}`,
+      ),
     );
 
   it("감시 조건별 블록에 날짜(요일) N박 · 구역명 · 자리 번호들을 적는다", async () => {
@@ -440,13 +561,21 @@ describe("Telegram 알림 완성", () => {
   });
 
   it("(구역, 입실일)이 여덟 개를 넘으면 버튼은 여덟 개까지만 붙고 나머지는 본문 링크로 준다", async () => {
-    const p = startPoller(open, { yaml: watchesOver(10, "\n    seats: [A02]") });
+    const p = startPoller(open, {
+      yaml: watchesOver(10, "\n    seats: [A02]"),
+    });
     await settle();
     const total = p.requests.length;
     expect(total).toBeGreaterThan(8);
-    const buttons = p.sent.flatMap((m) => m.reply_markup?.inline_keyboard.flat() ?? []);
-    expect(p.sent.every((m) => (m.reply_markup?.inline_keyboard.length ?? 0) <= 8)).toBe(true);
-    const bodyLinks = p.sent.flatMap((m) => m.text.match(/<a href="[^"]+">/g) ?? []);
+    const buttons = p.sent.flatMap(
+      (m) => m.reply_markup?.inline_keyboard.flat() ?? [],
+    );
+    expect(
+      p.sent.every((m) => (m.reply_markup?.inline_keyboard.length ?? 0) <= 8),
+    ).toBe(true);
+    const bodyLinks = p.sent.flatMap(
+      (m) => m.text.match(/<a href="[^"]+">/g) ?? [],
+    );
     expect(buttons.length + bodyLinks.length).toBe(total);
     expect(bodyLinks.length).toBeGreaterThan(0);
     await p.stop();
@@ -456,13 +585,44 @@ describe("Telegram 알림 완성", () => {
     const p = startPoller(open, {
       yaml: configWith(
         ...Array.from({ length: 30 }, (_, i) =>
-          watchYaml(`${"긴이름".repeat(20)}${i}`, `    checkIn: { from: 2026-09-29, to: 2026-09-29 }`),
+          watchYaml(
+            `${"긴이름".repeat(20)}${i}`,
+            `    checkIn: { from: 2026-09-29, to: 2026-09-29 }`,
+          ),
         ),
       ),
     });
     await settle();
     expect(p.sent.length).toBeGreaterThan(1);
     for (const m of p.sent) expect(m.text.length).toBeLessThanOrEqual(4096);
+    await p.stop();
+  });
+
+  it("여러 메시지로 나뉜 알림 중 뒤쪽이 실패해도 그 자리들은 다음 바퀴에 다시 보낸다", async () => {
+    const seatCount = 500;
+    const names = Array.from(
+      { length: seatCount },
+      (_, i) => `텐트사이트 A${String(i + 1).padStart(3, "0")}호`,
+    );
+    const html = `<div id="zone_dka" class="select_room">${names
+      .map(
+        (n, i) =>
+          `<a href="#" onclick="zone_area_select('${i}','dka_${i}','${n}');return false;" id="dka_${i}" class="num "><span>${i}</span></a>`,
+      )
+      .join("")}</div>`;
+    let calls = 0;
+    // 첫 메시지는 나가고, 둘째 메시지는 재시도까지 모두 실패한 뒤 다음 바퀴에서 나간다.
+    const p = startPoller(() => ({ status: 200, body: html }), {
+      failSend: () =>
+        ++calls >= 2 && calls <= 5 ? new TelegramError("서버", 502) : false,
+    });
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    await p.clock.advance(POLL_MS);
+    const delivered = new Set(
+      p.sent.flatMap((m) => names.filter((n) => m.text.includes(n))),
+    );
+    expect(delivered.size).toBe(seatCount);
     await p.stop();
   });
 
@@ -482,7 +642,9 @@ describe("Telegram 알림 완성", () => {
 
   it("5xx는 최대 세 번 다시 시도하고 그래도 안 되면 다음 바퀴에 다시 보낸다", async () => {
     let fail = true;
-    const p = startPoller(open, { failSend: () => fail && new TelegramError("서버", 502) });
+    const p = startPoller(open, {
+      failSend: () => fail && new TelegramError("서버", 502),
+    });
     await settle();
     expect(p.attempts()).toBe(4); // 첫 시도 + 재시도 3회
     expect(p.sent).toHaveLength(0);
@@ -493,7 +655,9 @@ describe("Telegram 알림 완성", () => {
   });
 
   it("잘못된 요청(4xx)은 다시 시도하지 않는다", async () => {
-    const p = startPoller(open, { failSend: () => new TelegramError("chat 없음", 400) });
+    const p = startPoller(open, {
+      failSend: () => new TelegramError("chat 없음", 400),
+    });
     await settle();
     expect(p.attempts()).toBe(1);
     await p.stop();
@@ -502,7 +666,12 @@ describe("Telegram 알림 완성", () => {
   it("notifiers에 없는 알림 대상은 설정 검증에서 거부한다", () => {
     expect(() =>
       loadConfig(
-        configWith(watchYaml("x", "    checkIn: { from: 2026-10-02, to: 2026-10-02 }").replace("[default]", "[nowhere]")),
+        configWith(
+          watchYaml(
+            "x",
+            "    checkIn: { from: 2026-10-02, to: 2026-10-02 }",
+          ).replace("[default]", "[nowhere]"),
+        ),
         ENV,
       ),
     ).toThrow(/nowhere[\s\S]*default/);

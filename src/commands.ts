@@ -61,7 +61,7 @@ export interface TelegramDeps {
 
 /** telegram 하위 명령을 실행하고 종료 코드를 돌려준다. 봇 토큰은 환경 변수 TELEGRAM_BOT_TOKEN에서 읽는다. */
 export async function runTelegram(command: Extract<Command, { kind: "telegram" }>, deps: TelegramDeps): Promise<number> {
-  if (command.sub !== "chats") {
+  if (command.sub === undefined) {
     deps.err("사용법: telegram chats\n");
     return 1;
   }
@@ -84,6 +84,6 @@ export async function runTelegram(command: Extract<Command, { kind: "telegram" }
     deps.out("최근 받은 업데이트가 없다. 봇에게 메시지를 보내거나 그룹에 봇을 초대한 뒤 다시 실행한다.\n");
     return 0;
   }
-  deps.out(["chatId\t종류\t이름", ...chats.map((c) => `${c.id}\t${c.type}\t${c.title}`)].join("\n") + "\n");
+  deps.out(["chatId\t종류\t이름", ...chats.map((c) => `${c.id}\t${c.type}\t${c.name}`)].join("\n") + "\n");
   return 0;
 }

@@ -27,6 +27,8 @@ const clock: Clock = {
     }),
 };
 
+const TELEGRAM_TIMEOUT_MS = 15_000;
+
 async function telegramCall(botToken: string, method: string, body: unknown): Promise<{ result?: unknown }> {
   let res: Response;
   try {
@@ -34,7 +36,7 @@ async function telegramCall(botToken: string, method: string, body: unknown): Pr
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(TELEGRAM_TIMEOUT_MS),
     });
   } catch {
     // 원본 오류 메시지에 토큰이 든 URL이 들어갈 수 있어 버린다.

@@ -1,5 +1,6 @@
 import { parse } from "yaml";
 import { z } from "zod";
+import { WEEKDAY_KEYS } from "./schedule.js";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 한다");
 
@@ -22,6 +23,8 @@ const configSchema = z.strictObject({
         name: z.string().min(1),
         provider: z.string(),
         zones: z.array(z.string()).min(1),
+        sites: z.array(z.string()).min(1).optional(),
+        weekdays: z.array(z.enum(WEEKDAY_KEYS)).min(1).optional(),
         checkIn: z.strictObject({ from: date, to: date }),
         nights: z.number().int().min(1).default(1),
         notify: z.array(z.string()).default(["default"]),

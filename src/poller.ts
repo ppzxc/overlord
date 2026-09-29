@@ -1,7 +1,16 @@
 import type { Config } from "./config.js";
 import { createHttpClient } from "./http.js";
-import { renderOpenings, type TelegramSink } from "./telegram.js";
-import { AdapterError, type Clock, type ProviderAdapter, type Transport } from "./types.js";
+import { expandWatch, isExpired, unitKey } from "./schedule.js";
+import { filterSites } from "./sites.js";
+import { renderOpenings, renderWatchExpired, type TelegramSink } from "./telegram.js";
+import {
+  AdapterError,
+  type AvailabilityQuery,
+  type AvailableSite,
+  type Clock,
+  type ProviderAdapter,
+  type Transport,
+} from "./types.js";
 
 export interface PollerDeps {
   config: Config;
@@ -13,17 +22,24 @@ export interface PollerDeps {
   log?: (msg: string, fields?: Record<string, unknown>) => void;
 }
 
-/** 워킹 스켈레톤: 첫 감시 조건의 첫 구역·첫 입실일을 고정 간격으로 반복 조회한다. */
+type Watch = Config["watches"][number];
+
+/** 예약처마다 바퀴 루프를 하나씩 돌린다. */
 export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<void> {
+  const providers = [...new Set(deps.config.watches.map((w) => w.provider))];
+  for (const id of providers) {
+    if (!deps.adapters[id]) throw new Error(`알 수 없는 예약처: ${id}`);
+  }
+  await Promise.all(providers.map((id) => runProvider(deps, id, signal)));
+}
+
+async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSignal): Promise<void> {
   const { config, clock } = deps;
   const log = deps.log ?? (() => {});
-  const watch = config.watches[0];
-  if (!watch) return;
-  const adapter = deps.adapters[watch.provider];
-  if (!adapter) throw new Error(`알 수 없는 예약처: ${watch.provider}`);
-  const zone = watch.zones[0];
-  if (!zone) return;
-  const intervalMs = (config.providers[watch.provider]?.pollIntervalSeconds ?? 150) * 1000;
+  const adapter = deps.adapters[providerId]!;
+  const info = adapter.describe();
+  const watches = config.watches.filter((w) => w.provider === providerId);
+  const intervalMs = (config.providers[providerId]?.pollIntervalSeconds ?? 150) * 1000;
 
   const ctx = {
     http: createHttpClient({
@@ -32,47 +48,100 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
       userAgentSuffix: config.userAgentSuffix,
     }),
   };
-  const query = { zone, checkIn: watch.checkIn.from, nights: watch.nights };
-  // 알림 대상별 "알렸음" 상태: 알림 대상 이름 → 이미 알린 자리 이름. 영속하지 않는다.
-  // 지금은 감시 조건 하나에 조회 하나뿐이라 (구역, 입실일, 박수)는 상수다. 조회가 늘면 키를 넓힌다.
-  const notified = new Map<string, Set<string>>();
+  // "알렸음" 상태(영속하지 않는다): 감시 조건 이름 → 알림 대상 이름 → 조회 단위 키 → 이미 알린 자리 이름.
+  const notified = new Map<string, Map<string, Map<string, Set<string>>>>();
+  // 만료 알림을 이미 보낸 (감시 조건, 알림 대상)
+  const expiredSent = new Set<string>();
   let firstCycle = true;
 
-  while (!signal.aborted) {
+  const send = async (notifierName: string, watch: Watch, build: (chatId: string) => Parameters<TelegramSink["sendMessage"]>[1]) => {
+    const notifier = config.notifiers[notifierName];
+    if (!notifier) return false;
     try {
-      const sites = await adapter.queryAvailability(query, ctx);
-      const current = new Set(sites.map((s) => s.name));
-      const link = adapter.deepLink(query);
+      await deps.sink.sendMessage(notifier.botToken, build(notifier.chatId));
+      return true;
+    } catch (err) {
+      // 전송 실패는 기록하지 않아 다음 바퀴에 다시 보낸다. 다른 알림 대상은 계속 진행한다.
+      log("notify failed", { watch: watch.name, notifier: notifierName, message: errMessage(err) });
+      return false;
+    }
+  };
+
+  while (!signal.aborted) {
+    const now = clock.now();
+    const active: Watch[] = [];
+    for (const watch of watches) {
+      if (!isExpired(watch, info.openingRule, now)) {
+        active.push(watch);
+        continue;
+      }
       for (const name of watch.notify) {
-        const notifier = config.notifiers[name];
-        if (!notifier) continue;
-        // 사라진 자리는 잊어서, 다시 생기면 새 빈자리로 알린다.
-        const known = new Set([...(notified.get(name) ?? [])].filter((n) => current.has(n)));
-        notified.set(name, known);
-        const fresh = sites.filter((s) => !known.has(s.name));
-        if (fresh.length === 0) continue;
-        try {
-          const msg = renderOpenings({
-            chatId: notifier.chatId,
-            watchName: watch.name,
-            info: adapter.describe(),
-            query,
-            sites: fresh,
-            link,
-            startupSnapshot: firstCycle,
-          });
-          await deps.sink.sendMessage(notifier.botToken, msg);
-          fresh.forEach((s) => known.add(s.name));
-        } catch (err) {
-          // 전송 실패는 기록하지 않아 다음 바퀴에 다시 보낸다. 다른 알림 대상은 계속 진행한다.
-          log("notify failed", { notifier: name, message: err instanceof Error ? err.message : String(err) });
+        const key = `${watch.name}|${name}`;
+        if (expiredSent.has(key)) continue;
+        const ok = await send(name, watch, (chatId) =>
+          renderWatchExpired({ chatId, watchName: watch.name, checkIn: watch.checkIn }),
+        );
+        if (ok) expiredSent.add(key);
+      }
+    }
+
+    // 같은 조회 단위는 감시 조건이 몇 개든 한 번만 조회한다.
+    const plans = active.map((watch) => ({ watch, units: expandWatch(watch, info.openingRule, now) }));
+    const results = new Map<string, AvailableSite[] | null>(); // null: 이번 바퀴에 조회 실패
+    const queries = new Map<string, AvailabilityQuery>();
+    for (const { units } of plans) for (const q of units) queries.set(unitKey(q), q);
+    for (const [key, q] of queries) {
+      if (signal.aborted) break;
+      try {
+        results.set(key, await adapter.queryAvailability(q, ctx));
+      } catch (err) {
+        results.set(key, null);
+        const kind = err instanceof AdapterError ? err.kind : "error";
+        log("query failed", { kind, unit: key, message: errMessage(err) });
+      }
+    }
+
+    for (const { watch, units } of plans) {
+      const byNotifier = notified.get(watch.name) ?? new Map<string, Map<string, Set<string>>>();
+      notified.set(watch.name, byNotifier);
+      for (const name of watch.notify) {
+        const perUnit = byNotifier.get(name) ?? new Map<string, Set<string>>();
+        byNotifier.set(name, perUnit);
+        const planned = new Set(units.map(unitKey));
+        // 더 이상 조회하지 않는 단위는 잊는다.
+        for (const key of perUnit.keys()) if (!planned.has(key)) perUnit.delete(key);
+        for (const q of units) {
+          const key = unitKey(q);
+          const found = results.get(key);
+          if (!found) continue; // 조회 실패: 알림 상태를 건드리지 않는다.
+          const sites = filterSites(found, watch.sites);
+          const current = new Set(sites.map((s) => s.name));
+          // 사라진 자리는 잊어서, 다시 생기면 새 빈자리로 알린다.
+          const known = new Set([...(perUnit.get(key) ?? [])].filter((n) => current.has(n)));
+          perUnit.set(key, known);
+          const fresh = sites.filter((s) => !known.has(s.name));
+          if (fresh.length === 0) continue;
+          const link = adapter.deepLink(q);
+          const ok = await send(name, watch, (chatId) =>
+            renderOpenings({
+              chatId,
+              watchName: watch.name,
+              info,
+              query: q,
+              sites: fresh,
+              link,
+              startupSnapshot: firstCycle,
+            }),
+          );
+          if (ok) fresh.forEach((s) => known.add(s.name));
         }
       }
-    } catch (err) {
-      const kind = err instanceof AdapterError ? err.kind : "error";
-      log("cycle failed", { kind, message: err instanceof Error ? err.message : String(err) });
     }
     firstCycle = false;
     await clock.sleep(intervalMs, signal);
   }
+}
+
+function errMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

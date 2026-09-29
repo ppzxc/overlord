@@ -47,3 +47,16 @@ export function renderOpenings(opts: {
     reply_markup: { inline_keyboard: [[{ text: `${zoneName} ${q.checkIn} 예약 화면`, url: opts.link }]] },
   };
 }
+
+export function renderWatchExpired(opts: {
+  chatId: string;
+  watchName: string;
+  checkIn: { from: string; to: string };
+}): TelegramMessage {
+  const text = [
+    "⌛ 감시 조건 만료",
+    `<b>${escapeHtml(opts.watchName)}</b>`,
+    `입실일 범위 ${opts.checkIn.from} ~ ${opts.checkIn.to}가 모두 지났다. 더 이상 조회하지 않는다.`,
+  ].join("\n");
+  return { chatId: opts.chatId, text, parse_mode: "HTML" };
+}

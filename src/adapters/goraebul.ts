@@ -23,7 +23,13 @@ const ZONES = [
   { code: "PEC", name: "펜션형 C" },
 ];
 
-const INFO: ProviderInfo = { id: "goraebul", facility: "goraebul", zones: ZONES, maxNights: 2 };
+const INFO: ProviderInfo = {
+  id: "goraebul",
+  facility: "goraebul",
+  zones: ZONES,
+  maxNights: 2,
+  openingRule: { openDaysBefore: 30, openTime: "10:00", sameDayCutoff: "18:00" },
+};
 
 // 예약처가 차단 페이지를 HTTP 200으로 준다.
 const BLOCK_MARKER = "영덕군 전산팀";
@@ -41,7 +47,7 @@ function parseOpenSites(html: string, zone: string): AvailableSite[] {
     const match = /zone_area_select\('[^']*','[^']*','([^']*)'\)/.exec(onclick);
     // 빈 자리는 class가 num뿐이고 zone_area_select onclick이 있는 자리다.
     if (classes.length === 1 && classes[0] === "num" && match?.[1]) {
-      sites.push({ name: match[1] });
+      sites.push({ id: /([A-Za-z]+\d+)호/.exec(match[1])?.[1] ?? match[1], name: match[1] });
     }
   });
   return sites;

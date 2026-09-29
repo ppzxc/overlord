@@ -31,11 +31,19 @@ export interface ZoneInfo {
   name: string;
 }
 
+/** 입실일 D는 D−openDaysBefore일 openTime에 열리고, 당일 입실은 sameDayCutoff에 마감된다. 한국 시각. */
+export interface OpeningRule {
+  openDaysBefore: number;
+  openTime: string; // HH:MM
+  sameDayCutoff: string; // HH:MM
+}
+
 export interface ProviderInfo {
   id: string;
   facility: string;
   zones: ZoneInfo[];
   maxNights: number;
+  openingRule: OpeningRule;
 }
 
 export interface AvailabilityQuery {
@@ -45,6 +53,8 @@ export interface AvailabilityQuery {
 }
 
 export interface AvailableSite {
+  /** 설정의 자리 필터가 쓰는 표기. 예: A02 */
+  id: string;
   /** 예약처가 쓰는 자리 이름. 예: 텐트사이트 A02호 */
   name: string;
 }

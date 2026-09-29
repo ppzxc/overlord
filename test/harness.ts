@@ -40,7 +40,7 @@ watches:
   - name: 9월 말 숲속야영장
     provider: goraebul
     zones: [DKA]
-    checkIn: { from: 2026-09-29, to: 2026-09-30 }
+    checkIn: { from: 2026-09-29, to: 2026-09-29 }
     nights: 1
     notify: [default]
 `;
@@ -50,7 +50,7 @@ export const ENV = { UA_SUFFIX: "(ops)", TELEGRAM_BOT_TOKEN: "tok", TELEGRAM_CHA
 /** 폴러 전체를 실제 설정으로 띄우고 Transport, Clock, Telegram Sink만 교체한다. */
 export function startPoller(
   respond: (req: TransportRequest) => { status: number; body: string },
-  opts: { failSend?: () => boolean } = {},
+  opts: { failSend?: () => boolean; yaml?: string } = {},
 ) {
   const requests: TransportRequest[] = [];
   const sent: TelegramMessage[] = [];
@@ -68,7 +68,7 @@ export function startPoller(
   const controller = new AbortController();
   const done = runPoller(
     {
-      config: loadConfig(CONFIG_YAML, ENV),
+      config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV),
       adapters: { goraebul: goraebulAdapter },
       transport,
       clock,
@@ -79,3 +79,25 @@ export function startPoller(
   );
   return { requests, sent, clock, stop: () => (controller.abort(), done) };
 }
+
+const HEAD = `
+userAgentSuffix: "\${UA_SUFFIX}"
+providers:
+  goraebul: { pollIntervalSeconds: 150 }
+notifiers:
+  default: { type: telegram, botToken: \${TELEGRAM_BOT_TOKEN}, chatId: \${TELEGRAM_CHAT_ID} }
+watches:
+`;
+
+/** 감시 조건 블록(YAML 조각)들로 설정을 만든다. */
+export const configWith = (...watches: string[]) => HEAD + watches.join("\n");
+
+/** 요청 URL에서 조회 단위 값을 읽는다. */
+export const queryOf = (r: TransportRequest) => {
+  const u = new URL(r.url);
+  return {
+    checkIn: u.searchParams.get("res_Day"),
+    zone: u.searchParams.get("room_Code"),
+    nights: u.searchParams.get("site_date"),
+  };
+};

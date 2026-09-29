@@ -63,6 +63,11 @@ const INFO: ProviderInfo = {
   cookieSession: true,
 };
 
+const NETFUNNEL_JS = `${WWW}/resources/user/js/netfunnel.js`;
+// 2026-09-29에 확인한 값. 달라지면 경고만 남긴다.
+const NETFUNNEL_VERSION = "2.2.25_hotfix";
+const NETFUNNEL_TS_HOST = "nf.campingkorea.or.kr";
+
 const CLOSED_VALUES = new Set(["예약완료", "예약불가", "준비중"]);
 const AUTH_MARKER = /로그인|인증/;
 
@@ -144,6 +149,25 @@ const ENTRY_MARKERS: [RegExp, string][] = [
   [/NetFunnel_Action\(\{action_id:"reserve"\}/, 'NetFunnel_Action({action_id:"reserve"}'],
 ];
 
+/**
+ * `netfunnel.js`의 버전과 `TS_HOST`가 확인한 값과 다르면 경고만 남긴다. 페이지와 같은 요청 순서를 지키려고 첫 조회가 끝난 뒤 세션당 한 번 받는다.
+ * 받지 못해도 감시는 그대로다.
+ */
+async function warnNetfunnelDrift(ctx: AdapterContext, state: KeyState): Promise<void> {
+  if (state.scriptChecked || ctx.signal?.aborted) return;
+  state.scriptChecked = true;
+  try {
+    const res = await ctx.http.get(NETFUNNEL_JS);
+    if (res.status !== 200) return;
+    const version = /Version\s+(\S+)/.exec(res.body)?.[1];
+    const host = /^NetFunnel\.TS_HOST\s*=\s*'([^']*)'/m.exec(res.body)?.[1];
+    if (version !== NETFUNNEL_VERSION) ctx.log?.("donghae netfunnel.js version changed", { expected: NETFUNNEL_VERSION, actual: version });
+    if (host !== NETFUNNEL_TS_HOST) ctx.log?.("donghae TS_HOST changed", { expected: NETFUNNEL_TS_HOST, actual: host });
+  } catch {
+    // 경고 전용이라 실패해도 감시는 그대로다.
+  }
+}
+
 /** 세션(HttpClient)이 들고 있는 대기열 키. 세션 사이로 옮기지 않으려고 HttpClient에 묶는다. */
 interface KeyState {
   key: string;
@@ -151,6 +175,8 @@ interface KeyState {
   enteredAt: number;
   reduced: Map<string, number>;
   completed: boolean;
+  /** `netfunnel.js` 경고 확인을 이미 했는지. 세션당 한 번만 한다. */
+  scriptChecked: boolean;
   /** 이 키를 받으려고 대기열에서 기다린 시간(ms). */
   waitedMs: number;
 }
@@ -207,6 +233,7 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
     enteredAt: ctx.clock.now().getTime(),
     reduced: parseReduced(entry),
     completed: false,
+    scriptChecked: false,
     waitedMs: pass.waitedMs,
   };
   sessions.set(ctx.http, state);
@@ -407,6 +434,7 @@ async function runBatch(
   const read = await readNights(liveDates, ctx, reduced, pass);
   const { nights } = read;
   const failure = calendar.failure ?? read.failure;
+  await warnNetfunnelDrift(ctx, state);
 
   for (const q of live) {
     const needed = nightsOf(q);

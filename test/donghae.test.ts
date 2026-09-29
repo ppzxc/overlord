@@ -540,11 +540,37 @@ describe("동해시 대기열 키 재사용과 수명", () => {
       await p.stop();
     });
 
-    it("netfunnel.js 버전·TS_HOST 변경은 이 어댑터가 읽지 않으므로 감시에 영향이 없다", async () => {
+    it("netfunnel.js 버전이나 TS_HOST가 바뀌면 경고만 남기고 감시를 계속한다", async () => {
+      const js = "/* Version 9.9.9 */\nNetFunnel.TS_HOST = 'other.example';\n";
+      const p = run(donghaeServer({ counts: () => 3, intercept: (req) => (req.url.endsWith("netfunnel.js") ? { status: 200, body: js } : undefined) }));
+      await settle();
+      const msgs = p.logs.map((l) => l.msg);
+      expect(msgs).toContain("donghae netfunnel.js version changed");
+      expect(msgs).toContain("donghae TS_HOST changed");
+      expect(failedKinds(p)).toEqual([]);
+      expect(p.sent).toHaveLength(1);
+      await p.stop();
+    });
+
+    it("netfunnel.js가 확인한 값 그대로면 경고가 없고, 받지 못해도 감시는 계속된다", async () => {
+      const ok = "/* Version 2.2.25_hotfix */\nNetFunnel.TS_HOST = 'nf.campingkorea.or.kr';\n";
+      const same = run(donghaeServer({ counts: () => 3, intercept: (req) => (req.url.endsWith("netfunnel.js") ? { status: 200, body: ok } : undefined) }));
+      await settle();
+      expect(same.logs.some((l) => /changed/.test(l.msg))).toBe(false);
+      await same.stop();
+      const missing = run(donghaeServer({ counts: () => 3 }));
+      await settle();
+      expect(failedKinds(missing)).toEqual([]);
+      expect(missing.sent).toHaveLength(1);
+      await missing.stop();
+    });
+
+    it("netfunnel.js는 세션당 한 번만 받는다", async () => {
       const p = run(donghaeServer({ counts: () => 3 }));
       await settle();
-      expect(failedKinds(p)).toEqual([]);
-      expect(p.allRequests.some((r) => r.url.endsWith("netfunnel.js"))).toBe(false);
+      await p.clock.advance(150_000);
+      await settle();
+      expect(p.allRequests.filter((r) => r.url.endsWith("netfunnel.js"))).toHaveLength(1);
       await p.stop();
     });
   });

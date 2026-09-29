@@ -201,3 +201,35 @@ export function renderWatchExpired(opts: {
   ].join("\n");
   return { chatId: opts.chatId, text, parse_mode: "HTML" };
 }
+
+const HEALTH_TITLES: Record<string, string> = {
+  blocked: "🚫 예약처가 폴러를 차단했다",
+  unrecognized: "🧩 예약처 화면 구조가 바뀌었다",
+  unavailable: "🛠 예약처가 점검 중이다",
+  degraded: "⚠️ 예약처 조회가 계속 실패한다",
+  recovered: "✅ 예약처 조회가 회복됐다",
+};
+
+const HEALTH_ACTIONS: Record<string, string> = {
+  blocked: "차단을 풀 방법이 없으니 이 예약처의 조회를 멈췄다. 원인을 확인한 뒤 폴러를 재시작해야 조회를 다시 시작한다.",
+  unrecognized: "빈자리 없음으로 착각하지 않도록 이 예약처의 조회를 멈췄다. 어댑터를 고친 뒤 폴러를 재시작해야 한다.",
+  unavailable: "30분 간격으로 계속 확인한다. 알림은 이번 한 번만 보낸다.",
+  degraded: "간격을 늘려 계속 재시도한다. 회복되면 알린다.",
+  recovered: "정상으로 돌아왔다.",
+};
+
+export function renderHealth(opts: {
+  chatId: string;
+  provider: string;
+  status: "blocked" | "unrecognized" | "unavailable" | "degraded" | "recovered";
+  detail: string;
+  reminder?: boolean;
+}): TelegramMessage {
+  const lines = [
+    `${opts.reminder ? "🔁 (계속) " : ""}${HEALTH_TITLES[opts.status]}`,
+    `예약처: <b>${escapeHtml(opts.provider)}</b>`,
+  ];
+  if (opts.detail) lines.push(`상세: ${escapeHtml(opts.detail)}`);
+  lines.push(HEALTH_ACTIONS[opts.status] ?? "");
+  return { chatId: opts.chatId, text: lines.join("\n"), parse_mode: "HTML" };
+}

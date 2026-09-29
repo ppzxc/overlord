@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { goraebulAdapter } from "../src/adapters/goraebul.js";
 import { loadConfig } from "../src/config.js";
+import { AdapterError, type ProviderAdapter } from "../src/types.js";
 import { TelegramError } from "../src/telegram.js";
 import {
   CONFIG_YAML,
@@ -84,13 +86,14 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
     await p.stop();
   });
 
-  it("차단 페이지를 받으면 메시지 없이 다음 바퀴를 기다린다", async () => {
+  it("차단 페이지를 받으면 빈자리 알림은 없고 차단 알림만 보낸다", async () => {
     const p = startPoller(() => ({
       status: 200,
       body: "<html>영덕군 전산팀 문의</html>",
     }));
     await settle();
-    expect(p.sent).toHaveLength(0);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("차단");
     await p.stop();
   });
 });
@@ -675,5 +678,192 @@ describe("Telegram 알림 완성", () => {
         ENV,
       ),
     ).toThrow(/nowhere[\s\S]*default/);
+  });
+});
+
+describe("헬스 상태 머신", () => {
+  const blockedPage = () => ({ status: 200, body: "<html>영덕군 전산팀 문의</html>" });
+  const serverError = () => ({ status: 503, body: "" });
+  const healthTexts = (p: { sent: { text: string }[] }) => p.sent.map((m) => m.text);
+
+  it("차단 페이지를 받으면 즉시 멈추고 재시작 안내를 보낸 뒤 더 요청하지 않는다", async () => {
+    const p = startPoller(blockedPage);
+    await settle();
+    const before = p.allRequests.length;
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("차단");
+    expect(p.sent[0]!.text).toContain("재시작");
+    await p.clock.advance(POLL_MS * 3);
+    expect(p.allRequests).toHaveLength(before);
+    expect(p.sent).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("차단으로 멈춘 예약처는 24시간마다 한 번 리마인드한다", async () => {
+    const p = startPoller(blockedPage);
+    await settle();
+    await p.clock.advance(23 * 3600_000);
+    expect(p.sent).toHaveLength(1);
+    await p.clock.advance(3600_000);
+    expect(p.sent).toHaveLength(2);
+    expect(p.sent[1]!.text).toContain("계속");
+    await p.stop();
+  });
+
+  it("구조 검증 실패는 한 바퀴는 계속 돌고 연속 2바퀴면 unrecognized로 멈춘다", async () => {
+    const p = startPoller(() => ({ status: 200, body: "<html></html>" }), { remaining: () => 9 });
+    await settle();
+    // 상세 페이지가 구조에 맞지 않는 경우: 첫 바퀴는 알림 없이 계속
+    expect(p.sent).toHaveLength(0);
+    await p.clock.advance(POLL_MS);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("구조");
+    const before = p.allRequests.length;
+    await p.clock.advance(POLL_MS * 3);
+    expect(p.allRequests).toHaveLength(before);
+    await p.stop();
+  });
+
+  it("성공한 바퀴가 끼면 unrecognized 연속 횟수가 0으로 돌아간다", async () => {
+    let bad = true;
+    const p = startPoller(() => (bad ? { status: 200, body: "<html></html>" } : soldOut()));
+    await settle();
+    bad = false;
+    await p.clock.advance(POLL_MS);
+    bad = true;
+    await p.clock.advance(POLL_MS);
+    expect(p.sent).toHaveLength(0);
+    await p.stop();
+  });
+
+  it("transient 실패는 간격을 두 배씩 늘리고(상한 30분) 성공하면 원래 간격으로 돌아온다", async () => {
+    let fail = true;
+    const p = startPoller(() => (fail ? serverError() : soldOut()));
+    await settle();
+    const count = () => p.requests.length;
+    expect(count()).toBe(1);
+    await p.clock.advance(299_000);
+    expect(count()).toBe(1);
+    await p.clock.advance(1_000); // 300초 = 2배
+    expect(count()).toBe(2);
+    await p.clock.advance(599_000);
+    expect(count()).toBe(2);
+    await p.clock.advance(1_000); // 600초 = 4배
+    expect(count()).toBe(3);
+    await p.clock.advance(1_200_000); // 1200초 = 8배
+    expect(count()).toBe(4);
+    await p.clock.advance(1_800_000); // 상한 30분
+    expect(count()).toBe(5);
+    await p.clock.advance(1_800_000);
+    expect(count()).toBe(6);
+    fail = false;
+    await p.clock.advance(1_800_000);
+    expect(count()).toBe(7); // 성공
+    await p.clock.advance(POLL_MS);
+    expect(count()).toBe(8); // 원래 간격
+    await p.stop();
+  });
+
+  it("transient가 5바퀴 이상 15분 이상 이어지면 degraded를 한 번 알리고 회복하면 recovered를 한 번 알린다", async () => {
+    let fail = true;
+    const p = startPoller(() => (fail ? serverError() : soldOut()));
+    await settle();
+    for (const ms of [300_000, 600_000, 1_200_000]) await p.clock.advance(ms);
+    expect(p.sent).toHaveLength(0); // 4바퀴
+    await p.clock.advance(1_800_000); // 5바퀴, 경과 60분
+    expect(healthTexts(p)).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("계속 실패");
+    await p.clock.advance(1_800_000);
+    expect(p.sent).toHaveLength(1); // 같은 상태는 다시 알리지 않는다
+    fail = false;
+    await p.clock.advance(1_800_000);
+    expect(p.sent).toHaveLength(2);
+    expect(p.sent[1]!.text).toContain("회복");
+    await p.clock.advance(POLL_MS * 2);
+    expect(p.sent).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("점검 중(unavailable)이면 30분 간격으로 확인하고 알림은 한 번만 보낸다", async () => {
+    const adapter = {
+      ...goraebulAdapter,
+      queryAvailability: async () => {
+        throw new AdapterError("unavailable", "점검 중");
+      },
+    } as ProviderAdapter;
+    const p = startPoller(open, { adapters: { goraebul: { ...adapter, queryAvailabilityBatch: undefined } } });
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("점검");
+    await p.clock.advance(POLL_MS * 2);
+    expect(p.sent).toHaveLength(1);
+    await p.clock.advance(3 * 3600_000);
+    expect(p.sent).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("같은 장애가 이어지면 24시간마다 한 번만 리마인드한다", async () => {
+    const adapter = {
+      ...goraebulAdapter,
+      queryAvailabilityBatch: undefined,
+      queryAvailability: async () => {
+        throw new AdapterError("unavailable", "점검 중");
+      },
+    } as ProviderAdapter;
+    const yaml = CONFIG_YAML.replace("to: 2026-09-29", "to: 2026-10-20");
+    const p = startPoller(open, { yaml, adapters: { goraebul: adapter } });
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    await p.clock.advance(23 * 3600_000);
+    expect(p.sent).toHaveLength(1);
+    await p.clock.advance(2 * 3600_000);
+    expect(p.sent).toHaveLength(2);
+    expect(p.sent[1]!.text).toContain("계속");
+    await p.stop();
+  });
+
+  it("한 예약처가 멈춰도 다른 예약처는 계속 돈다", async () => {
+    let calls = 0;
+    const other: ProviderAdapter = {
+      ...goraebulAdapter,
+      id: "other",
+      queryAvailabilityBatch: undefined,
+      queryAvailability: async () => {
+        calls++;
+        return [];
+      },
+    };
+    const yaml = configWith(
+      `  - { name: 고래불, provider: goraebul, zones: [DKA], checkIn: { from: 2026-09-29, to: 2026-09-29 }, nights: 1, notify: [default] }`,
+      `  - { name: 다른곳, provider: other, zones: [DKA], checkIn: { from: 2026-09-29, to: 2026-09-29 }, nights: 1, notify: [default] }`,
+    ).replace("providers:\n", "providers:\n  other: { pollIntervalSeconds: 150 }\n");
+    const p = startPoller(blockedPage, { yaml, adapters: { goraebul: goraebulAdapter, other } });
+    await settle();
+    for (let i = 0; i < 3; i++) await p.clock.advance(POLL_MS);
+    expect(p.sent.filter((m) => m.text.includes("차단"))).toHaveLength(1);
+    expect(calls).toBeGreaterThanOrEqual(3);
+    await p.stop();
+  });
+
+  it("바퀴 도중 실패하면 그 바퀴를 중단하되 이미 성공한 조회 결과는 반영한다", async () => {
+    const seen: string[] = [];
+    const adapter: ProviderAdapter = {
+      ...goraebulAdapter,
+      queryAvailabilityBatch: undefined,
+      queryAvailability: async (q) => {
+        seen.push(q.checkIn);
+        if (q.checkIn === "2026-09-30") throw new AdapterError("transient", "HTTP 503");
+        return q.checkIn === "2026-09-29" ? [{ id: "A02", name: "A02" }] : [];
+      },
+    };
+    const yaml = configWith(
+      `  - { name: 여러날, provider: goraebul, zones: [DKA], checkIn: { from: 2026-09-29, to: 2026-10-01 }, nights: 1, notify: [default] }`,
+    );
+    const p = startPoller(open, { yaml, adapters: { goraebul: adapter } });
+    await settle();
+    expect(seen).toEqual(["2026-09-29", "2026-09-30"]); // 10-01은 조회하지 않는다
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("A02");
+    await p.stop();
   });
 });

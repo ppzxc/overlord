@@ -4,7 +4,7 @@ import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
 import { loadConfig } from "../src/config.js";
 import { runPoller } from "../src/poller.js";
 import type { TelegramMessage, TelegramSink } from "../src/telegram.js";
-import type { Clock, Transport, TransportRequest } from "../src/types.js";
+import type { Clock, ProviderAdapter, Transport, TransportRequest } from "../src/types.js";
 
 export const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
@@ -93,6 +93,8 @@ export function startPoller(
     /** 캘린더 잔여. 기본은 모든 (구역, 날짜)에 잔여가 있다. */
     remaining?: (zone: string, date: string) => number;
     random?: () => number;
+    /** 기본은 고래불 어댑터 하나. 예약처를 더 두려면 가짜 어댑터를 넣는다. */
+    adapters?: Record<string, ProviderAdapter>;
   } = {},
 ) {
   const respond = (req: TransportRequest) =>
@@ -123,8 +125,8 @@ export function startPoller(
   const controller = new AbortController();
   const done = runPoller(
     {
-      config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV),
-      adapters: { goraebul: goraebulAdapter },
+      config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV, opts.adapters),
+      adapters: opts.adapters ?? { goraebul: goraebulAdapter },
       transport,
       clock,
       sink,

@@ -1,8 +1,10 @@
 import type { Config } from "./config.js";
+import { ProviderHealth, worstFailure, type Failure } from "./health.js";
 import { createHttpClient } from "./http.js";
 import { expandWatch, isExpired, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
 import {
+  renderHealth,
   renderOpenings,
   renderWatchExpired,
   sendWithRetry,
@@ -83,6 +85,8 @@ async function runProvider(
   // 만료 알림을 이미 보낸 (감시 조건, 알림 대상)
   const expiredSent = new Set<string>();
   let firstCycle = true;
+  const health = new ProviderHealth();
+  const healthNotifiers = [...new Set(watches.flatMap((w) => w.notify))];
 
   const trySend = async (notifierName: string, label: string, msg: (chatId: string) => TelegramMessage) => {
     const notifier = config.notifiers[notifierName]!; // 설정을 읽을 때 notify 이름을 이미 검증했다.
@@ -106,7 +110,25 @@ async function runProvider(
     }
   };
 
+  /** 상태가 바뀌었거나 같은 장애가 24시간 이어졌으면 이 예약처의 알림 대상 모두에게 알린다. 하나라도 보내면 알린 것으로 친다. */
+  const announceHealth = async () => {
+    const notice = health.pendingNotice(clock.now().getTime());
+    if (!notice) return;
+    let delivered = false;
+    for (const name of healthNotifiers) {
+      const ok = await trySend(name, providerId, (chatId) => renderHealth({ chatId, provider: providerId, ...notice }));
+      delivered ||= ok;
+    }
+    if (delivered) health.markAnnounced(clock.now().getTime());
+  };
+
   while (!signal.aborted) {
+    // 멈춘 예약처는 조회하지 않고, 같은 상태가 이어지면 24시간마다 리마인드만 한다.
+    if (health.stopped) {
+      await clock.sleep(health.nextIntervalMs(intervalMs), signal);
+      if (!signal.aborted) await announceHealth();
+      continue;
+    }
     const now = clock.now();
     const active: Watch[] = [];
     for (const watch of watches) {
@@ -129,10 +151,12 @@ async function runProvider(
     const results = new Map<string, AvailableSite[] | null>(); // null: 이번 바퀴에 조회 실패
     const queries = new Map<string, AvailabilityQuery>();
     for (const { units } of plans) for (const q of units) queries.set(unitKey(q), q);
+    const failures: Failure[] = [];
     const fail = (key: string, err: unknown) => {
       results.set(key, null);
       if (signal.aborted) return; // 종료 중 끊긴 요청은 오류로 기록하지 않는다.
       const kind = err instanceof AdapterError ? err.kind : "error";
+      failures.push({ kind, message: errMessage(err) });
       log("query failed", { kind, unit: key, message: errMessage(err) });
     };
     if (adapter.queryAvailabilityBatch && queries.size > 0 && !signal.aborted) {
@@ -154,6 +178,7 @@ async function runProvider(
           results.set(key, await adapter.queryAvailability(q, ctx));
         } catch (err) {
           fail(key, err);
+          break; // 바퀴 도중 실패하면 그 바퀴를 중단한다. 이미 성공한 결과는 아래에서 반영한다.
         }
       }
     }
@@ -196,7 +221,12 @@ async function runProvider(
       }
     }
     firstCycle = false;
-    await clock.sleep(jittered(intervalMs, INTERVAL_JITTER, random), signal);
+    if (!signal.aborted && queries.size > 0) {
+      health.record(worstFailure(failures), clock.now().getTime());
+      await announceHealth();
+    }
+    if (health.stopped) continue;
+    await clock.sleep(jittered(health.nextIntervalMs(intervalMs), INTERVAL_JITTER, random), signal);
   }
 }
 

@@ -262,4 +262,9 @@ async function runProvider(
     const quiet = isQuiet(clock.now(), config.quietHours) ? QUIET_INTERVAL_FACTOR : 1;
     await sleep(jittered(health.nextIntervalMs(intervalMs) * quiet, INTERVAL_JITTER, random));
   }
+  try {
+    await adapter.close?.(ctx);
+  } catch (err) {
+    log("adapter close failed", { provider: providerId, message: errMessage(err) });
+  }
 }

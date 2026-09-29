@@ -134,7 +134,7 @@ export function createHttpClient(opts: {
     } catch (e) {
       return Promise.reject(e);
     }
-    if (pacing?.signal.aborted) return Promise.reject(new Error("중단되었다"));
+    if (pacing?.signal.aborted && !reqOpts.ignoreAbort) return Promise.reject(new Error("중단되었다"));
     if (!pacing || reqOpts.unpaced) return send(method, url, body, reqOpts.contentType);
     const run = queue.then(async () => {
       if (lastAt !== undefined) {

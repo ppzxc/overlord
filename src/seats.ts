@@ -27,3 +27,6 @@ export function filterSeats(sites: AvailableSite[], filter: string[] | undefined
   const matchers = filter.map((t) => parseToken(t)!);
   return sites.filter((s) => matchers.some((m) => m(s.id)));
 }
+
+/** 토큰에 해당하는 자리 id만 골라낸다. 토큰 형식은 isValidSeatToken으로 먼저 확인한다. */
+export const seatsMatching = (token: string, ids: string[]) => ids.filter(parseToken(token)!);

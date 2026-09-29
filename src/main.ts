@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
-import { goraebulAdapter } from "./adapters/goraebul.js";
-import { loadConfig } from "./config.js";
+import { adapters } from "./adapters/index.js";
+import { renderCatalog, renderLiveDiff } from "./catalog.js";
+import { ConfigError, loadConfig } from "./config.js";
 import { runPoller } from "./poller.js";
 import type { TelegramSink } from "./telegram.js";
 import type { Clock, Transport } from "./types.js";
@@ -36,8 +37,40 @@ const sink: TelegramSink = {
   },
 };
 
-const configPath = process.argv[2] ?? "config.yaml";
-const config = loadConfig(readFileSync(configPath, "utf8"), process.env);
+const [command, ...rest] = process.argv.slice(2);
+
+if (command === "catalog") {
+  const adapter = adapters[rest.find((a) => !a.startsWith("--")) ?? ""];
+  if (!adapter) {
+    console.error(`사용법: catalog <예약처> [--live]. 쓸 수 있는 예약처: ${Object.keys(adapters).join(", ")}`);
+    process.exit(1);
+  }
+  process.stdout.write(renderCatalog(adapter));
+  if (rest.includes("--live")) {
+    process.stdout.write("\n실제 사이트와 비교:\n");
+    process.stdout.write(
+      await renderLiveDiff(adapter, {
+        transport,
+        version: pkg.version,
+        now: new Date(),
+        pause: () => clock.sleep(3000),
+      }),
+    );
+  }
+  process.exit(0);
+}
+
+const configPath = command ?? "config.yaml";
+let config;
+try {
+  config = loadConfig(readFileSync(configPath, "utf8"), process.env);
+} catch (e) {
+  if (e instanceof ConfigError) {
+    console.error(e.message);
+    process.exit(1);
+  }
+  throw e;
+}
 const controller = new AbortController();
 process.on("SIGINT", () => controller.abort());
 process.on("SIGTERM", () => controller.abort());
@@ -45,7 +78,7 @@ process.on("SIGTERM", () => controller.abort());
 await runPoller(
   {
     config,
-    adapters: { goraebul: goraebulAdapter },
+    adapters,
     transport,
     clock,
     sink,

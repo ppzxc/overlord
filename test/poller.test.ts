@@ -204,7 +204,7 @@ describe("감시 조건 전개", () => {
 
   it("필터에 맞는 자리가 하나도 없으면 메시지를 보내지 않는다", async () => {
     const p = startPoller(open, {
-      yaml: configWith(watchYaml("없음", "    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [A99]")),
+      yaml: configWith(watchYaml("없음", "    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [A01]")),
     });
     await settle();
     expect(p.requests).toHaveLength(1);

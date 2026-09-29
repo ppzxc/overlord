@@ -6,21 +6,27 @@ import {
   type AvailableSite,
   type ProviderAdapter,
   type ProviderInfo,
+  type ZoneInfo,
 } from "../types.js";
 
 const BASE = "https://stay.yd.go.kr/pages";
 const NAV_CODE = "gor1501675800";
 
-const ZONES = [
-  { code: "CAA", name: "카라반 4인실" },
-  { code: "CAB", name: "카라반 6인실" },
-  { code: "DKA", name: "숲속야영장 A" },
-  { code: "DKB", name: "숲속야영장 B" },
-  { code: "DKC", name: "숲속야영장 C" },
-  { code: "AUA", name: "캠핑카존" },
-  { code: "PEA", name: "펜션형 A" },
-  { code: "PEB", name: "펜션형 B" },
-  { code: "PEC", name: "펜션형 C" },
+/** A01, A02, ... 형태의 자리 id 목록 */
+const numbered = (prefix: string, count: number) =>
+  Array.from({ length: count }, (_, i) => `${prefix}${String(i + 1).padStart(2, "0")}`);
+
+// 정원과 자리 목록은 2026-09-29 정찰로 확인한 값이다(폐쇄된 자리는 목록에 나오지 않는다). 확인하지 못한 구역은 비워 둔다.
+const ZONES: ZoneInfo[] = [
+  { code: "CAA", name: "카라반 4인실", type: "카라반", capacity: 4, seats: [1, 2, 6, 7, 11, 12, 20, 21, 22].map((n) => `CAA${String(n).padStart(2, "0")}`) },
+  { code: "CAB", name: "카라반 6인실", type: "카라반", capacity: 6 },
+  { code: "DKA", name: "숲속야영장 A", type: "숲속야영장", seats: numbered("A", 38) },
+  { code: "DKB", name: "숲속야영장 B", type: "숲속야영장", seats: numbered("B", 52) },
+  { code: "DKC", name: "숲속야영장 C", type: "숲속야영장" },
+  { code: "AUA", name: "캠핑카존", type: "캠핑카" },
+  { code: "PEA", name: "펜션형 A", type: "펜션형", capacity: 6 },
+  { code: "PEB", name: "펜션형 B", type: "펜션형", capacity: 8 },
+  { code: "PEC", name: "펜션형 C", type: "펜션형", capacity: 10, seats: ["PEC01", "PEC02"] },
 ];
 
 const INFO: ProviderInfo = {
@@ -34,25 +40,50 @@ const INFO: ProviderInfo = {
 // 예약처가 차단 페이지를 HTTP 200으로 준다.
 const BLOCK_MARKER = "영덕군 전산팀";
 
-function parseOpenSites(html: string, zone: string): AvailableSite[] {
+/** 요소 id(dka_2, caa_11)로 자리 id를 만든다. 숲속야영장은 A02처럼, 나머지는 CAA11처럼 쓴다. */
+function seatId(zone: string, elementId: string): string {
+  const n = /_(\d+)$/.exec(elementId)?.[1];
+  if (!n) throw new AdapterError("unrecognized", `자리 요소 id를 읽지 못했다: ${elementId}`);
+  const prefix = zone.startsWith("DK") ? zone.slice(-1) : zone;
+  return `${prefix.toUpperCase()}${n.padStart(2, "0")}`;
+}
+
+function layoutOf(html: string, zone: string) {
   const $ = cheerio.load(html);
   const container = $(`div#zone_${zone.toLowerCase()}.select_room`);
   if (container.length === 0) {
     throw new AdapterError("unrecognized", `자리 배치 컨테이너(zone_${zone.toLowerCase()})가 없다`);
   }
+  return { $, seats: container.find("a.num") };
+}
+
+function parseAllSeats(html: string, zone: string): string[] {
+  const { $, seats } = layoutOf(html, zone);
+  return seats.map((_, el) => seatId(zone, $(el).attr("id") ?? "")).get();
+}
+
+function parseOpenSites(html: string, zone: string): AvailableSite[] {
+  const { $, seats } = layoutOf(html, zone);
   const sites: AvailableSite[] = [];
-  container.find("a.num").each((_, el) => {
+  seats.each((_, el) => {
     const classes = ($(el).attr("class") ?? "").split(/\s+/).filter(Boolean);
     const onclick = $(el).attr("onclick") ?? "";
     const match = /zone_area_select\('[^']*','[^']*','([^']*)'\)/.exec(onclick);
     // 빈 자리는 class가 num뿐이고 zone_area_select onclick이 있는 자리다.
     if (classes.length === 1 && classes[0] === "num" && match?.[1]) {
-      const id = /([A-Za-z]+\d+)호/.exec(match[1])?.[1];
-      if (!id) throw new AdapterError("unrecognized", `자리 번호를 읽지 못했다: ${match[1]}`);
-      sites.push({ id, name: match[1] });
+      sites.push({ id: seatId(zone, $(el).attr("id") ?? ""), name: match[1] });
     }
   });
   return sites;
+}
+
+async function fetchLayout(q: AvailabilityQuery, ctx: AdapterContext): Promise<string> {
+  const url = `${BASE}/zoneAreaAjax.htm?res_Day=${q.checkIn}&room_Code=${q.zone}&site_date=${q.nights}`;
+  const res = await ctx.http.get(url);
+  if (res.body.includes(BLOCK_MARKER)) throw new AdapterError("blocked", "차단 페이지를 받았다");
+  if (res.status >= 500) throw new AdapterError("transient", `HTTP ${res.status}`);
+  if (res.status !== 200) throw new AdapterError("unrecognized", `예상 밖 HTTP ${res.status}`);
+  return res.body;
 }
 
 export const goraebulAdapter: ProviderAdapter = {
@@ -61,12 +92,11 @@ export const goraebulAdapter: ProviderAdapter = {
   describe: () => INFO,
 
   async queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]> {
-    const url = `${BASE}/zoneAreaAjax.htm?res_Day=${q.checkIn}&room_Code=${q.zone}&site_date=${q.nights}`;
-    const res = await ctx.http.get(url);
-    if (res.body.includes(BLOCK_MARKER)) throw new AdapterError("blocked", "차단 페이지를 받았다");
-    if (res.status >= 500) throw new AdapterError("transient", `HTTP ${res.status}`);
-    if (res.status !== 200) throw new AdapterError("unrecognized", `예상 밖 HTTP ${res.status}`);
-    return parseOpenSites(res.body, q.zone);
+    return parseOpenSites(await fetchLayout(q, ctx), q.zone);
+  },
+
+  async listSeats(q: AvailabilityQuery, ctx: AdapterContext): Promise<string[]> {
+    return parseAllSeats(await fetchLayout(q, ctx), q.zone);
   },
 
   deepLink(q: AvailabilityQuery): string {

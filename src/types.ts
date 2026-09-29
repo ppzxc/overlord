@@ -29,6 +29,12 @@ export interface AdapterContext {
 export interface ZoneInfo {
   code: string;
   name: string;
+  /** 자리 유형. 예: 카라반, 숲속야영장 */
+  type: string;
+  /** 정원(명). 예약처에서 확인하지 못한 구역은 없다. */
+  capacity?: number;
+  /** 구역 안의 모든 자리 id. 어댑터에 고정된 목록이며, 확인하지 못한 구역은 없다. */
+  seats?: string[];
 }
 
 /** 입실일 D는 D−openDaysBefore일 openTime에 열리고, 당일 입실은 sameDayCutoff에 마감된다. 한국 시각. */
@@ -74,4 +80,6 @@ export interface ProviderAdapter {
   describe(): ProviderInfo;
   queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]>;
   deepLink(q: AvailabilityQuery): string;
+  /** 예약 여부와 관계없이 구역의 모든 자리 id를 읽는다. catalog --live가 고정 목록과 비교한다. */
+  listSeats?(q: AvailabilityQuery, ctx: AdapterContext): Promise<string[]>;
 }

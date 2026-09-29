@@ -36,8 +36,8 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
     const p = startPoller(open);
     await settle();
     await p.clock.advance(POLL_MS);
-    expect(p.requests.length).toBeGreaterThan(0);
-    for (const r of p.requests) {
+    expect(p.allRequests.length).toBeGreaterThan(0);
+    for (const r of p.allRequests) {
       expect(r.headers).toEqual({ "User-Agent": "overlord-availability-poller/0.1.0 (ops)" });
       expect(r.timeoutMs).toBe(10_000);
     }
@@ -48,7 +48,7 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
     const p = startPoller(open);
     await settle();
     await p.clock.advance(POLL_MS);
-    for (const r of p.requests) expect(new URL(r.url).pathname.startsWith("/bbs/")).toBe(false);
+    for (const r of p.allRequests) expect(new URL(r.url).pathname.startsWith("/bbs/")).toBe(false);
     await p.stop();
   });
 
@@ -273,5 +273,124 @@ describe("자리 필터 설정 검증", () => {
   });
   it("A02와 A10-A15는 받아들인다", () => {
     expect(() => loadConfig(withSeats('A02, "A10-A15", "A20-25"'), ENV)).not.toThrow();
+  });
+});
+
+describe("캘린더 선필터와 요청 매너", () => {
+  const calendars = (p: { allRequests: { url: string }[] }) => p.allRequests.filter((r) => r.url.includes("view_cate="));
+
+  it("대상 날짜와 구역이 모두 매진이면 캘린더 요청만 한 번 나가고 알림은 없다", async () => {
+    const p = startPoller(open, { remaining: () => 0 });
+    await settle();
+    expect(p.allRequests).toHaveLength(1);
+    expect(p.allRequests[0]!.url).toBe(
+      "https://stay.yd.go.kr/pages/sub.htm?nav_code=gor1501675800&view_cate=2026&view_cate2=9",
+    );
+    expect(p.sent).toHaveLength(0);
+    await p.stop();
+  });
+
+  it("1박 잔여가 있는 (구역, 날짜)만 자세히 조회한다", async () => {
+    const yaml = configWith(`  - name: 여러 구역
+    provider: goraebul
+    zones: [DKA, DKB, CAA]
+    checkIn: { from: 2026-09-29, to: 2026-09-30 }
+    nights: 1
+    notify: [default]
+`);
+    const p = startPoller(open, {
+      yaml,
+      remaining: (zone, date) => (zone === "DKB" && date === "2026-09-30") || (zone === "CAA" && date === "2026-09-29") ? 3 : 0,
+    });
+    await settle();
+    expect(p.requests.map((r) => `${queryOf(r).zone}|${queryOf(r).checkIn}`)).toEqual([
+      "DKB|2026-09-30",
+      "CAA|2026-09-29",
+    ]);
+    await p.stop();
+  });
+
+  it("입실일이 두 달에 걸치면 월마다 캘린더를 한 번씩만 읽는다", async () => {
+    const yaml = configWith(`  - name: 월 경계
+    provider: goraebul
+    zones: [DKA]
+    checkIn: { from: 2026-09-29, to: 2026-10-10 }
+    nights: 1
+    notify: [default]
+`);
+    const p = startPoller(open, { yaml, remaining: () => 0 });
+    await settle();
+    expect(calendars(p).map((r) => new URL(r.url).searchParams.get("view_cate2"))).toEqual(["9", "10"]);
+    await p.stop();
+  });
+
+  it("한 예약처로 가는 요청은 순서대로, 5초에 0~3초 지터를 더한 간격으로 나간다", async () => {
+    const yaml = configWith(`  - name: 여러 구역
+    provider: goraebul
+    zones: [DKA, DKB, CAA]
+    checkIn: { from: 2026-09-29, to: 2026-09-29 }
+    nights: 1
+    notify: [default]
+`);
+    for (const [random, gap] of [[0, 5000], [0.5, 6500], [0.999, 7997]] as const) {
+      const p = startPoller(open, { yaml, random: () => random });
+      await settle();
+      expect(p.allRequests).toHaveLength(4); // 캘린더 1 + 구역 3
+      const gaps = p.requestTimes.slice(1).map((t, i) => t - p.requestTimes[i]!);
+      for (const g of gaps) expect(g).toBeGreaterThanOrEqual(gap - 3);
+      for (const g of gaps) expect(g).toBeLessThanOrEqual(gap + 3);
+      await p.stop();
+    }
+  });
+
+  it("바퀴 간격은 설정 간격의 ±20% 안에서 지터가 붙는다", async () => {
+    const early = startPoller(open, { random: () => 0 });
+    await settle();
+    await early.clock.advance(119_000);
+    expect(early.allRequests.filter((r) => r.url.includes("view_cate="))).toHaveLength(1);
+    await early.clock.advance(1_000);
+    expect(early.allRequests.filter((r) => r.url.includes("view_cate="))).toHaveLength(2);
+    await early.stop();
+
+    const late = startPoller(open, { random: () => 0.9999 });
+    await settle();
+    await late.clock.advance(179_000);
+    expect(late.allRequests.filter((r) => r.url.includes("view_cate="))).toHaveLength(1);
+    await late.clock.advance(2_000);
+    expect(late.allRequests.filter((r) => r.url.includes("view_cate="))).toHaveLength(2);
+    await late.stop();
+  });
+});
+
+describe("고래불 실제 캘린더 fixture", () => {
+  const ctxFor = (body: string, seen: string[] = []) => ({
+    http: {
+      get: async (url: string) => {
+        seen.push(url);
+        return { status: 200, body: url.includes("view_cate=") ? body : open().body };
+      },
+    },
+  });
+
+  it("(N) 잔여가 있는 구역만 상세 조회하고 (마감)과 td.not은 빈 결과로 둔다", async () => {
+    const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
+    const seen: string[] = [];
+    const units = [
+      { zone: "DKA", checkIn: "2026-09-29", nights: 1 }, // (34)
+      { zone: "PEA", checkIn: "2026-09-29", nights: 1 }, // 캘린더에 없는 구역
+      { zone: "DKA", checkIn: "2026-09-15", nights: 1 }, // 지난 날짜(td.not)
+    ];
+    const res = await goraebulAdapter.queryAvailabilityBatch!(units, ctxFor(fixture("calendar-2026-09.htm"), seen));
+    expect(seen.filter((u) => u.includes("zoneAreaAjax"))).toHaveLength(1);
+    expect(res.get(units[0]!)).not.toEqual([]);
+    expect(res.get(units[1]!)).toEqual([]);
+    expect(res.get(units[2]!)).toEqual([]);
+  });
+
+  it("캘린더 구조를 읽지 못하면 unrecognized로 실패한다", async () => {
+    const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
+    await expect(
+      goraebulAdapter.queryAvailabilityBatch!([{ zone: "DKA", checkIn: "2026-09-29", nights: 1 }], ctxFor("<html></html>")),
+    ).rejects.toMatchObject({ kind: "unrecognized" });
   });
 });

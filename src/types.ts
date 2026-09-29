@@ -79,6 +79,15 @@ export interface ProviderAdapter {
   readonly id: string;
   describe(): ProviderInfo;
   queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]>;
+  /**
+   * 조회 단위 여러 개를 한 번에 묻는다. 예약처의 요약 화면으로 먼저 거를 수 있는 어댑터만 구현한다.
+   * 없으면 코어가 조회 단위마다 queryAvailability를 따로 호출한다.
+   * 결과 키는 넘겨받은 조회 단위 객체다. 단위 하나만 실패하면 그 값에 AdapterError를 담고, 차단처럼 전체가 실패하면 던진다.
+   */
+  queryAvailabilityBatch?(
+    units: AvailabilityQuery[],
+    ctx: AdapterContext,
+  ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>>;
   deepLink(q: AvailabilityQuery): string;
   /** 예약 여부와 관계없이 구역의 모든 자리 id를 읽는다. catalog --live가 고정 목록과 비교한다. */
   listSeats(q: AvailabilityQuery, ctx: AdapterContext): Promise<string[]>;

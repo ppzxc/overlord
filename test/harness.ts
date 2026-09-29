@@ -12,6 +12,11 @@ export class FakeClock implements Clock {
   private timers: { at: number; resolve: () => void }[] = [];
   now = () => new Date(this.current);
   sleep(ms: number, signal?: AbortSignal): Promise<void> {
+    // 요청 사이의 짧은 대기(최대 8초)는 바로 지나간 것으로 친다. 바퀴 간격 같은 긴 대기만 advance로 넘긴다.
+    if (ms <= 8_000) {
+      this.current += ms;
+      return Promise.resolve();
+    }
     return new Promise((resolve) => {
       this.timers.push({ at: this.current + ms, resolve });
       signal?.addEventListener("abort", () => resolve(), { once: true });
@@ -47,16 +52,54 @@ watches:
 
 export const ENV = { UA_SUFFIX: "(ops)", TELEGRAM_BOT_TOKEN: "tok", TELEGRAM_CHAT_ID: "42" };
 
+const ZONE_CODES = ["CAA", "CAB", "DKA", "DKB", "DKC", "AUA", "PEA", "PEB", "PEC"];
+
+/** 월 캘린더 HTML을 만든다. remaining이 없는 (구역, 날짜)는 기본으로 잔여 9다. 0이면 (마감)이다. */
+export function calendarHtml(
+  month: string,
+  remaining: (zone: string, date: string) => number = () => 9,
+): string {
+  const [y, m] = month.split("-").map(Number) as [number, number];
+  const cells = Array.from({ length: new Date(Date.UTC(y, m, 0)).getUTCDate() }, (_, i) => {
+    const day = i + 1;
+    const date = `${month}-${String(day).padStart(2, "0")}`;
+    const items = ZONE_CODES.map((zone) => {
+      const n = remaining(zone, date);
+      return n > 0
+        ? `<li><a href='/pages/sub.htm?nav_code=gor1501675800&mode=step01&type=${zone}&today=${date}&col=0' class='point_blue'>${zone}</a><em>(${n})</em></li>`
+        : `<li>${zone}(마감)</li>`;
+    }).join("");
+    return `<td ><span class='day'>${day}</span><ul class='list'>${items}</ul></td>`;
+  });
+  return `<table class="t_calendar"><tr>${cells.join("")}</tr></table>`;
+}
+
+const isCalendar = (r: TransportRequest) => new URL(r.url).pathname.endsWith("/sub.htm");
+
 /** 폴러 전체를 실제 설정으로 띄우고 Transport, Clock, Telegram Sink만 교체한다. */
 export function startPoller(
-  respond: (req: TransportRequest) => { status: number; body: string },
-  opts: { failSend?: () => boolean; yaml?: string } = {},
+  respondDetail: (req: TransportRequest) => { status: number; body: string },
+  opts: {
+    failSend?: () => boolean;
+    yaml?: string;
+    /** 캘린더 잔여. 기본은 모든 (구역, 날짜)에 잔여가 있다. */
+    remaining?: (zone: string, date: string) => number;
+    random?: () => number;
+  } = {},
 ) {
-  const requests: TransportRequest[] = [];
+  const respond = (req: TransportRequest) =>
+    isCalendar(req)
+      ? { status: 200, body: calendarHtml(new URL(req.url).searchParams.get("view_cate")! + "-" + new URL(req.url).searchParams.get("view_cate2")!.padStart(2, "0"), opts.remaining) }
+      : respondDetail(req);
+  const allRequests: TransportRequest[] = [];
+  const requests: TransportRequest[] = []; // 상세 조회(zoneAreaAjax)만
+  const requestTimes: number[] = [];
   const sent: TelegramMessage[] = [];
   const clock = new FakeClock();
   const transport: Transport = async (req) => {
-    requests.push(req);
+    allRequests.push(req);
+    if (!isCalendar(req)) requests.push(req);
+    requestTimes.push(clock.now().getTime());
     return respond(req);
   };
   const sink: TelegramSink = {
@@ -74,10 +117,11 @@ export function startPoller(
       clock,
       sink,
       version: "0.1.0",
+      random: opts.random ?? (() => 0.5), // 지터 0: 바퀴 간격 150초, 요청 간격 6.5초
     },
     controller.signal,
   );
-  return { requests, sent, clock, stop: () => (controller.abort(), done) };
+  return { requests, allRequests, requestTimes, sent, clock, stop: () => (controller.abort(), done) };
 }
 
 const HEAD = `

@@ -19,8 +19,15 @@ export interface PollerDeps {
   clock: Clock;
   sink: TelegramSink;
   version: string;
+  /** 0 이상 1 미만. 지터에 쓴다. 기본은 Math.random. */
+  random?: () => number;
   log?: (msg: string, fields?: Record<string, unknown>) => void;
 }
+
+/** 예약처 사이에 첫 바퀴를 벌리는 간격. */
+const STAGGER_MS = 30_000;
+/** 바퀴 간격의 ±비율. */
+const INTERVAL_JITTER = 0.2;
 
 type Watch = Config["watches"][number];
 
@@ -30,7 +37,13 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
   for (const id of providers) {
     if (!deps.adapters[id]) throw new Error(`알 수 없는 예약처: ${id}`);
   }
-  await Promise.all(providers.map((id) => runProvider(deps, id, signal)));
+  // 예약처가 여럿이면 첫 바퀴 시작 시각을 분산한다. 첫 예약처는 바로 시작한다.
+  await Promise.all(
+    providers.map(async (id, i) => {
+      if (i > 0) await deps.clock.sleep(i * STAGGER_MS + (deps.random ?? Math.random)() * STAGGER_MS, signal);
+      await runProvider(deps, id, signal);
+    }),
+  );
 }
 
 async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSignal): Promise<void> {
@@ -41,11 +54,13 @@ async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSi
   const watches = config.watches.filter((w) => w.provider === providerId);
   const intervalMs = (config.providers[providerId]?.pollIntervalSeconds ?? 150) * 1000;
 
+  const random = deps.random ?? Math.random;
   const ctx = {
     http: createHttpClient({
       transport: deps.transport,
       version: deps.version,
       userAgentSuffix: config.userAgentSuffix,
+      pacing: { clock, random, signal },
     }),
   };
   // "알렸음" 상태(영속하지 않는다): 감시 조건 이름 → 알림 대상 이름 → 조회 단위 키 → 이미 알린 자리 이름.
@@ -93,14 +108,31 @@ async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSi
     const results = new Map<string, AvailableSite[] | null>(); // null: 이번 바퀴에 조회 실패
     const queries = new Map<string, AvailabilityQuery>();
     for (const { units } of plans) for (const q of units) queries.set(unitKey(q), q);
-    for (const [key, q] of queries) {
-      if (signal.aborted) break;
+    const fail = (key: string, err: unknown) => {
+      results.set(key, null);
+      const kind = err instanceof AdapterError ? err.kind : "error";
+      log("query failed", { kind, unit: key, message: errMessage(err) });
+    };
+    if (adapter.queryAvailabilityBatch && queries.size > 0) {
       try {
-        results.set(key, await adapter.queryAvailability(q, ctx));
+        const batch = await adapter.queryAvailabilityBatch([...queries.values()], ctx);
+        for (const [key, q] of queries) {
+          const found = batch.get(q);
+          if (found instanceof Error) fail(key, found);
+          else if (found) results.set(key, found);
+          else fail(key, new Error("일괄 조회 결과에 조회 단위가 없다"));
+        }
       } catch (err) {
-        results.set(key, null);
-        const kind = err instanceof AdapterError ? err.kind : "error";
-        log("query failed", { kind, unit: key, message: errMessage(err) });
+        for (const key of queries.keys()) fail(key, err);
+      }
+    } else {
+      for (const [key, q] of queries) {
+        if (signal.aborted) break;
+        try {
+          results.set(key, await adapter.queryAvailability(q, ctx));
+        } catch (err) {
+          fail(key, err);
+        }
       }
     }
 
@@ -141,7 +173,7 @@ async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSi
       }
     }
     firstCycle = false;
-    await clock.sleep(intervalMs, signal);
+    await clock.sleep(intervalMs * (1 + (random() * 2 - 1) * INTERVAL_JITTER), signal);
   }
 }
 

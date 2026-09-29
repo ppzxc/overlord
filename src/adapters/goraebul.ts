@@ -79,13 +79,45 @@ function parseOpenSites(html: string, zone: string): AvailableSite[] {
   return sites;
 }
 
-async function fetchLayout(q: AvailabilityQuery, ctx: AdapterContext): Promise<string> {
-  const url = `${BASE}/zoneAreaAjax.htm?res_Day=${q.checkIn}&room_Code=${q.zone}&site_date=${q.nights}`;
+async function fetchPage(url: string, ctx: AdapterContext): Promise<string> {
   const res = await ctx.http.get(url);
   if (res.body.includes(BLOCK_MARKER)) throw new AdapterError("blocked", "차단 페이지를 받았다");
   if (res.status >= 500) throw new AdapterError("transient", `HTTP ${res.status}`);
   if (res.status !== 200) throw new AdapterError("unrecognized", `예상 밖 HTTP ${res.status}`);
   return res.body;
+}
+
+const fetchLayout = (q: AvailabilityQuery, ctx: AdapterContext) =>
+  fetchPage(`${BASE}/zoneAreaAjax.htm?res_Day=${q.checkIn}&room_Code=${q.zone}&site_date=${q.nights}`, ctx);
+
+const calendarUrl = (month: string) => {
+  const [year, mm] = month.split("-");
+  return `${BASE}/sub.htm?nav_code=${NAV_CODE}&view_cate=${year}&view_cate2=${Number(mm)}`;
+};
+
+/**
+ * 월 캘린더에서 날짜별로 1박 잔여가 1 이상인 구역 코드를 읽는다.
+ * 매진((마감))과 아직 안 열렸거나 지난 날짜(td.not)는 빈 집합이다.
+ */
+function parseCalendar(html: string, month: string): Map<string, Set<string>> {
+  const $ = cheerio.load(html);
+  const cells = $("table.t_calendar td").filter((_, td) => $(td).find("span.day").length > 0);
+  if (cells.length < 28) throw new AdapterError("unrecognized", `캘린더 날짜 칸이 ${cells.length}개뿐이다`);
+  const days = new Map<string, Set<string>>();
+  cells.each((_, td) => {
+    const day = $(td).find("span.day").first().text().trim();
+    const zones = new Set<string>();
+    days.set(`${month}-${day.padStart(2, "0")}`, zones);
+    if ($(td).hasClass("not")) return;
+    const items = $(td).find("ul.list li");
+    if (items.length === 0) throw new AdapterError("unrecognized", `캘린더 ${day}일 칸에 구역 목록이 없다`);
+    items.each((_, li) => {
+      const zone = new URL($(li).find("a").attr("href") ?? "", BASE).searchParams.get("type");
+      const remaining = /^\((\d+)\)$/.exec($(li).find("em").text().trim())?.[1];
+      if (zone && remaining && +remaining >= 1) zones.add(zone);
+    });
+  });
+  return days;
 }
 
 export const goraebulAdapter: ProviderAdapter = {
@@ -95,6 +127,28 @@ export const goraebulAdapter: ProviderAdapter = {
 
   async queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]> {
     return parseOpenSites(await fetchLayout(q, ctx), q.zone);
+  },
+
+  /** 캘린더를 월마다 한 번 읽어 1박 잔여가 있는 (구역, 입실일)만 자세히 조회한다. 나머지는 빈 결과다. */
+  async queryAvailabilityBatch(units, ctx) {
+    const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
+    const months = [...new Set(units.map((u) => u.checkIn.slice(0, 7)))].sort();
+    const calendars = new Map<string, Map<string, Set<string>>>();
+    for (const month of months) calendars.set(month, parseCalendar(await fetchPage(calendarUrl(month), ctx), month));
+    for (const q of units) {
+      // N박 연속으로 비려면 입실일 1박은 비어 있어야 하므로 1박 잔여로 거를 수 있다.
+      if (!calendars.get(q.checkIn.slice(0, 7))?.get(q.checkIn)?.has(q.zone)) {
+        results.set(q, []);
+        continue;
+      }
+      try {
+        results.set(q, await goraebulAdapter.queryAvailability(q, ctx));
+      } catch (e) {
+        if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
+        results.set(q, e);
+      }
+    }
+    return results;
   },
 
   async listSeats(q: AvailabilityQuery, ctx: AdapterContext): Promise<string[]> {

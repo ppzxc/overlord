@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
 import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
 import { loadConfig } from "../src/config.js";
+import { Liveness } from "../src/liveness.js";
 import { runPoller } from "../src/poller.js";
 import type { TelegramMessage, TelegramSink } from "../src/telegram.js";
 import type { Clock, ProviderAdapter, Transport, TransportRequest } from "../src/types.js";
@@ -23,8 +24,11 @@ export class FakeClock implements Clock {
       signal?.addEventListener("abort", () => resolve(), { once: true });
     });
   }
+  /** true면 advance가 시각만 옮기고 타이머는 깨우지 않는다. 루프가 멈춘 상황을 흉내 낸다. */
+  freezeTimers = false;
   async advance(ms: number): Promise<void> {
     this.current += ms;
+    if (this.freezeTimers) return;
     const due = this.timers.filter((t) => t.at <= this.current);
     this.timers = this.timers.filter((t) => t.at > this.current);
     due.forEach((t) => t.resolve());
@@ -123,6 +127,7 @@ export function startPoller(
     },
     getUpdates: async () => [],
   };
+  const liveness = new Liveness(() => clock.now().getTime());
   const controller = new AbortController();
   const done = runPoller(
     {
@@ -132,11 +137,12 @@ export function startPoller(
       clock,
       sink,
       version: "0.1.0",
+      liveness,
       random: opts.random ?? (() => 0.5), // 지터 0: 바퀴 간격 150초, 요청 간격 6.5초
     },
     controller.signal,
   );
-  return { requests, allRequests, requestTimes, sent, attempts: () => attempts, clock, stop: () => (controller.abort(), done) };
+  return { liveness, requests, allRequests, requestTimes, sent, attempts: () => attempts, clock, stop: () => (controller.abort(), done) };
 }
 
 const HEAD = `

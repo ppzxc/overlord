@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.scratch
+.env
+.env.*
+!.env.example
+test
+docs

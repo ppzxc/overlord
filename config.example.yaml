@@ -1,0 +1,19 @@
+# docker compose up 전에 config.yaml로 복사해서 쓴다.
+# healthz.bind는 컨테이너 안에서 헬스체크가 찌르므로 127.0.0.1:8080을 그대로 둔다(포트를 밖으로 열지 않는다).
+userAgentSuffix: ""
+quietHours: { from: "23:00", to: "07:00" }
+dailySummary: { enabled: true, at: "09:00" }
+# deadManPingUrl에 URL을 넣으면 dead-man ping을 보낸다. 환경 변수는 주석 안에서도 치환되니 쓰지 않는 값은 아예 지운다.
+healthz: { bind: "127.0.0.1:8080" }
+providers:
+  goraebul: { pollIntervalSeconds: 150 }
+notifiers:
+  default: { type: telegram, botToken: ${TELEGRAM_BOT_TOKEN}, chatId: ${TELEGRAM_CHAT_ID} }
+watches:
+  - name: 10월 주말 숲속야영장
+    provider: goraebul
+    zones: [DKA, DKB]
+    checkIn: { from: 2026-10-01, to: 2026-10-31 }
+    weekdays: [fri, sat]
+    nights: 1
+    notify: [default]

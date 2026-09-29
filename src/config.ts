@@ -20,6 +20,14 @@ const configSchema = z.strictObject({
     .strictObject({ enabled: z.boolean().default(true), at: hhmm.default("09:00") })
     .default({ enabled: true, at: "09:00" }),
   deadManPingUrl: z.url("URL이어야 한다").optional(),
+  healthz: z
+    .strictObject({
+      bind: z
+        .string()
+        .regex(/^[^:\s]+:\d{1,5}$/, "host:port 형식이어야 한다 (예: 127.0.0.1:8080)")
+        .default("127.0.0.1:8080"),
+    })
+    .default({ bind: "127.0.0.1:8080" }),
   providers: z
     .record(z.string(), z.strictObject({ pollIntervalSeconds: z.number().int("정수여야 한다").min(60, "60초 이상이어야 한다").default(150) }))
     .default({}),

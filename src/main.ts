@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
+import { pino } from "pino";
 import { adapters } from "./adapters/index.js";
 import { parseArgs } from "./cli.js";
 import { readConfig, runCatalog, runTelegram } from "./commands.js";
 import { ConfigError } from "./config.js";
+import { Liveness, startHealthz, startWatchdog } from "./liveness.js";
 import { runPoller } from "./poller.js";
 import { TelegramError, type TelegramSink } from "./telegram.js";
 import type { Clock, Transport } from "./types.js";
@@ -98,9 +100,28 @@ try {
   }
   throw e;
 }
+// JSON 줄 단위로 stdout에 남긴다. 비밀값이 필드로 들어와도 가린다.
+const logger = pino({
+  base: null,
+  timestamp: pino.stdTimeFunctions.isoTime,
+  redact: { paths: ["botToken", "deadManPingUrl", "url", "*.botToken", "*.deadManPingUrl", "*.url"], censor: "***" },
+});
+const log = (msg: string, fields?: Record<string, unknown>) => logger.info(fields ?? {}, msg);
+
 const controller = new AbortController();
 process.on("SIGINT", () => controller.abort());
 process.on("SIGTERM", () => controller.abort());
+
+const liveness = new Liveness(() => Date.now());
+const healthzServer = await startHealthz(config.healthz.bind, liveness).catch((e: unknown) => {
+  logger.fatal({ bind: config.healthz.bind, message: e instanceof Error ? e.message : String(e) }, "healthz 시작 실패");
+  process.exit(1);
+});
+// 루프가 멈추면 프로세스를 끝내 Docker restart 정책이 다시 띄우게 한다.
+startWatchdog(liveness, (stalled) => {
+  logger.fatal({ stalled }, "메인 루프가 멈췄다. 프로세스를 종료한다");
+  process.exit(1);
+});
 
 await runPoller(
   {
@@ -110,7 +131,9 @@ await runPoller(
     clock,
     sink,
     version: pkg.version,
-    log: (msg, fields) => console.log(JSON.stringify({ msg, ...fields })),
+    liveness,
+    log,
   },
   controller.signal,
 );
+healthzServer.close();

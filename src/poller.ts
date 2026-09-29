@@ -1,5 +1,6 @@
 import type { Config } from "./config.js";
 import { ProviderHealth, worstFailure, type Failure } from "./health.js";
+import type { Liveness } from "./liveness.js";
 import { createHttpClient } from "./http.js";
 import { createShared, errMessage, type DayStats, type Shared } from "./notify.js";
 import { addDays, expandWatch, isExpired, isQuiet, kstDate, unitKey } from "./schedule.js";
@@ -30,6 +31,8 @@ export interface PollerDeps {
   version: string;
   /** 0 이상 1 미만. 지터에 쓴다. 기본은 Math.random. */
   random?: () => number;
+  /** 예약처 루프가 살아 있는지 알리는 곳. 없으면 알리지 않는다. */
+  liveness?: Liveness;
   log?: (msg: string, fields?: Record<string, unknown>) => void;
 }
 
@@ -107,10 +110,16 @@ async function runProvider(
     if (delivered) health.markAnnounced(clock.now().getTime());
   };
 
+  const sleep = (ms: number) => {
+    deps.liveness?.beat(providerId, ms);
+    return clock.sleep(ms, signal);
+  };
+
   while (!signal.aborted) {
+    deps.liveness?.beat(providerId, 0);
     // 멈춘 예약처는 조회하지 않고, 같은 상태가 이어지면 24시간마다 리마인드만 한다.
     if (health.stopped) {
-      await clock.sleep(health.stoppedWaitMs(intervalMs, clock.now().getTime()), signal);
+      await sleep(health.stoppedWaitMs(intervalMs, clock.now().getTime()));
       if (!signal.aborted) await announceHealth();
       continue;
     }
@@ -222,6 +231,6 @@ async function runProvider(
     // 바퀴가 끝났고 알림 채널이 정상일 때만 살아 있다고 알린다.
     if (!signal.aborted && shared.channelOk()) await shared.pingDeadMan();
     const quiet = isQuiet(clock.now(), config.quietHours) ? QUIET_INTERVAL_FACTOR : 1;
-    await clock.sleep(jittered(health.nextIntervalMs(intervalMs) * quiet, INTERVAL_JITTER, random), signal);
+    await sleep(jittered(health.nextIntervalMs(intervalMs) * quiet, INTERVAL_JITTER, random));
   }
 }

@@ -33,24 +33,40 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
     }),
   };
   const query = { zone, checkIn: watch.checkIn.from, nights: watch.nights };
+  // 알림 대상별 "알렸음" 상태. 키: 감시 조건·구역·입실일·박수 범위 안의 자리 이름. 영속하지 않는다.
+  const scope = [watch.name, query.zone, query.checkIn, query.nights].join("|");
+  const notified = new Map<string, Set<string>>();
+  const sentBefore = new Set<string>();
 
   while (!signal.aborted) {
     try {
       const sites = await adapter.queryAvailability(query, ctx);
-      if (sites.length > 0) {
-        const link = adapter.deepLink(query);
-        for (const name of watch.notify) {
-          const notifier = config.notifiers[name];
-          if (!notifier) continue;
+      const current = new Set(sites.map((s) => s.name));
+      const link = adapter.deepLink(query);
+      for (const name of watch.notify) {
+        const notifier = config.notifiers[name];
+        if (!notifier) continue;
+        // 사라진 자리는 잊어서, 다시 생기면 새 빈자리로 알린다.
+        const known = new Set([...(notified.get(`${name}|${scope}`) ?? [])].filter((n) => current.has(n)));
+        notified.set(`${name}|${scope}`, known);
+        const fresh = sites.filter((s) => !known.has(s.name));
+        if (fresh.length === 0) continue;
+        try {
           const msg = renderOpenings({
             chatId: notifier.chatId,
             watchName: watch.name,
             info: adapter.describe(),
             query,
-            sites,
+            sites: fresh,
             link,
+            afterRestart: !sentBefore.has(name),
           });
           await deps.sink.sendMessage(notifier.botToken, msg);
+          fresh.forEach((s) => known.add(s.name));
+          sentBefore.add(name);
+        } catch (err) {
+          // 전송 실패는 기록하지 않아 다음 바퀴에 다시 보낸다. 다른 알림 대상은 계속 진행한다.
+          log("notify failed", { notifier: name, message: err instanceof Error ? err.message : String(err) });
         }
       }
     } catch (err) {

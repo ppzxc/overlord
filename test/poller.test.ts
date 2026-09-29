@@ -72,6 +72,56 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
   });
 });
 
+describe("새 빈자리만 알림", () => {
+  let respond = open;
+  const swap = (r: typeof open) => () => r();
+
+  it("같은 빈자리가 연속 두 바퀴 잡히면 첫 바퀴에만 알린다", async () => {
+    const p = startPoller(open);
+    await settle();
+    await p.clock.advance(150_000);
+    await p.clock.advance(150_000);
+    expect(p.requests).toHaveLength(3);
+    expect(p.sent).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("빈자리가 사라졌다가 다시 나타나면 다시 알린다", async () => {
+    respond = open;
+    const p = startPoller(swap(() => respond()));
+    await settle();
+    respond = soldOut;
+    await p.clock.advance(150_000);
+    respond = open;
+    await p.clock.advance(150_000);
+    expect(p.sent).toHaveLength(2);
+    expect(p.sent[1]!.text).not.toContain("재시작 직후 현황");
+    await p.stop();
+  });
+
+  it("프로세스 시작 뒤 첫 알림에만 재시작 직후 현황 표시가 있다", async () => {
+    const p = startPoller(open);
+    await settle();
+    expect(p.sent[0]!.text).toContain("재시작 직후 현황");
+    await p.stop();
+  });
+
+  it("전송이 실패하면 다음 바퀴에 같은 빈자리를 다시 보낸다", async () => {
+    let fail = true;
+    const p = startPoller(open, { failSend: () => fail });
+    await settle();
+    expect(p.sent).toHaveLength(0);
+    fail = false;
+    await p.clock.advance(150_000);
+    expect(p.sent).toHaveLength(1);
+    // 실패한 시도는 첫 알림으로 치지 않으므로 표시가 유지된다.
+    expect(p.sent[0]!.text).toContain("재시작 직후 현황");
+    await p.clock.advance(150_000);
+    expect(p.sent).toHaveLength(1);
+    await p.stop();
+  });
+});
+
 describe("설정 로딩", () => {
   it("${VAR}를 환경 변수로 치환한다", () => {
     expect(loadConfig(CONFIG_YAML, ENV).notifiers["default"]?.botToken).toBe("tok");

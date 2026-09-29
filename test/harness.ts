@@ -48,7 +48,10 @@ watches:
 export const ENV = { UA_SUFFIX: "(ops)", TELEGRAM_BOT_TOKEN: "tok", TELEGRAM_CHAT_ID: "42" };
 
 /** 폴러 전체를 실제 설정으로 띄우고 Transport, Clock, Telegram Sink만 교체한다. */
-export function startPoller(respond: (req: TransportRequest) => { status: number; body: string }) {
+export function startPoller(
+  respond: (req: TransportRequest) => { status: number; body: string },
+  opts: { failSend?: () => boolean } = {},
+) {
   const requests: TransportRequest[] = [];
   const sent: TelegramMessage[] = [];
   const clock = new FakeClock();
@@ -56,7 +59,12 @@ export function startPoller(respond: (req: TransportRequest) => { status: number
     requests.push(req);
     return respond(req);
   };
-  const sink: TelegramSink = { sendMessage: async (_t, msg) => void sent.push(msg) };
+  const sink: TelegramSink = {
+    sendMessage: async (_t, msg) => {
+      if (opts.failSend?.()) throw new Error("전송 실패");
+      sent.push(msg);
+    },
+  };
   const controller = new AbortController();
   const done = runPoller(
     {

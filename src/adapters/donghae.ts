@@ -390,6 +390,23 @@ async function readCalendars(
   return { days };
 }
 
+/** 하룻밤 조회 응답 본문. 바퀴와 catalog --live가 같은 요청을 보낸다. */
+function fetchNight(date: string, ctx: AdapterContext, pass: QueuePass): Promise<string> {
+  const [year, month, day] = date.split("-");
+  return fetchOk(
+    ctx.http.post(`${RESERVATION}/ND_selectFcltyCalendarDetail.do`, {
+      trrsrtCode: TRRSRT_CODE,
+      q_year: year!,
+      q_month: month!,
+      qDay: String(Number(day)),
+      passResv1: "",
+      passNfTime: String(pass.waitedMs),
+      netfunnel_key: pass.key,
+    }),
+    `날짜 조회 ${date}`,
+  );
+}
+
 /** 필요한 밤을 차례로 읽는다. 첫 실패에서 멈추고, 그때까지 읽은 밤과 실패를 함께 돌려준다. */
 async function readNights(
   dates: string[],
@@ -400,20 +417,8 @@ async function readNights(
   const nights = new Map<string, Map<string, number>>();
   for (const date of dates) {
     if (ctx.signal?.aborted) return { nights, failure: new AdapterError("transient", "중단되었다") };
-    const [year, month, day] = date.split("-");
     try {
-      const body = await fetchOk(
-        ctx.http.post(`${RESERVATION}/ND_selectFcltyCalendarDetail.do`, {
-          trrsrtCode: TRRSRT_CODE,
-          q_year: year!,
-          q_month: month!,
-          qDay: String(Number(day)),
-          passResv1: "",
-          passNfTime: String(pass.waitedMs),
-          netfunnel_key: pass.key,
-        }),
-        `날짜 조회 ${date}`,
-      );
+      const body = await fetchNight(date, ctx, pass);
       nights.set(date, parseNight(body, reduced, ctx));
     } catch (e) {
       if (isUnitFailure(e)) return { nights, failure: e };
@@ -503,19 +508,7 @@ export const donghaeAdapter: ProviderAdapter = {
     const read = async (): Promise<ZoneObservation> => {
       const { state, waitedMs } = await acquireSession(ctx);
       const pass: QueuePass = { key: state.key, waitedMs };
-      const [year, month, day] = q.checkIn.split("-");
-      const body = await fetchOk(
-        ctx.http.post(`${RESERVATION}/ND_selectFcltyCalendarDetail.do`, {
-          trrsrtCode: TRRSRT_CODE,
-          q_year: year!,
-          q_month: month!,
-          qDay: String(Number(day)),
-          passResv1: "",
-          passNfTime: String(pass.waitedMs),
-          netfunnel_key: pass.key,
-        }),
-        `날짜 조회 ${q.checkIn}`,
-      );
+      const body = await fetchNight(q.checkIn, ctx, pass);
       const items = splitNight(body);
       return {
         zones: items.map((i) => i.name),

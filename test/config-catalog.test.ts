@@ -388,6 +388,26 @@ describe("catalog donghae --live 구역 대조", () => {
     expect(result.failed).toBe(false);
   });
 
+  it("대기열이 201을 주면 서버가 준 간격대로 5002를 다시 보낸다", async () => {
+    const opcodes: string[] = [];
+    const server = donghaeServer({
+      counts: () => 3,
+      queue: ["5002:201:key=KEYW&nwait=5&nnext=1&tps=1&ttl=1&ip=x&port=443", "5002:200:key=KEYW&nwait=0&nnext=0&tps=0&ttl=0&ip=x&port=443"],
+    });
+    const result = await renderLiveDiff(donghaeAdapter, {
+      transport: async (req) => {
+        const u = new URL(req.url);
+        if (u.hostname.startsWith("nf.")) opcodes.push(u.searchParams.get("opcode")!);
+        return server(req);
+      },
+      version: "0.1.0",
+      now: new Date("2026-09-29T00:00:00Z"),
+      pause: async () => {},
+    });
+    expect(opcodes.slice(0, 2)).toEqual(["5101", "5002"]);
+    expect(result.text).toContain("구역 일치");
+  });
+
   it("조회에 실패하면 failed다", async () => {
     const result = await run(donghaeServer({ detailBody: () => "not json" }));
     expect(result.text).toContain("조회 실패(unrecognized)");

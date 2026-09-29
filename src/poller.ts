@@ -66,6 +66,12 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
   ]);
 }
 
+interface DayStats {
+  rounds: number;
+  /** 실패가 하나라도 있었던 바퀴 수 */
+  failures: number;
+}
+
 type Sender = (notifierName: string, label: string, msg: (chatId: string) => TelegramMessage) => Promise<boolean>;
 
 /** 예약처 바퀴들이 함께 쓰는 것. */
@@ -74,7 +80,7 @@ interface Shared {
   /** 알림 대상 모두의 마지막 전송이 성공했는가. 아직 보낸 적 없는 대상은 정상으로 본다. */
   channelOk(): boolean;
   /** 예약처별 상태와 날짜(KST)별 바퀴 수·실패 수. 일일 요약이 읽는다. */
-  stats: Map<string, { health: ProviderHealth; days: Map<string, { rounds: number; failures: number }> }>;
+  stats: Map<string, { health: ProviderHealth; days: Map<string, DayStats> }>;
 }
 
 /** 알림 한 건을 재시도 정책으로 보낸다. quietHours이면 무음으로 보낸다. 실패해도 던지지 않는다. */
@@ -172,11 +178,9 @@ async function runProvider(
   const expiredSent = new Set<string>();
   let firstCycle = true;
   const health = new ProviderHealth();
-  const stat = { health, days: new Map<string, { rounds: number; failures: number }>() };
+  const stat = { health, days: new Map<string, DayStats>() };
   shared.stats.set(providerId, stat);
   const healthNotifiers = [...new Set(watches.flatMap((w) => w.notify))];
-
-  const trySend = shared.send;
 
   /** 상태가 바뀌었거나 같은 장애가 24시간 이어졌으면 이 예약처의 알림 대상 모두에게 알린다. 하나라도 보내면 알린 것으로 친다. */
   const announceHealth = async () => {
@@ -184,7 +188,7 @@ async function runProvider(
     if (!notice) return;
     let delivered = false;
     for (const name of healthNotifiers) {
-      const ok = await trySend(name, providerId, (chatId) => renderHealth({ chatId, provider: providerId, ...notice }));
+      const ok = await shared.send(name, providerId, (chatId) => renderHealth({ chatId, provider: providerId, ...notice }));
       delivered ||= ok;
     }
     if (delivered) health.markAnnounced(clock.now().getTime());
@@ -207,7 +211,7 @@ async function runProvider(
       for (const name of watch.notify) {
         const key = `${watch.name}|${name}`;
         if (expiredSent.has(key)) continue;
-        const ok = await trySend(name, watch.name, (chatId) =>
+        const ok = await shared.send(name, watch.name, (chatId) =>
           renderWatchExpired({ chatId, watchName: watch.name, checkIn: watch.checkIn }),
         );
         if (ok) expiredSent.add(key);
@@ -284,7 +288,7 @@ async function runProvider(
       const chatId = config.notifiers[name]!.chatId;
       for (const part of renderOpenings({ chatId, info, entries, startupSnapshot: firstCycle })) {
         const label = [...new Set(part.items.map((i) => i.entry.watchName))].join(", ");
-        if (!(await trySend(name, label, () => part.message))) break; // 순서를 지키려고 뒤 메시지도 다음 바퀴로 미룬다.
+        if (!(await shared.send(name, label, () => part.message))) break; // 순서를 지키려고 뒤 메시지도 다음 바퀴로 미룬다.
         for (const { entry, sites } of part.items) sites.forEach((s) => entry.known.add(s.name)); // 이 메시지에 실린 자리만 기록한다.
       }
     }
@@ -292,8 +296,11 @@ async function runProvider(
     if (!signal.aborted && queries.size > 0) {
       const at = clock.now();
       health.record(worstFailure(failures), at.getTime());
-      const day = stat.days.get(kstDate(at)) ?? { rounds: 0, failures: 0 };
-      stat.days.set(kstDate(at), day);
+      const today = kstDate(at);
+      const day = stat.days.get(today) ?? { rounds: 0, failures: 0 };
+      stat.days.set(today, day);
+      // 요약이 읽는 것은 전날뿐이라 그 전 기록은 버린다.
+      for (const d of stat.days.keys()) if (d < addDays(today, -1)) stat.days.delete(d);
       day.rounds++;
       if (failures.length > 0) day.failures++;
       await announceHealth();
@@ -309,9 +316,11 @@ async function runProvider(
 /** dead-man 서비스에 GET만 보낸다. 헤더도 본문도 싣지 않는다. 실패해도 폴링은 계속한다. */
 async function pingDeadMan(deps: PollerDeps, url: string, log: NonNullable<PollerDeps["log"]>): Promise<void> {
   try {
-    await deps.transport({ url, headers: {}, timeoutMs: 10_000 });
+    const res = await deps.transport({ url, headers: {}, timeoutMs: 10_000 });
+    if (res.status >= 400) log("dead-man ping failed", { status: res.status });
   } catch (err) {
-    log("dead-man ping failed", { message: errMessage(err) });
+    // URL에 비밀 토큰이 들어 있는 경우가 많아 오류 메시지의 URL을 가린다.
+    log("dead-man ping failed", { message: errMessage(err).replaceAll(url, "***") });
   }
 }
 

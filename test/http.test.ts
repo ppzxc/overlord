@@ -31,6 +31,15 @@ describe("HTTP 요청", () => {
     });
   });
 
+  it("요청별 headers는 그 요청에만 더해지고 User-Agent를 덮지 않는다", async () => {
+    const { requests, transport } = recording();
+    const http = client(transport);
+    await http.post("https://example.com/a", { x: "1" }, { headers: { Referer: "https://example.com/" } });
+    await http.post("https://example.com/b", { x: "1" });
+    expect(requests[0]!.headers).toMatchObject({ Referer: "https://example.com/", "User-Agent": "overlord-availability-poller/0.1.0" });
+    expect(requests[1]!.headers.Referer).toBeUndefined();
+  });
+
   it("어댑터가 선언한 경로는 GET이든 POST든 보내지 않는다", async () => {
     const { requests, transport } = recording();
     const http = client(transport, { blockedPaths: ["/bbs/"] });

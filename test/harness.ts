@@ -200,9 +200,9 @@ function donghaeCalendar(month: string, closed?: (date: string) => boolean): str
   return `<input type="hidden" id="q_year" name="q_year" value="${y}"><input type="hidden" id="q_month" name="q_month" value="${m}"><div class="mCalendar1"><table><tbody><tr>${cells.join("")}</tr></tbody></table></div>`;
 }
 
-/** 진입 페이지 응답. 대기열 키 등록 흐름 문자열을 갖춘 정상 형태다. 실제 응답처럼 temporaryReducedCounts는 없다. */
-export const DONGHAE_ENTRY = () =>
-  `<html><input type="hidden" id="netfunnel_key" name="netfunnel_key" value=''/><script>$.post("/user/reservation/ND_setNfKey.do", {}); NetFunnel_Action({action_id:"reserve"}, {});</script></html>`;
+/** 진입 응답. 실제 응답처럼 대기열을 통과한 뒤의 달력 화면이고 temporaryReducedCounts를 갖는다. */
+export const DONGHAE_ENTRY = (reduced: string) =>
+  `<html><input type="hidden" id="netfunnel_key" name="netfunnel_key" value=""/><script>var temporaryReducedCounts = { ${reduced} };</script><div class="mCalendar1"><table></table></div></html>`;
 
 /** 가짜 동해시 서버. 대기열 서버와 www를 함께 흉내 낸다. 값을 문자열로 주면 그대로 응답에 넣는다. */
 export function donghaeServer(
@@ -217,10 +217,8 @@ export function donghaeServer(
     closed?: (date: string) => boolean;
     /** ND_checkNfKeyAvail.do가 키를 받아 주는지. 기본은 받아 준다. */
     keyAvailable?: (key: string) => boolean;
-    /** BD_reservation.do 응답을 바꾼다. */
-    entryBody?: () => string;
-    /** BD_reservationOrigin.do 응답을 바꾼다. 인자는 temporaryReducedCounts 안쪽 문자열이다. */
-    calendarBody?: (reduced: string, calendar: string) => string;
+    /** BD_reservation.do 응답을 바꾼다. 인자는 temporaryReducedCounts 안쪽 문자열이다. */
+    entryBody?: (reduced: string) => string;
     /** www 요청(ND_setNfKey 제외)을 가로채 응답을 바꾼다. */
     intercept?: (req: TransportRequest) => TransportResponse | undefined;
   } = {},
@@ -248,16 +246,12 @@ export function donghaeServer(
       return { status: 200, body: JSON.stringify({ result: true, message: ok ? "Available" : "NOT Available" }) };
     }
     if (url.pathname.endsWith("/BD_reservation.do")) {
-      return { status: 200, body: opts.entryBody ? opts.entryBody() : DONGHAE_ENTRY() };
+      const reduced = Object.entries(opts.reduced ?? {}).map(([k, v]) => `'${k}' : ${v}`).join(", ");
+      return { status: 200, body: opts.entryBody ? opts.entryBody(reduced) : DONGHAE_ENTRY(reduced) };
     }
     if (url.pathname.endsWith("/BD_reservationOrigin.do")) {
       const form = new URLSearchParams(req.body ?? "");
-      const reduced = Object.entries(opts.reduced ?? {}).map(([k, v]) => `'${k}' : ${v}`).join(", ");
-      const calendar = donghaeCalendar(`${form.get("q_year")}-${form.get("q_month")}`, opts.closed);
-      return {
-        status: 200,
-        body: opts.calendarBody ? opts.calendarBody(reduced, calendar) : `<html><script>var temporaryReducedCounts = { ${reduced} };</script>${calendar}</html>`,
-      };
+      return { status: 200, body: `<html>${donghaeCalendar(`${form.get("q_year")}-${form.get("q_month")}`, opts.closed)}</html>` };
     }
     if (url.pathname.endsWith("/ND_selectFcltyCalendarDetail.do")) {
       const form = new URLSearchParams(req.body ?? "");

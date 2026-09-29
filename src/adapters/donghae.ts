@@ -65,6 +65,12 @@ const INFO: ProviderInfo = {
   cookieSession: true,
 };
 
+/**
+ * 예약 화면은 브라우저 요청만 받는다. Referer·Origin 없이 진입 POST를 보내면 예약 화면 대신 대기 페이지(달력 없음)를 돌려준다(실측).
+ * 브라우저가 www POST마다 보내는 값을 그대로 싣는다.
+ */
+const PAGE_HEADERS = { Referer: `${RESERVATION}/BD_reservation.do`, Origin: WWW };
+
 const NETFUNNEL_JS = `${WWW}/resources/user/js/netfunnel.js`;
 // 2026-09-29에 확인한 값. 달라지면 경고만 남긴다.
 const NETFUNNEL_VERSION = "2.2.25_hotfix";
@@ -147,11 +153,13 @@ async function enterQueue(ctx: AdapterContext): Promise<QueuePass> {
   }
 }
 
-/** 진입 페이지가 대기열 키를 서버에 등록하는 흐름. 하나라도 사라지면 예약처 구조가 바뀐 것이다. */
+/**
+ * 대기열을 통과한 진입 응답이 갖춰야 하는 표식. 브라우저로 기록한 실제 응답은 이번 달 달력 화면이다(실측).
+ * 표식이 없으면 대기 페이지가 돌아온 것이거나 예약처 구조가 바뀐 것이다.
+ */
 const ENTRY_MARKERS: { pattern: RegExp; label: string }[] = [
   { pattern: /name="netfunnel_key"/, label: "netfunnel_key 필드" },
-  { pattern: /ND_setNfKey\.do/, label: "ND_setNfKey.do 호출" },
-  { pattern: /NetFunnel_Action\(\{action_id:"reserve"\}/, label: 'NetFunnel_Action({action_id:"reserve"}' },
+  { pattern: /class="mCalendar1"/, label: "월 달력" },
 ];
 
 /** `netfunnel.js` 경고 확인을 이미 한 세션. 새 키로 진입할 때마다 다시 확인한다. */
@@ -181,6 +189,7 @@ interface KeyState {
   key: string;
   issuedAt: number;
   enteredAt: number;
+  reduced: Map<string, number>;
   completed: boolean;
   /** 이 키를 받으려고 대기열에서 기다린 시간(ms). */
   waitedMs: number;
@@ -199,7 +208,7 @@ async function sendComplete(ctx: AdapterContext, state: KeyState, ignoreAbort = 
 
 /** `ND_checkNfKeyAvail.do`로 서버가 키를 아직 받아 주는지 묻는다. */
 async function keyAvailable(ctx: AdapterContext, key: string): Promise<boolean> {
-  const body = await fetchOk(ctx.http.post(`${RESERVATION}/ND_checkNfKeyAvail.do`, { netfunnel_key: key }), "키 확인");
+  const body = await fetchOk(ctx.http.post(`${RESERVATION}/ND_checkNfKeyAvail.do`, { netfunnel_key: key }, { headers: PAGE_HEADERS }), "키 확인");
   let message: unknown;
   try {
     message = (JSON.parse(body) as { message?: unknown }).message;
@@ -215,7 +224,7 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
   const pass = await enterQueue(ctx);
   const issuedAt = ctx.clock.now().getTime();
   await fetchOk(
-    ctx.http.post(`${RESERVATION}/ND_setNfKey.do`, pass.key, { contentType: "application/json" }),
+    ctx.http.post(`${RESERVATION}/ND_setNfKey.do`, pass.key, { contentType: "application/json", headers: PAGE_HEADERS }),
     "키 등록",
   );
   const entry = await fetchOk(
@@ -226,7 +235,7 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
       q_year: "",
       q_month: "",
       netfunnel_key: pass.key,
-    }),
+    }, { headers: PAGE_HEADERS }),
     "예약 화면 진입",
   );
   for (const { pattern, label } of ENTRY_MARKERS) {
@@ -236,6 +245,7 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
     key: pass.key,
     issuedAt,
     enteredAt: ctx.clock.now().getTime(),
+    reduced: parseReduced(entry),
     completed: false,
     waitedMs: pass.waitedMs,
   };
@@ -267,7 +277,7 @@ async function acquireSession(ctx: AdapterContext): Promise<{ state: KeyState; p
   return { state: fresh, pass: { key: fresh.key, waitedMs: fresh.waitedMs } };
 }
 
-/** 월 달력 응답의 `temporaryReducedCounts = { '이름' : 20 }`을 읽는다. 상수가 없으면 구조 변경이다. */
+/** 진입 응답의 `temporaryReducedCounts = { '이름' : 20 }`을 읽는다. 상수가 없으면 구조 변경이다. */
 function parseReduced(html: string): Map<string, number> {
   const m = /temporaryReducedCounts\s*=\s*\{([^}]*)\}/.exec(html);
   if (!m) throw new AdapterError("unrecognized", "temporaryReducedCounts를 찾지 못했다");
@@ -377,12 +387,8 @@ async function readEach<K, V>(
   return { read: done };
 }
 
-/** 월 달력 하나를 BD_reservationOrigin으로 읽는다. 진입 응답에는 달력도 임시 중단 호실 상수도 없다(기록·실측 확인). */
-async function readCalendar(
-  month: string,
-  ctx: AdapterContext,
-  pass: QueuePass,
-): Promise<{ days: Map<string, CalendarDay>; reduced: Map<string, number> }> {
+/** 월 달력 하나를 BD_reservationOrigin으로 읽는다. 진입 응답에는 달력이 없다(기록 확인). */
+async function readCalendar(month: string, ctx: AdapterContext, pass: QueuePass): Promise<Map<string, CalendarDay>> {
   const [year, mm] = month.split("-");
   const body = await fetchOk(
     ctx.http.post(`${RESERVATION}/BD_reservationOrigin.do`, {
@@ -390,12 +396,12 @@ async function readCalendar(
       q_year: year!,
       q_month: mm!,
       netfunnel_key: pass.key,
-    }),
+    }, { headers: PAGE_HEADERS }),
     `월 달력 ${month}`,
   );
   const cal = parseCalendar(body);
   if (cal.month !== month) throw new AdapterError("unrecognized", `월 달력 ${month}을(를) 요청했는데 ${cal.month}이(가) 왔다`);
-  return { days: cal.days, reduced: parseReduced(body) };
+  return cal.days;
 }
 
 /** 하룻밤 조회 응답 본문. 바퀴와 catalog --live가 같은 요청을 보낸다. */
@@ -410,7 +416,7 @@ function fetchNight(date: string, ctx: AdapterContext, pass: QueuePass): Promise
       passResv1: "",
       passNfTime: String(pass.waitedMs),
       netfunnel_key: pass.key,
-    }),
+    }, { headers: PAGE_HEADERS }),
     `날짜 조회 ${date}`,
   );
 }
@@ -421,14 +427,13 @@ async function runBatch(
   ctx: AdapterContext,
 ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>> {
   const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
-  const { pass } = await acquireSession(ctx);
+  const { state, pass } = await acquireSession(ctx);
+  const reduced = state.reduced;
 
   const allDates = [...new Set(units.flatMap(nightsOf))].sort();
   const months = new Set(allDates.map((d) => d.slice(0, 7)));
   const calendars = await readEach(months, ctx, (month) => readCalendar(month, ctx, pass));
-  const calendar = { days: new Map([...calendars.read.values()].flatMap((c) => [...c.days])), failure: calendars.failure };
-  // 상수는 달력 화면마다 같은 값이 들어 있다. 달력에서 실패했으면 날짜 조회를 보내지 않으므로 비어 있어도 쓰이지 않는다.
-  const reduced = new Map([...calendars.read.values()].flatMap((c) => [...c.reduced]));
+  const calendar = { days: new Map([...calendars.read.values()].flatMap((m) => [...m])), failure: calendars.failure };
   // 필요한 밤 하나라도 예약마감이면 날짜 조회 없이 빈 결과다.
   const closed = (q: AvailabilityQuery) => nightsOf(q).some((d) => calendar.days.get(d) === "closed");
   for (const q of units) if (closed(q)) results.set(q, []);

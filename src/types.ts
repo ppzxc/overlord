@@ -34,6 +34,8 @@ export interface RequestOptions {
   contentType?: string;
   /** 중단 신호가 서 있어도 보낸다. 종료 때 대기열에 마무리를 알리는 요청용이다. */
   ignoreAbort?: boolean;
+  /** 이 요청에만 더하는 헤더. Referer·Origin처럼 예약처가 브라우저 요청인지 보는 값에 쓴다. */
+  headers?: Record<string, string>;
 }
 
 /** 예약처 하나가 쓰는 HTTP 클라이언트. 예약처가 쿠키 세션을 쓰면 받은 쿠키를 같은 클라이언트의 다음 요청에 싣는다. */

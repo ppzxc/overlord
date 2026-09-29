@@ -144,12 +144,14 @@ async function runProvider(
       if (!signal.aborted) await announceHealth();
       continue;
     }
-    // 시작 직후나 멈춘 예약처가 깨어난 시각이 구간 안일 수 있어 바퀴 앞에서도 확인한다.
+    // 다음 바퀴 예정 시각이 구간 안이거나, 시작·재개 시각이 구간 안이면 여기서 구간 끝까지 미룬다.
     // 오픈 경쟁 시간에는 조회하지 않고 구간 끝까지 쉰다. 예약처 상태는 건드리지 않는다.
     const rushWait = msUntilRushEnd(clock.now(), rush);
     if (rushWait > 0) {
       log("opening rush wait", { provider: providerId, waitMs: rushWait });
-      await sleep(rushWait);
+      // 살아있음 신호가 구간 내내 끊기지 않도록 폴링 간격마다 끊어 쉬며 보낸다.
+      await sleep(Math.min(rushWait, intervalMs));
+      if (!signal.aborted && shared.channelOk()) await shared.pingDeadMan();
       continue;
     }
     const now = clock.now();
@@ -272,8 +274,8 @@ async function runProvider(
     if (!signal.aborted && shared.channelOk()) await shared.pingDeadMan();
     const quiet = isQuiet(clock.now(), config.quietHours) ? QUIET_INTERVAL_FACTOR : 1;
     const wait = jittered(health.nextIntervalMs(intervalMs) * quiet, INTERVAL_JITTER, random);
-    // 다음 바퀴 예정 시각이 오픈 경쟁 시간 안이면 구간 끝으로 미룬다.
-    await sleep(wait + msUntilRushEnd(new Date(clock.now().getTime() + wait), rush));
+    // 예정 시각이 오픈 경쟁 시간 안이면 다음 순회 앞의 구간 확인이 구간 끝까지 미룬다.
+    await sleep(wait);
   }
   try {
     await adapter.close?.(ctx);

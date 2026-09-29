@@ -142,6 +142,12 @@ describe("catalog", () => {
 describe("명령행 인자", () => {
   it("catalog는 하위 명령이고 그 밖의 첫 인자는 설정 파일 경로다", () => {
     expect(parseArgs(["catalog", "goraebul", "--live"])).toEqual({ kind: "catalog", provider: "goraebul", live: true });
+    expect(parseArgs(["catalog", "--live", "--config", "c.yaml", "goraebul"])).toEqual({
+      kind: "catalog",
+      provider: "goraebul",
+      live: true,
+      configPath: "c.yaml",
+    });
     expect(parseArgs(["my.yaml"])).toEqual({ kind: "run", configPath: "my.yaml" });
     expect(parseArgs(["./catalog"])).toEqual({ kind: "run", configPath: "./catalog" });
     expect(parseArgs([])).toEqual({ kind: "run", configPath: "config.yaml" });
@@ -216,6 +222,30 @@ describe("catalog 명령", () => {
     });
     expect(await runCatalog({ kind: "catalog", provider: "donghae", live: true }, d.deps)).toBe(1);
     expect(d.err.join("")).toContain("오픈 경쟁 시간");
+  });
+
+  it("설정의 openingRush가 예약처 기본값을 덮어써서 --live 거부 구간이 바뀐다", async () => {
+    const yaml = configWith(`  - name: w
+    provider: donghae
+    zones: [자동차캠핑장]
+    checkIn: { from: 2026-10-03, to: 2026-10-03 }
+    nights: 1
+    notify: [default]`).replace("providers:", 'providers:\n  donghae: { openingRush: { from: "14:00", to: "14:30" } }');
+    const config = loadConfig(yaml, { UA_SUFFIX: "x", TELEGRAM_BOT_TOKEN: "t", TELEGRAM_CHAT_ID: "1" });
+    const make = (now: string) =>
+      deps({
+        adapters: { donghae: donghaeAdapter },
+        config,
+        now: () => new Date(now),
+        transport: async () => { throw new Error("호출되면 안 된다"); },
+      });
+    const inside = make("2026-09-29T14:10:00+09:00");
+    expect(await runCatalog({ kind: "catalog", provider: "donghae", live: true }, inside.deps)).toBe(1);
+    expect(inside.err.join("")).toContain("14:00~14:30");
+    // 기본 구간(11:00)은 덮어썼으므로 거부되지 않아 transport까지 간다.
+    const outside = make("2026-09-29T11:00:00+09:00");
+    await runCatalog({ kind: "catalog", provider: "donghae", live: true }, outside.deps).catch(() => 0);
+    expect(outside.err.join("")).not.toContain("오픈 경쟁 시간");
   });
 
   it("--live 없이는 표만 출력하고 예약처에 묻지 않는다", async () => {

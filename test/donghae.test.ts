@@ -597,6 +597,23 @@ describe("동해시 오픈 경쟁 시간", () => {
     await p.stop();
   });
 
+  it("구간 동안에도 살아있음 신호가 폴링 간격마다 나간다", async () => {
+    const PING = "https://hc.example/ping";
+    const p = startPoller(() => ({ status: 404, body: "" }), {
+      yaml: yaml().replace("providers:", `deadManPingUrl: ${PING}\nproviders:`),
+      server: donghaeServer({ counts: () => 3 }),
+    });
+    await toRush(p);
+    const pings = () => p.allRequests.filter((r) => r.url === PING).length;
+    const before = pings();
+    for (let i = 0; i < 12; i++) {
+      await p.clock.advance(150_000);
+      await settle();
+    }
+    expect(pings() - before).toBeGreaterThanOrEqual(10);
+    await p.stop();
+  });
+
   it("구간 안에서는 헬스 알림이 없고 상태가 바뀌지 않는다", async () => {
     const p = run(donghaeServer({ counts: () => 3 }));
     await toRush(p);

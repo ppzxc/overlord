@@ -71,8 +71,19 @@ if (command.kind === "telegram") {
 }
 
 if (command.kind === "catalog") {
+  let catalogConfig;
+  try {
+    if (command.configPath) catalogConfig = readConfig(command.configPath, process.env);
+  } catch (e) {
+    if (e instanceof ConfigError) {
+      console.error(e.message);
+      process.exit(1);
+    }
+    throw e;
+  }
   process.exit(
     await runCatalog(command, {
+      ...(catalogConfig ? { config: catalogConfig } : {}),
       adapters,
       transport,
       version: pkg.version,

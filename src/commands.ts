@@ -16,6 +16,8 @@ export interface CatalogDeps {
   random: () => number;
   out: (text: string) => void;
   err: (text: string) => void;
+  /** 있으면 설정의 openingRush가 예약처 기본값을 덮어쓴다. */
+  config?: Config;
 }
 
 /** 요청 사이 최소 간격 5초에 0~3초 지터를 더한다. */
@@ -30,7 +32,7 @@ export async function runCatalog(command: Extract<Command, { kind: "catalog" }>,
   }
   deps.out(renderCatalog(adapter));
   if (!command.live) return 0;
-  const rush = adapter.describe().openingRush;
+  const rush = deps.config?.providers[adapter.describe().id]?.openingRush ?? adapter.describe().openingRush;
   if (rush && msUntilRushEnd(deps.now(), rush) > 0) {
     deps.err(`오픈 경쟁 시간(${rush.from}~${rush.to} KST)에는 --live를 실행하지 않는다. 그 뒤에 다시 실행하라\n`);
     return 1;

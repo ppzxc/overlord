@@ -83,11 +83,13 @@ export function renderOpenings<E extends OpeningEntry>(opts: {
     const q = entry.query;
     const zoneName = opts.info.zones.find((z) => z.code === q.zone)?.name ?? q.zone;
     for (let i = 0; i < entry.sites.length; i += MAX_SITES_PER_LINE) {
-      const names = entry.sites
-        .slice(i, i + MAX_SITES_PER_LINE)
-        .map((s) => escapeHtml(s.name))
-        .join(", ");
-      const base = `${q.checkIn}(${weekday(q.checkIn)}) ${q.nights}박 · ${escapeHtml(zoneName)} · ${names}`;
+      const chunkSites = entry.sites.slice(i, i + MAX_SITES_PER_LINE);
+      // 남은 수를 세는 예약처는 자리 이름 대신 남은 수를 보인다. 연박의 남은 수는 밤마다 센 최솟값이다.
+      const counted = chunkSites.every((s) => s.remaining !== undefined);
+      const detail = counted
+        ? `${q.nights > 1 ? "밤마다 남은 최소" : "남은"} ${chunkSites.map((s) => s.remaining).join(", ")}${q.nights > 1 ? " (같은 자리 연속 보장 없음)" : ""}`
+        : chunkSites.map((s) => escapeHtml(s.name)).join(", ");
+      const base = `${q.checkIn}(${weekday(q.checkIn)}) ${q.nights}박 · ${escapeHtml(zoneName)} · ${detail}`;
       const tryAdd = (p: Page) => {
         const linked = p.buttons.some((b) => b.url === entry.link);
         const room = linked || p.buttons.length < MAX_BUTTONS;

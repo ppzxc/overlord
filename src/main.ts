@@ -1,3 +1,4 @@
+import { systemClock } from "./clock.js";
 import { readFileSync } from "node:fs";
 import { pino } from "pino";
 import { adapters } from "./adapters/index.js";
@@ -8,7 +9,7 @@ import { checkHealthz, startHealthz } from "./healthz.js";
 import { Liveness, startWatchdog } from "./liveness.js";
 import { runPoller } from "./poller.js";
 import { TelegramError, type TelegramSink } from "./telegram.js";
-import type { Clock, Transport } from "./types.js";
+import type { Transport } from "./types.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
 
@@ -21,19 +22,6 @@ const transport: Transport = async ({ method, url, headers, body, timeoutMs, red
     setCookie: res.headers.getSetCookie(),
     location: res.headers.get("location") ?? undefined,
   };
-};
-
-const clock: Clock = {
-  now: () => new Date(),
-  sleep: (ms, signal) =>
-    new Promise((resolve) => {
-      const timer = setTimeout(done, ms);
-      signal?.addEventListener("abort", done, { once: true });
-      function done() {
-        clearTimeout(timer);
-        resolve();
-      }
-    }),
 };
 
 const TELEGRAM_TIMEOUT_MS = 15_000;
@@ -89,7 +77,7 @@ if (command.kind === "catalog") {
       transport,
       version: pkg.version,
       now: () => new Date(),
-      sleep: (ms) => clock.sleep(ms),
+      sleep: (ms) => systemClock.sleep(ms),
       random: Math.random,
       out: (text) => process.stdout.write(text),
       err: (text) => process.stderr.write(text),
@@ -142,7 +130,7 @@ await runPoller(
     config,
     adapters,
     transport,
-    clock,
+    clock: systemClock,
     sink,
     version: pkg.version,
     liveness,

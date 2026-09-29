@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { donghaeAdapter } from "../src/adapters/donghae.js";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
 import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
 import { loadConfig } from "../src/config.js";
@@ -100,10 +101,14 @@ export function startPoller(
     random?: () => number;
     /** 기본은 고래불 어댑터 하나. 예약처를 더 두려면 가짜 어댑터를 넣는다. */
     adapters?: Record<string, ProviderAdapter>;
+    /** 주면 모든 요청을 이 함수가 답한다. 동해시처럼 고래불 캘린더 흉내가 필요 없는 서버용이다. */
+    server?: (req: TransportRequest) => TransportResponse;
   } = {},
 ) {
   const respond = (req: TransportRequest) =>
-    isCalendar(req)
+    opts.server
+      ? opts.server(req)
+      : isCalendar(req)
       ? { status: 200, body: calendarHtml(calendarMonth(req), opts.remaining) }
       : respondDetail(req);
   const allRequests: TransportRequest[] = [];
@@ -133,7 +138,7 @@ export function startPoller(
   const done = runPoller(
     {
       config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV, opts.adapters),
-      adapters: opts.adapters ?? { goraebul: goraebulAdapter },
+      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter },
       transport,
       clock,
       sink,
@@ -178,3 +183,48 @@ export const fakeHttp = (get: (url: string) => Promise<TransportResponse>): Http
   },
   clearSession: () => {},
 });
+
+export const DONGHAE_ZONES = ["전통한옥", "캐빈하우스", "든바다", "난바다", "허허바다", "자동차캠핑장", "캐라반", "글램핑(4인)", "글램핑(2인)"];
+
+/** 가짜 동해시 서버. 대기열 서버와 www를 함께 흉내 낸다. 값을 문자열로 주면 그대로 응답에 넣는다. */
+export function donghaeServer(
+  opts: {
+    /** 구역·날짜별 남은 수. 기본은 모두 예약완료다. */
+    counts?: (zone: string, date: string) => number | string;
+    reduced?: Record<string, number>;
+    /** 대기열 응답 순서. 다 쓰면 마지막을 되풀이한다. 기본은 바로 통과다. */
+    queue?: string[];
+    detailBody?: (date: string) => string | undefined;
+  } = {},
+) {
+  let queueStep = 0;
+  const seen = { keys: 0 };
+  const respond = (req: TransportRequest): TransportResponse => {
+    const url = new URL(req.url);
+    if (url.hostname === "nf.campingkorea.or.kr") {
+      const list = opts.queue ?? [`5002:200:key=KEY${++seen.keys}&nwait=0&nnext=0&tps=0.000000&ttl=0&ip=nf.campingkorea.or.kr&port=443`];
+      const line = list[Math.min(queueStep++, list.length - 1)]!;
+      return { status: 200, body: `NetFunnel.gRtype=4999;NetFunnel.gControl.result='${line}'; NetFunnel.gControl._showResult();` };
+    }
+    if (url.pathname.endsWith("/ND_setNfKey.do")) {
+      return { status: 200, body: '{ "success" : true }', setCookie: ["DHCMP_JSESSIONID=sess1; Path=/; HttpOnly"] };
+    }
+    if (url.pathname.endsWith("/BD_reservation.do")) {
+      const reduced = Object.entries(opts.reduced ?? {}).map(([k, v]) => `'${k}' : ${v}`).join(", ");
+      return { status: 200, body: `<html><script>var temporaryReducedCounts = { ${reduced} };</script></html>` };
+    }
+    if (url.pathname.endsWith("/ND_selectFcltyCalendarDetail.do")) {
+      const form = new URLSearchParams(req.body ?? "");
+      const date = `${form.get("q_year")}-${form.get("q_month")}-${form.get("qDay")!.padStart(2, "0")}`;
+      const custom = opts.detailBody?.(date);
+      if (custom !== undefined) return { status: 200, body: custom };
+      const value = DONGHAE_ZONES.map((z) => {
+        const n = opts.counts?.(z, date) ?? "예약완료";
+        return `${z}:${n}`;
+      }).join("|^|");
+      return { status: 200, body: JSON.stringify({ ipAdres: null, paramMap: {}, result: true, value, message: null }) };
+    }
+    return { status: 404, body: "" };
+  };
+  return respond;
+}

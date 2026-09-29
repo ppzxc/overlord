@@ -15,6 +15,7 @@ import {
 } from "./telegram.js";
 import {
   AdapterError,
+  type AdapterContext,
   type AvailabilityQuery,
   type AvailableSite,
   type Clock,
@@ -90,7 +91,9 @@ async function runProvider(
   const watches = config.watches.filter((w) => w.provider === providerId);
   const intervalMs = (config.providers[providerId]?.pollIntervalSeconds ?? 150) * 1000;
 
-  const ctx = {
+  const ctx: AdapterContext = {
+    clock,
+    signal,
     http: createHttpClient({
       transport: deps.transport,
       version: deps.version,

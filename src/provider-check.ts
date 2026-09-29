@@ -34,6 +34,14 @@ export function checkAgainstProviders(config: Config, adapters: Record<string, P
     for (const z of w.zones) {
       if (!codes.includes(z)) problems.push({ path: at("zones"), message: `없는 구역 "${z}"다. 쓸 수 있는 값: ${codes.join(", ")}` });
     }
+    // 자리 목록이 없는 구역은 자리로 거를 수 없다.
+    if (w.seats) {
+      const noSeats = info.zones.filter((z) => w.zones.includes(z.code) && !z.seats).map((z) => z.code);
+      if (noSeats.length > 0) {
+        problems.push({ path: at("seats"), message: `${noSeats.join(", ")}은(는) 자리를 볼 수 없어 seats를 쓸 수 없다` });
+        return;
+      }
+    }
     // 구역 코드가 틀렸으면 구역 오류만 알린다. 자리 번호는 구역이 맞아야 확인할 수 있다.
     const requested = info.zones.filter((z) => w.zones.includes(z.code));
     if (w.seats && requested.length === w.zones.length && requested.every((z) => z.seats)) {

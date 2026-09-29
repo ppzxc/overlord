@@ -4,10 +4,10 @@ import { donghaeAdapter } from "../src/adapters/donghae.js";
 import { renderCatalog } from "../src/catalog.js";
 import { renderLiveDiff } from "../src/catalog-live.js";
 import { parseArgs } from "../src/cli.js";
-import { liveGapMs, readConfig, runCatalog, runTelegram } from "../src/commands.js";
+import { readConfig, runCatalog, runTelegram } from "../src/commands.js";
 import { ConfigError, loadConfig } from "../src/config.js";
 import type { Transport } from "../src/types.js";
-import { DONGHAE_ZONES, ENV, configWith, donghaeServer, fixture } from "./harness.js";
+import { DONGHAE_ZONES, ENV, FakeClock, configWith, donghaeServer, fixture } from "./harness.js";
 
 const watch = (extra: string, name = "w") =>
   `  - name: ${name}\n    provider: goraebul\n    zones: [DKA]\n    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n${extra}`;
@@ -104,7 +104,7 @@ describe("catalog", () => {
       return { status: 200, body: respond(new URL(url).searchParams.get("room_Code")!) };
     };
     const run = () =>
-      renderLiveDiff(goraebulAdapter, { transport, version: "0.1.0", now: new Date("2026-09-29T00:00:00Z"), pause: async () => {} });
+      renderLiveDiff(goraebulAdapter, { transport, version: "0.1.0", now: new Date("2026-09-29T00:00:00Z"), clock: new FakeClock(), random: () => 0.5 });
     return { requests, run };
   };
 
@@ -163,7 +163,7 @@ describe("catalog --live 실패 처리", () => {
       zones.push(zone);
       return respond(zone);
     };
-    return { zones, run: () => renderLiveDiff(goraebulAdapter, { transport, version: "0.1.0", now: new Date("2026-09-29T00:00:00Z"), pause: async () => {} }) };
+    return { zones, run: () => renderLiveDiff(goraebulAdapter, { transport, version: "0.1.0", now: new Date("2026-09-29T00:00:00Z"), clock: new FakeClock(), random: () => 0.5 }) };
   };
 
   it("한 구역이 실패해도 나머지를 조회하고 실패로 보고한다", async () => {
@@ -270,8 +270,6 @@ describe("catalog 명령", () => {
     expect(await runCatalog({ kind: "catalog", provider: "goraebul", live: true }, d.deps)).toBe(1);
     expect(d.sleeps).toHaveLength(8);
     expect(d.sleeps.every((ms) => ms === 6500)).toBe(true);
-    expect(liveGapMs(() => 0)).toBe(5000);
-    expect(liveGapMs(() => 0.999)).toBeLessThan(8000);
   });
 });
 
@@ -355,7 +353,8 @@ describe("catalog donghae --live 구역 대조", () => {
       },
       version: "0.1.0",
       now: new Date("2026-09-29T00:00:00Z"),
-      pause: async () => {},
+      clock: new FakeClock(),
+      random: () => 0.5,
     });
   const detail = (items: string[]) => JSON.stringify({ result: true, value: items.join("|^|"), message: null });
 
@@ -402,10 +401,32 @@ describe("catalog donghae --live 구역 대조", () => {
       },
       version: "0.1.0",
       now: new Date("2026-09-29T00:00:00Z"),
-      pause: async () => {},
+      clock: new FakeClock(),
+      random: () => 0.5,
     });
     expect(opcodes.slice(0, 2)).toEqual(["5101", "5002"]);
     expect(result.text).toContain("구역 일치");
+  });
+
+  it("www 요청 사이에 5초 이상 쉬고 끝날 때 5004로 대기열을 마무리한다", async () => {
+    const server = donghaeServer();
+    const clock = new FakeClock();
+    const log: { at: number; op: string }[] = [];
+    await renderLiveDiff(donghaeAdapter, {
+      transport: async (req) => {
+        const u = new URL(req.url);
+        log.push({ at: clock.now().getTime(), op: u.hostname.startsWith("nf.") ? `nf:${u.searchParams.get("opcode")}` : u.pathname });
+        return server(req);
+      },
+      version: "0.1.0",
+      now: new Date("2026-09-29T00:00:00Z"),
+      clock,
+      random: () => 0,
+    });
+    const www = log.filter((r) => !r.op.startsWith("nf:"));
+    expect(www.length).toBeGreaterThan(1);
+    for (let i = 1; i < www.length; i++) expect(www[i]!.at - www[i - 1]!.at).toBeGreaterThanOrEqual(5000);
+    expect(log.at(-1)!.op).toBe("nf:5004");
   });
 
   it("조회에 실패하면 failed다", async () => {

@@ -419,7 +419,6 @@ describe("동해시 대기열 키 재사용과 수명", () => {
 
   describe("신호 분류", () => {
     const failedKinds = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "query failed").map((l) => l.fields?.kind);
-    const json = (o: object) => ({ status: 200, body: JSON.stringify(o) });
     const detailReq = (r: { url: string }) => r.url.endsWith("ND_selectFcltyCalendarDetail.do");
 
     it("NetFunnel 302도 차단으로 멈추고 가상 대기에 참여하지 않는다", async () => {

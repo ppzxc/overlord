@@ -112,8 +112,8 @@ describe("catalog", () => {
   it("--live: 사라지거나 새로 생긴 자리를 보고한다", async () => {
     const { run } = live((z) => layout(z, z === "DKA" ? [...seq(37), 40] : seq(1)));
     const out = await run();
-    expect(out).toContain("DKA: 사이트에서 사라진 자리 A38");
-    expect(out).toContain("DKA: 사이트에 새로 생긴 자리 A40");
+    expect(out).toContain("DKA: 예약처에서 사라진 자리 A38");
+    expect(out).toContain("DKA: 예약처에 새로 생긴 자리 A40");
     expect(out).toContain("어댑터의 고정 목록을 갱신해야 한다");
   });
 });

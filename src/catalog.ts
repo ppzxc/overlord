@@ -1,5 +1,5 @@
 import { createHttpClient } from "./http.js";
-import { kstDate } from "./schedule.js";
+import { addDays, kstDate } from "./schedule.js";
 import type { AdapterContext, ProviderAdapter, Transport, ZoneInfo } from "./types.js";
 
 /** A01,A02,A03,A05 → "A01-A03, A05". 번호가 연속인 것만 묶는다. */
@@ -52,7 +52,8 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
   const ctx: AdapterContext = {
     http: createHttpClient({ transport: opts.transport, version: opts.version, userAgentSuffix: opts.userAgentSuffix ?? "" }),
   };
-  const checkIn = kstDate(opts.now);
+  // 당일 입실은 18:00에 마감되므로 내일 날짜로 묻는다.
+  const checkIn = addDays(kstDate(opts.now), 1);
   const lines: string[] = [];
   let differences = 0;
   let first = true;
@@ -71,8 +72,8 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
       continue;
     }
     differences++;
-    if (missing.length) lines.push(`${zone.code}: 사이트에서 사라진 자리 ${compact(missing)}`);
-    if (added.length) lines.push(`${zone.code}: 사이트에 새로 생긴 자리 ${compact(added)}`);
+    if (missing.length) lines.push(`${zone.code}: 예약처에서 사라진 자리 ${compact(missing)}`);
+    if (added.length) lines.push(`${zone.code}: 예약처에 새로 생긴 자리 ${compact(added)}`);
   }
   lines.push(differences === 0 ? "차이 없음" : `차이 있는 구역 ${differences}곳: 어댑터의 고정 목록을 갱신해야 한다`);
   return `${lines.join("\n")}\n`;

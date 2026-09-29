@@ -47,15 +47,20 @@ if (command === "catalog") {
   }
   process.stdout.write(renderCatalog(adapter));
   if (rest.includes("--live")) {
-    process.stdout.write("\n실제 사이트와 비교:\n");
-    process.stdout.write(
-      await renderLiveDiff(adapter, {
-        transport,
-        version: pkg.version,
-        now: new Date(),
-        pause: () => clock.sleep(3000),
-      }),
-    );
+    process.stdout.write("\n실제 예약처와 비교:\n");
+    try {
+      process.stdout.write(
+        await renderLiveDiff(adapter, {
+          transport,
+          version: pkg.version,
+          now: new Date(),
+          pause: () => clock.sleep(3000),
+        }),
+      );
+    } catch (e) {
+      console.error(`예약처 조회에 실패했다: ${(e as Error).message}`);
+      process.exit(1);
+    }
   }
   process.exit(0);
 }

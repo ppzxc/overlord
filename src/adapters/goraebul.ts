@@ -12,21 +12,21 @@ import {
 const BASE = "https://stay.yd.go.kr/pages";
 const NAV_CODE = "gor1501675800";
 
-/** A01, A02, ... 형태의 자리 id 목록 */
-const numbered = (prefix: string, count: number) =>
-  Array.from({ length: count }, (_, i) => `${prefix}${String(i + 1).padStart(2, "0")}`);
+/** 접두어와 번호로 자리 id 목록을 만든다. 예: ("A", [1, 2]) → A01, A02 */
+const seatIds = (prefix: string, numbers: number[]) => numbers.map((n) => `${prefix}${String(n).padStart(2, "0")}`);
+const sequence = (count: number) => Array.from({ length: count }, (_, i) => i + 1);
 
 // 정원과 자리 목록은 2026-09-29 정찰로 확인한 값이다(폐쇄된 자리는 목록에 나오지 않는다). 확인하지 못한 구역은 비워 둔다.
 const ZONES: ZoneInfo[] = [
-  { code: "CAA", name: "카라반 4인실", type: "카라반", capacity: 4, seats: [1, 2, 6, 7, 11, 12, 20, 21, 22].map((n) => `CAA${String(n).padStart(2, "0")}`) },
+  { code: "CAA", name: "카라반 4인실", type: "카라반", capacity: 4, seats: seatIds("CAA", [1, 2, 6, 7, 11, 12, 20, 21, 22]) },
   { code: "CAB", name: "카라반 6인실", type: "카라반", capacity: 6 },
-  { code: "DKA", name: "숲속야영장 A", type: "숲속야영장", seats: numbered("A", 38) },
-  { code: "DKB", name: "숲속야영장 B", type: "숲속야영장", seats: numbered("B", 52) },
+  { code: "DKA", name: "숲속야영장 A", type: "숲속야영장", seats: seatIds("A", sequence(38)) },
+  { code: "DKB", name: "숲속야영장 B", type: "숲속야영장", seats: seatIds("B", sequence(52)) },
   { code: "DKC", name: "숲속야영장 C", type: "숲속야영장" },
   { code: "AUA", name: "캠핑카존", type: "캠핑카" },
   { code: "PEA", name: "펜션형 A", type: "펜션형", capacity: 6 },
   { code: "PEB", name: "펜션형 B", type: "펜션형", capacity: 8 },
-  { code: "PEC", name: "펜션형 C", type: "펜션형", capacity: 10, seats: ["PEC01", "PEC02"] },
+  { code: "PEC", name: "펜션형 C", type: "펜션형", capacity: 10, seats: seatIds("PEC", [1, 2]) },
 ];
 
 const INFO: ProviderInfo = {

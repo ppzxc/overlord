@@ -72,6 +72,10 @@ let config;
 try {
   config = loadConfig(readFileSync(configPath, "utf8"), process.env);
 } catch (e) {
+  if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+    console.error(`설정 파일을 찾을 수 없다: ${configPath}`);
+    process.exit(1);
+  }
   if (e instanceof ConfigError) {
     console.error(e.message);
     process.exit(1);

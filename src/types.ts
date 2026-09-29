@@ -29,7 +29,7 @@ export interface AdapterContext {
 export interface ZoneInfo {
   code: string;
   name: string;
-  /** 자리 유형. 예: 카라반, 숲속야영장 */
+  /** 구역 유형. 예: 카라반, 숲속야영장 */
   type: string;
   /** 정원(명). 예약처에서 확인하지 못한 구역은 없다. */
   capacity?: number;

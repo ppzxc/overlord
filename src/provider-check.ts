@@ -1,4 +1,5 @@
 import type { Config } from "./config.js";
+import { compact } from "./catalog.js";
 import { seatsMatching } from "./seats.js";
 import type { ProviderAdapter } from "./types.js";
 
@@ -30,7 +31,7 @@ export function checkAgainstProviders(config: Config, adapters: Record<string, P
       const allSeats = requestedZones.flatMap((z) => z.seats!);
       for (const token of w.seats) {
         if (seatsMatching(token, allSeats).length === 0) {
-          problems.push(`${at}.seats: "${token}"에 맞는 자리가 없다. 쓸 수 있는 값: ${allSeats.join(", ")}`);
+          problems.push(`${at}.seats: "${token}"에 맞는 자리가 없다. 쓸 수 있는 값: ${compact(allSeats)}`);
         }
       }
     }

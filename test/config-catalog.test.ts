@@ -40,7 +40,7 @@ describe("설정 검증", () => {
   it("없는 자리 번호는 쓸 수 있는 자리를 보여 주며 거부한다", () => {
     const msg = messageOf(configWith(watch("    seats: [A99]")));
     expect(msg).toContain("A99");
-    expect(msg).toContain("A01, A02");
+    expect(msg).toContain("A01-A38");
   });
 
   it("모든 구역에서 자리 번호 오타를 잡는다", () => {
@@ -57,6 +57,11 @@ describe("설정 검증", () => {
   it("예약처의 최대 박수를 넘는 nights를 거부한다", () => {
     expect(messageOf(configWith(watch("    nights: 3")))).toContain("최대 2박");
     expect(() => loadConfig(configWith(watch("    nights: 2")), ENV)).not.toThrow();
+  });
+
+  it("pollIntervalSeconds가 정수가 아니면 거부한다", () => {
+    const yaml = configWith(watch("")).replace("pollIntervalSeconds: 150", "pollIntervalSeconds: 90.5");
+    expect(messageOf(yaml)).toContain("정수");
   });
 
   it("알 수 없는 예약처를 거부한다", () => {

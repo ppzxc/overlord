@@ -11,7 +11,7 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야
 const configSchema = z.strictObject({
   userAgentSuffix: z.string().default(""),
   providers: z
-    .record(z.string(), z.strictObject({ pollIntervalSeconds: z.number().min(60, "60초 이상이어야 한다").default(150) }))
+    .record(z.string(), z.strictObject({ pollIntervalSeconds: z.number().int("정수여야 한다").min(60, "60초 이상이어야 한다").default(150) }))
     .default({}),
   notifiers: z.record(
     z.string(),

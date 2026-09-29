@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1240">
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>영덕 고래불국민야영장</title>
+<link rel="stylesheet" type="text/css" href="../css/common.css?1508899166">
+<link rel="stylesheet" type="text/css" href="../css/board.css?1508905402">
+<link rel="stylesheet" type="text/css" href="../css/layout.css?1780640946">
+<link rel="stylesheet" type="text/css" href="../css/content.css?1738841646">
+<link rel="stylesheet" type="text/css" href="../css/booking.css?1681796407">
+<link rel="stylesheet" type="text/css" href="../css/font.css?1508899409">
+<link rel="stylesheet" type="text/css" href="../css/font-awesome.min.css?1508905846">
+<link rel="stylesheet" type="text/css" href="https://stay.yd.go.kr/css/jquery-ui-1.12.0.min.css">
+
+<script type="text/javascript" src="https://stay.yd.go.kr/js/jquery-3.1.1.min.js"></script>
+<script type="text/javascript" src="https://stay.yd.go.kr/js/jquery-ui-1.12.1.js"></script>
+<script type="text/javascript" src="../js/ck_form_id.js?1501665549"></script>
+<script type="text/javascript" src="../js/jquery.easing.1.3.min.js"></script>
+<script type="text/javascript" src="../js/jquery.cycle2.js"></script>
+<script type="text/javascript" src="../js/jquery.cycle2.carousel.js"></script>
+<script type="text/javascript" src="../js/menu.js?1502155021"></script>
+<script type="text/javascript" src="../js/common.js?1502705137"></script>
+<script type="text/javascript" src="../js/netfunnel.js?1610690930"></script>
+
+<script type="text/javascript">
+$(document).ready(function(){
+
+    var nav = $('#gnb');
+    var navoffset = $('#gnb').offset();  
+    /* offset을 이용하여 .menu(메뉴영역)의 위치값을 알아내어 navoffset에 넣어둔다 */
+
+    $(window).scroll(function () {
+        if ($(this).scrollTop() >= navoffset.top) {  /* 화면 스크롤 값이 메뉴영역의 top보다 값이 커지면 */
+            nav.css('position','fixed').css('top',0); /* 화면 위쪽에 고정시킨다. */
+        }else {
+            nav.css('position','absolute').css('top',100); /* 처음 메뉴영역의 top 값으로 돌리기 */
+        }
+    });
+});
+
+</script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-101511953-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-101511953-1');
+</script>
+<script type="text/javascript" src="../js/jquery.bxslider.min.js"></script>
+<script type="text/javascript">
+<!--
+function main_res_sendit() {
+	var today = $("select[name=today]").val(); // 선택날짜
+	var type = $("select[name=type]").val(); // 시설코드
+	var week = new Date(today).getDay();
+	if(today == "") {
+		alert("이용하실 날짜를 선택해주세요.");
+	} else if(type == "") {
+		alert("이용하실 시설을 선택해주세요.");
+	} else if(today >= "2018-11-01" && today <= "2018-12-22" && (type == "DKA" || type == "DKB" || (type == "DKC" && week != 5 && week != 6))) {
+		alert("2018-11-01 ~ 2018-12-27까지는 숲속야영장 예약이 불가합니다.\n(단 숲속야영장C는 금요일, 토요일, 12월 23~24일 예약가능)\n다른 날짜 또는 다른 시설을 선택해주세요.");
+	} else if(today >= "2018-12-25" && today <= "2018-12-27" && (type == "DKA" || type == "DKB" || (type == "DKC" && week != 5 && week != 6))) {
+		alert("2018-11-01 ~ 2018-12-27까지는 숲속야영장 예약이 불가합니다.\n(단 숲속야영장C는 금요일, 토요일 예약가능)\n다른 날짜 또는 다른 시설을 선택해주세요.");
+	} else if(today >= "2018-12-23" && today <= "2018-12-24" && (type == "DKA" || type == "DKB")) {
+		alert("2018-11-01 ~ 2018-12-27까지는 숲속야영장 예약이 불가합니다.\n(단 숲속야영장C는 금요일, 토요일 예약가능)\n다른 날짜 또는 다른 시설을 선택해주세요.");
+	} else if(today >= "2019-01-02" && today <= "2019-03-31" && (type == "DKA" || type == "DKB" || (type == "DKC" && week != 5 && week != 6))) {
+		alert("2019-01-02 ~ 2019-03-31까지는 숲속야영장 예약이 불가합니다.\n(단 숲속야영장C는 금요일, 토요일 예약가능)\n다른 날짜 또는 다른 시설을 선택해주세요.");
+	} else if(today >= "2019-10-01" && today <= "2020-12-11" && type == "AUA") {
+		alert("오토캠핑장 예약이 불가합니다.\n다른 날짜 또는 다른 시설을 선택해주세요.");
+	} else {
+		location.href = "../pages/sub.htm?nav_code=gor1501675800&mode=step01&type="+type+"&today="+today;
+	}
+}
+
+$(document).ready(function() {
+    $('#script_mvbg').cycle({
+		fx: 'fade', // choose your transition type, ex: fade, scrollUp, shuffle, etc...
+		speed:  2000,
+		timeout: 4000,
+		slides: '> div'
+	});
+});	
+//-->
+</script>
+</head>
+<body>
+
+<div id="header">
+
+<div id="topmn">
+<div class="d_width">
+		<div class="left">
+			<a href="http://stay.yd.go.kr/camping/pages/" target="_blank">블루로드 트레킹 게스트하우스</a>
+			<a href="http://stay.yd.go.kr/village/pages/" target="_blank">바다숲향기마을</a>
+			<a href="http://stay.yd.go.kr/" class="on">고래불국민야영장</a>
+			<a href="http://stay.yd.go.kr/wellbeing/pages/" target="_blank">웰빙문화테마마을</a>
+			<a href="http://www.yd.go.kr/" target="_blank">영덕군청</a>
+			<a href="https://ydstay.kr/" target="_blank">영덕여행</a>
+			<div class="clear"></div>
+		</div>
+
+		<div class="clear"></div>
+
+</div>
+</div>
+
+
+<div id="topwrap">
+<div class="d_width clearfix">
+			<h1 id="logo"><a href="index.htm" title="홈으로 이동" ><img src="../img/logo.png" alt="고래불국민야영장"/></a></h1>
+			<!-- <div class="right"><a href="#" onClick="MM_popupMsg('준비중입니다')"  class="btn_d btn_blue" title="(새창)영덕캠핑 통합예약으로 이동"><i class="fa fa-search"></i>영덕캠핑 통합예약</a></div> -->
+</div>
+</div>
+<div id="gnb"><a name="gnb"></a>
+					<!-- gnbmn -->
+					<div id="gnbmn">
+						<h2>주메뉴</h2>
+						<ul id="top1menu" class="depth1">
+
+
+						
+						<li class="Script_first_li"><a href="../pages/sub.htm?nav_code=gor1501675745"  id="top1m1">고래불국민야영장 소개</a>
+
+														<ul id="top2m1" class="depth2">
+<!--
+							<li class="tit">
+														<h3>소통과<br>참여</h3>
+														</li>
+ -->
+																												<li id="top2m1m1"><a href="../pages/sub.htm?nav_code=gor1501675734"  title ='고래불야영장소개 페이지로 이동합니다.'>고래불야영장소개</a>
+																					</li>
+																												<li id="top2m1m2"><a href="../pages/sub.htm?nav_code=gor1502072721"  title ='고래불해수욕장 이야기 페이지로 이동합니다.'>고래불해수욕장 이야기</a>
+																					</li>
+																												<li id="top2m1m3"><a href="http://www.kma.go.kr/weather/forecast/timeseries.jsp?searchType=INTEREST" target='_blank' class='ico_nw' title ='새창으로 영덕군 날씨정보 페이지가 열립니다.'>영덕군 날씨정보</a>
+																					</li>
+																												<li id="top2m1m4"><a href="../pages/sub.htm?nav_code=gor1502072940"  title ='위치 및 교통정보 페이지로 이동합니다.'>위치 및 교통정보</a>
+																					</li>
+							
+							</ul>
+													</li>
+						
+						<li class="Script_first_li"><a href="../pages/sub.htm?nav_code=gor1501675765"  id="top1m2">시설안내</a>
+
+														<ul id="top2m2" class="depth2">
+<!--
+							<li class="tit">
+														<h3>전자<br>민원창구</h3>
+														</li>
+ -->
+																												<li id="top2m2m1"><a href="../pages/sub.htm?nav_code=gor1501675765"  title ='시설배치도 페이지로 이동합니다.'>시설배치도</a>
+																					</li>
+																												<li id="top2m2m2"><a href="../pages/sub.htm?nav_code=gor1502074595"  title ='시설별안내 페이지로 이동합니다.'>시설별안내</a>
+																					</li>
+																												<li id="top2m2m3"><a href="../pages/sub.htm?nav_code=gor1502074579"  title ='편의시설안내 페이지로 이동합니다.'>편의시설안내</a>
+																					</li>
+																												<li id="top2m2m4"><a href="../pages/sub.htm?nav_code=gor1528716959"  title ='어린이물놀이장 페이지로 이동합니다.'>어린이물놀이장</a>
+																					</li>
+							
+							</ul>
+													</li>
+						
+						<li class="Script_first_li"><a href="../pages/sub.htm?nav_code=gor1502074834"  id="top1m3">이용안내</a>
+
+														<ul id="top2m3" class="depth2">
+<!--
+							<li class="tit">
+														<h3>정부3.0<br>정보공개</h3>
+														</li>
+ -->
+																												<li id="top2m3m1"><a href="../pages/sub.htm?nav_code=gor1502074834"  title ='이용안내 페이지로 이동합니다.'>이용안내</a>
+																					</li>
+																												<li id="top2m3m2"><a href="../pages/sub.htm?nav_code=gor1502074841"  title ='이용시간 페이지로 이동합니다.'>이용시간</a>
+																					</li>
+																												<li id="top2m3m3"><a href="../pages/sub.htm?nav_code=gor1502085448"  title ='이용요금 페이지로 이동합니다.'>이용요금</a>
+																					</li>
+																												<li id="top2m3m4"><a href="../pages/sub.htm?nav_code=gor1502074855"  title ='이용준수사항 페이지로 이동합니다.'>이용준수사항</a>
+																					</li>
+							
+							</ul>
+													</li>
+						
+						<li class="Script_first_li"><a href="../pages/sub.htm?nav_code=gor1501675777"  id="top1m4">온라인예약</a>
+
+														<ul id="top2m4" class="depth2">
+<!--
+							<li class="tit">
+														<h3>동해시<br>소개</h3>
+														</li>
+ -->
+																												<li id="top2m4m1"><a href="../pages/sub.htm?nav_code=gor1501675777"  title ='예약안내 페이지로 이동합니다.'>예약안내</a>
+																					</li>
+																												<li id="top2m4m2"><a href="../pages/sub.htm?nav_code=gor1501675800" onclick="NetFunnel_Action({action_id:'goraebul_res'},this.href);return false;"  title ='온라인예약하기 페이지로 이동합니다.'>온라인예약하기</a>
+																					</li>
+																												<li id="top2m4m3"><a href="../pages/sub.htm?nav_code=gor1501675855"  title ='예약확인 및 취소 페이지로 이동합니다.'>예약확인 및 취소</a>
+																					</li>
+							
+							</ul>
+													</li>
+						
+						<li class="Script_first_li"><a href="../pages/sub.htm?nav_code=gor1502074913"  id="top1m5">주변관광지</a>
+
+														<ul id="top2m5" class="depth2">
+<!--
+							<li class="tit">
+														<h3>분야별<br>시정</h3>
+														</li>
+ -->
+																												<li id="top2m5m1"><a href="../pages/sub.htm?nav_code=gor1502074913"  title ='영덕군 주요관광지 페이지로 이동합니다.'>영덕군 주요관광지</a>
+																					</li>
+																												<li id="top2m5m2"><a href="../pages/sub.htm?nav_code=gor1502074921"  title ='테마별 관광코스 페이지로 이동합니다.'>테마별 관광코스</a>
+																					</li>
+																												<li id="top2m5m3"><a href="../pages/sub.htm?nav_code=gor1502074928"  title ='관내 캠핑장 소개 페이지로 이동합니다.'>관내 캠핑장 소개</a>
+																					</li>
+							
+							</ul>
+													</li>
+						
+						<li class="Script_first_li"><a href="../pages/sub.htm?nav_code=gor1501675875"  id="top1m6">커뮤니티</a>
+
+														<ul id="top2m6" class="depth2">
+<!--
+							<li class="tit">
+														</li>
+ -->
+																												<li id="top2m6m1"><a href="../pages/sub.htm?nav_code=gor1501675875"  title ='공지사항 페이지로 이동합니다.'>공지사항</a>
+																					</li>
+																												<li id="top2m6m2"><a href="../pages/sub.htm?nav_code=gor1502095364"  title ='자주 묻는 질문 페이지로 이동합니다.'>자주 묻는 질문</a>
+																					</li>
+																												<li id="top2m6m3"><a href="../pages/sub.htm?nav_code=gor1502095371"  title ='묻고 답하기 페이지로 이동합니다.'>묻고 답하기</a>
+																					</li>
+							
+							</ul>
+													</li>
+						
+
+						</ul>
+						<span class="close"></span>
+					</div>
+					<div class="clear"></div>
+					<!-- gnbmn -->
+					<div id="id_gnb_bg" class="gnb_bg"></div>
+</div>
+<script type="text/javascript">initTopMenu(0,0);</script>
+</div>
+<div id="wrap">
+<div id="skipwrap">
+<div id="skipnavi">
+	<ul>
+	<li><a href="#content">본문 내용으로 바로가기</a></li>
+	<li><a href="#gnb">주 메뉴로 바로가기</a></li>
+	<li><a href="#snb">부 메뉴로 바로가기</a></li>
+	</ul>
+</div>
+</div>
+<div id="script_mvbg" class="mvbg">
+	<div class="mvbg mvbg1"></div>
+	<div class="mvbg mvbg2"></div>
+	<div class="mvbg mvbg3"></div>
+</div>
+<div id="mvisual">
+	<div class="mvtit d_width">
+	<p class="stit">해변과 맞닿아 있는 캠핑의 최적지!</p>
+	<p class="tit"><span class="tt1">영덕고래불</span><br><span class="tt2">국민야영장</span></p>
+	<p class="txt">	고래불국민야영장은 병풍처럼 둘러쳐진 솔밭을 끼고 명사이십리 해변에 인접한 캠핑장입니다.<br>사람과 자연이 공존하는 고래불 국민야영장에서 소중한 추억을 만들어 보세요.</p>
+	</div>
+</div>
+<!-- container -->
+<div id="container" class="d_width">
+	<div class="mbx1 mbnr05">
+			<a href="sub.htm?nav_code=gor1738837188">웰니스프로그램</a>
+	</div>
+	<div class="mbx1" id="mbooking">
+		<div class="cont">
+		<h3>빠른 예약 시스템</h3>
+		<ul>
+		<li>
+				</li>
+		<li><select name="today" id="today" class="__ck" title="이용하실 날짜를 선택해주세요">
+			<option value="">이용하실 날짜를 선택해주세요.</option>
+						<option value="2026-09-29">2026년 09월 29일</option>
+						<option value="2026-09-30">2026년 09월 30일</option>
+						<option value="2026-10-01">2026년 10월 01일</option>
+						<option value="2026-10-02">2026년 10월 02일</option>
+						<option value="2026-10-03">2026년 10월 03일</option>
+						<option value="2026-10-04">2026년 10월 04일</option>
+						<option value="2026-10-05">2026년 10월 05일</option>
+						<option value="2026-10-06">2026년 10월 06일</option>
+						<option value="2026-10-07">2026년 10월 07일</option>
+						<option value="2026-10-08">2026년 10월 08일</option>
+						<option value="2026-10-09">2026년 10월 09일</option>
+						<option value="2026-10-10">2026년 10월 10일</option>
+						<option value="2026-10-11">2026년 10월 11일</option>
+						<option value="2026-10-12">2026년 10월 12일</option>
+						<option value="2026-10-13">2026년 10월 13일</option>
+						<option value="2026-10-14">2026년 10월 14일</option>
+						<option value="2026-10-15">2026년 10월 15일</option>
+						<option value="2026-10-16">2026년 10월 16일</option>
+						<option value="2026-10-17">2026년 10월 17일</option>
+						<option value="2026-10-18">2026년 10월 18일</option>
+						<option value="2026-10-19">2026년 10월 19일</option>
+						<option value="2026-10-20">2026년 10월 20일</option>
+						<option value="2026-10-21">2026년 10월 21일</option>
+						<option value="2026-10-22">2026년 10월 22일</option>
+						<option value="2026-10-23">2026년 10월 23일</option>
+						<option value="2026-10-24">2026년 10월 24일</option>
+						<option value="2026-10-25">2026년 10월 25일</option>
+						<option value="2026-10-26">2026년 10월 26일</option>
+						<option value="2026-10-27">2026년 10월 27일</option>
+						<option value="2026-10-28">2026년 10월 28일</option>
+						</select>
+		</li>
+		<li><select name="type" id="type" class="__ck" title="이용하실 시설을 선택해주세요">
+			<option value="">이용하실 시설을 선택해주세요.</option>
+						<option value="CAA">카라반 4인실</option>
+						<option value="CAB">카라반 6인실</option>
+						<option value="DKA">숲속야영장A</option>
+						<option value="DKB">숲속야영장B</option>
+						<option value="DKC">숲속야영장C</option>
+						<option value="AUA">캠핑카존</option>
+						<option value="PEA">펜션형 6인실</option>
+						<option value="PEB">펜션형 8인실</option>
+						<option value="PEC">펜션형 10인실</option>
+						</select>
+		</li>
+		</ul>
+		<a href="javascript:void(0);" onclick="main_res_sendit();" class="btn_d">통합검색</a>
+		</div>
+
+		<div class="clear"></div>
+	</div>
+		<div class="mbx1 mbnr01"><a href="sub.htm?nav_code=gor1501675800" onclick="NetFunnel_Action({action_id:'goraebul_res'},this.href);return false;">캘린더로 예약하기</a></div>
+		<div class="mbx1" id="mtoday">
+		<div class="cont">
+		<p>Goraebul Public Campground</p>
+		<p class="date">26.09.28(Mon)</p>
+		</div>
+	</div>
+
+	<div class="mbx1 mbnr02"><a href="sub.htm?nav_code=gor1501675765">야영장 시설안내도</a></div>
+	<div class="mbx1 mbnr03"><a href="sub.htm?nav_code=gor1502074834">야영장 이용안내</a></div>
+		<div class="mbx1" id="mweather">
+		<div class="ico"><img src="../img/wico_cloud.png" alt="흐림"><!-- <img src="../img/weather05.png" alt="비"> --></div>
+		<ul class="clearfix">
+				<li>방문자<span class="right">7,266,030</span></li>
+		</ul>
+	</div>
+	<div class="mbx1 mbnr04"><a href="sub.htm?nav_code=gor1502074595">숙박시설 안내</a></div>
+	
+	<div class="mbx2" id="mnotice">
+		<div class="tit">
+			<h3><!--문의전화-->공지사항</h3>
+			<p>고래불국민야영장의<br>소식을 알려드립니다.</p>
+		</div>
+		<ul>
+
+					<li><a href="../pages/sub.htm?nav_code=gor1501675875&mode=view&idx=5399&mv_data=aWR4PTUzOTkmc3RhcnRQYWdlPSZsaXN0Tm89JnRhYmxlPWNzX2Jic19kYXRhJmNvZGU9bm90aWNlJnNlYXJjaF9pdGVtPSZzZWFyY2hfb3JkZXI9" title="2026년 고래불 국민야영장 물놀이장 및 바닥분수 운영안내">2026년 고래불 국민야영장 물놀이장 ..</a><span class="date">2026-06-10</span></li>
+					<li><a href="../pages/sub.htm?nav_code=gor1501675875&mode=view&idx=818&mv_data=aWR4PTgxOCZzdGFydFBhZ2U9Jmxpc3RObz0mdGFibGU9Y3NfYmJzX2RhdGEmY29kZT1ub3RpY2Umc2VhcmNoX2l0ZW09JnNlYXJjaF9vcmRlcj0=" title="예약취소 후 재예약 변경사항 공지">예약취소 후 재예약 변경사항 공지</a><span class="date">2018-07-18</span></li>
+					<li><a href="../pages/sub.htm?nav_code=gor1501675875&mode=view&idx=456&mv_data=aWR4PTQ1NiZzdGFydFBhZ2U9Jmxpc3RObz0mdGFibGU9Y3NfYmJzX2RhdGEmY29kZT1ub3RpY2Umc2VhcmNoX2l0ZW09JnNlYXJjaF9vcmRlcj0=" title="예약시스템 관련 변경사항 공지">예약시스템 관련 변경사항 공지</a><span class="date">2018-05-24</span></li>
+					<li><a href="../pages/sub.htm?nav_code=gor1501675875&mode=view&idx=84&mv_data=aWR4PTg0JnN0YXJ0UGFnZT0mbGlzdE5vPSZ0YWJsZT1jc19iYnNfZGF0YSZjb2RlPW5vdGljZSZzZWFyY2hfaXRlbT0mc2VhcmNoX29yZGVyPQ==" title="당일 예약 안내">당일 예약 안내</a><span class="date">2017-09-15</span></li>
+					<li>&nbsp;</li>
+				</ul>
+		<div class="more"><a href="../pages/sub.htm?nav_code=gor1501675875"><i class="fa fa-search"></i></a></div>
+	</div>
+	<div class="mbx2" id="popupzone">
+		<div class="cont">
+		<ul class="Script_alrim">
+			
+		</ul>
+
+		<div id="pager">
+				</div>
+		<script type="text/javascript">
+		<!--
+				//-->
+		</script>		
+		</div>
+	</div>
+	<div class="mbx1" id="mcontact">
+		<div class="cont">
+		<h3>문의전화</h3>
+		<p class="tel">054-734-6220</p>
+		<ul class="clearfix">
+		<li>월 - 금요일<span class="right">09:00 ~ 18:00</span></li>
+		<li>점심시간<span class="right">12:00 ~ 13:00</span></li>
+		</ul>
+		<!--<p class="fs1 mtp5">※ 주말, 공휴일은 연락이 불가능합니다.</p>-->
+		</div>
+	</div>
+	<div class="clear"></div>	
+</div>
+<!-- //container -->
+<div class="mquick">
+		<ul class="clearfix d_width">
+		<!-- <li><a href="#" onClick="MM_popupMsg('준비중입니다')" >영덕캠핑 통합 예약</a></li> -->
+		<li><a href="sub.htm?nav_code=gor1502072940">찾아오시는 길</a></li>
+		<li><a href="sub.htm?nav_code=gor1502095364">자주하는 질문</a></li>
+		<li><a href="sub.htm?nav_code=gor1502085448">이용요금안내</a></li>
+		<li><a href="sub.htm?nav_code=gor1502095371">고객센터안내</a></li>
+		</ul>
+</div>
+</div>
+
+<!-- 레이어팝업 -->
+<!-- 레이어팝업 : 반드시 body내에 위치시키고 작동여부를 검사할 것-->
+<link rel="stylesheet" type="text/css" href="../cmsware/css/popup.css">
+<div id="LayerDiv20" style="z-index:999999999999;position:absolute;left:0px;top:1px;width:729px;height:967px;background:#222;">
+	<div id="popup_layer" style="position:relative;width:725px;height:963px;margin:2px;overflow:auto">
+						<div id="popup_tmp3" class="popup_tmp">
+						
+								
+				
+				<div class="popup_cont">
+						<div class="popup_tit">고래불 국민야영장 이용객을 위한 필수 공지사항(필독)</div>
+						<div class="popup_txt">
+						
+
+						<h2 class="fst">■ 공      지 (예약자분은 꼭 신분증을 지참하시길 바랍니다.)</h2>
+			
+
+			<div class="bx1_rd tal">고래불 국민야영장은 바다와 강이 인접한 소나무 숲에 위치하여 다양한 자연환경에 노출되어있습니다<br>따라서 주변환경으로 인해 다양한 곤충(파리,모기,벌레)들이 발견될 수 있어 불편할 수 있습니다<br>벌레 퇴치를 위해 수시로 방역을 하고 있으나 근절이 어려운 상황입니다<br>특히 5월은 숲속 야영장의 소나무 꽃가루(송화가루)가 많이 날리는 시기 이므로<br>알레르기, 호흡기 질환 등 불편이 있을 수 있으니 텐트장 이용시 참고하시기 바랍니다</div>
+	
+
+						<h2>■ 숲속 야영장 이용객</h2>
+			
+
+			<div class="bx1_rd tal">- 고래불 국민야영장은 바닷가 앞이라 수시로 바람이 많이 부는 장소이므로 텐트 숙박객은 주의하시길 바랍니다.<br>- 데크 사용시 데크팩(오징어팩) 사용을 금지 합니다!!</div>
+	
+
+						<h2>■ 캠핑카존 일반텐트 및 차량 루프탑 사용 금지</h2>
+			
+
+			<div class="bx1_rd tal">- 캠핑카존 부근은 강과 바다가 만나는 곳으로 수시로 바람이 부며, 돌풍이 잦습니다.   <br>  - 이용자의 안전을 위해 일반텐트 및 차량 루프탑 텐트를 이용할 수 없으며, 캠핑카와 캠핑트레일러로만 이용가능 합니다.<br>  - 캠핑카존 앞 바닷가는 수심이 깊으니 주의하시길 바랍니다.<br>  - 캠핑카존 우측에 위치한 송천강은 학생해양수련장이므로 출입 및 낚시를 금지합니다.<br>※일반차량이나 불법개조차량, 일반텐트 및 차량루프탑으로 캠핑카존을 이용할 수 없으며 취소 시에 규정에 따라 위약금이 발생 할 수 있습니다.</div>
+	
+
+						<h2>■ 긴급 폐쇄의 가능성</h2>
+			
+
+			<div class="bx1_rd tal">강풍이나 폭우로 인한 재난 상황이 예상될 경우 일시적으로 긴급하게 폐쇄조치 될 수 있습니다<br>재난 상황은 고래불국민야영장을 사용 할 수 없을정도의 상황 혹은 재난관련 부서에서 재난 상황 예측시로 한정됩니다<br>긴급 폐쇄는 급하게 결정이 되므로 임박하게 문자 안내를 받을 수 있습니다 예약자께서는 일기예보를 잘 봐 주시기 바랍니다<br>긴급 폐쇄가 결정될 경우 100% 환급이 적용되며 이용 불가 상태가 되어 모든 이용자의 입장이 금지됩니다<br>긴급 폐쇄 안내 문자를 받은 예약자는 문자를 받은 당일 홈페이지를 통해 직접 취소를 하여 환급이 가능합니다<br>긴급 폐쇄 안내 문자를 받기 전 임의 취소한 예약건에 대하여는 소급하여 적용하지 않습니다<br>문자를 받은 날이 지나 취소할 경우 위약금이 적용 될 수 있습니다</div>
+							</div>
+				</div>
+				
+				
+			
+			</div>
+	</div>
+	
+	<div class="popup_close" id="main_layer_form20">
+		<input type="checkbox" name="popup_end" id="popup_end20">
+				<label for="popup_end20">오늘 하루 이창을 열지 않음</label><a href="javascript:closeLayer('20','1');" class="btn_d btn_xsmall btn_dgray mlp10 mrp5">닫기</a>	</div>
+</div>
+<div id="LayerDiv46" style="z-index:999999999999;position:absolute;left:700px;top:150px;width:504px;height:304px;background:#222;">
+	<div id="popup_layer" style="position:relative;width:500px;height:300px;margin:2px;overflow:auto">
+						<div id="popup_tmp15" class="popup_tmp">
+						
+								
+				
+				<div class="popup_cont">
+					<div class="inside">
+						<div class="popup_tit"><span>시설 노후로 인한 일부 카라반 폐쇄 알림!!</span></div>	
+						<div class="popup_txt">						
+						<!-- 샘플텍스트 -->
+						
+
+			<div class=" tal">시설 노후로 카라반 일부를(1번,2번,3번,4번,5번,6번,10번,13번,15번,16번,17번,19번,24번) <br>부득이하게 폐쇄 하기로 했습니다.<br>예약시 착오 없으시기 바라며 양해 바랍니다.<br>감사합니다.</div>
+							<!-- //샘플텍스트 -->
+						</div>
+					</div>
+				</div>
+								
+				
+			
+			</div>
+	</div>
+	
+	<div class="popup_close" id="main_layer_form46">
+		<input type="checkbox" name="popup_end" id="popup_end46">
+				<label for="popup_end46">오늘 하루 이창을 열지 않음</label><a href="javascript:closeLayer('46','1');" class="btn_d btn_xsmall btn_dgray mlp10 mrp5">닫기</a>	</div>
+</div>
+<div id="LayerDiv52" style="z-index:999999999999;position:absolute;left:722px;top:500px;width:504px;height:402px;background:#222;">
+	<div id="popup_layer" style="position:relative;width:500px;height:398px;margin:2px;overflow:auto">
+						<div class="popup" style="background:#fff;">
+						
+								
+											<img src='../data/designImages/POPUP_1786337171.0' border='0'>
+					
+							
+			</div>
+	</div>
+	
+	<div class="popup_close" id="main_layer_form52">
+		<input type="checkbox" name="popup_end" id="popup_end52">
+				<label for="popup_end52">오늘 하루 이창을 열지 않음</label><a href="javascript:closeLayer('52','1');" class="btn_d btn_xsmall btn_dgray mlp10 mrp5">닫기</a>	</div>
+</div>
+<script language="Javascript">
+function setCookie( name, value, expiredays )
+{
+	var todayDate = new Date();
+	todayDate.setDate( todayDate.getDate() + Number(expiredays) );
+	document.cookie = name + "=" + escape( value ) + "; path=/; expires=" + todayDate.toGMTString() + ";"
+}
+
+function closeLayer(idx,days){
+	var layer = document.getElementById("LayerDiv" + idx);
+    var checkbox = document.querySelector(
+        "#LayerDiv" + idx + " input[name='popup_end']"
+    );
+
+    var cookie_name = "LAYER_COOKIE_main_" + idx;
+
+    if (checkbox && checkbox.checked === true) {
+        setCookie(cookie_name, "NO", days);
+    }
+
+	$("#LayerDiv"+idx).hide();
+} 
+</script><!-- //레이어팝업 -->
+<footer>
+<div class="d_width">
+	<div class="fmn">
+	<a href="sub.htm?nav_code=gor1502095450" class="fs2" title="개인정보취급방침 바로가기">개인정보처리방침</a></li>
+	<a href="sub.htm?nav_code=gor1502095546" title="이메일무단수집거부 바로가기">이메일무단수집거부</a></li>
+	</div>
+	<address>우) 36406 경상북도 영덕군 병곡면 고래불로 68(덕천리 1-58)<br>통신판매번호 : 2014-경북영덕-0052,  대표 : 윤사원, 사업자명 : 시설체육사업소, 사업자등록번호 : 507-83-03762</address>
+	<div id="copyright" lang="en">Copyright (C) 고래불 국민야영장. All rights reserved.</div>
+	<div class="sns">
+		<a href="https://www.facebook.com/love4ydpage/" target="_blank" class="facebook"></a>
+		<a href="https://twitter.com/love4yd" target="_blank" class="twitter"></a>
+		<a href="http://blog.naver.com/ydcounty" target="_blank" class="blog"></a>
+	</div>
+</div>
+</footer>
+<!-- <div class="top_btn">
+	<a href="#header"><img src="../img/btn_gotop.png" alt="맨 위로"></a>
+</div>
+ --></body>
+</html>

@@ -1,0 +1,22 @@
+				<div id="zone_caa" class="select_room">
+										<a href="#" onclick="alert('이미 예약된 시설입니다.');return false;" id="caa_1" class="num ban"><span>X</span></a>
+										<a href="#" onclick="alert('이미 예약된 시설입니다.');return false;" id="caa_2" class="num ban"><span>X</span></a>
+										<a href="#" onclick="alert('이미 예약된 시설입니다.');return false;" id="caa_6" class="num ban"><span>X</span></a>
+										<a href="#" onclick="alert('이미 예약된 시설입니다.');return false;" id="caa_7" class="num ban"><span>X</span></a>
+										<a href="#" onclick="zone_area_select('5','caa_11','카라반 11호');return false;" id="caa_11" class="num "><span>11</span></a>
+										<a href="#" onclick="zone_area_select('6','caa_12','카라반 12호');return false;" id="caa_12" class="num "><span>12</span></a>
+										<a href="#" onclick="alert('이미 예약된 시설입니다.');return false;" id="caa_20" class="num ban"><span>X</span></a>
+										<a href="#" onclick="alert('이미 예약된 시설입니다.');return false;" id="caa_21" class="num ban"><span>X</span></a>
+										<a href="#" onclick="zone_area_select('9','caa_22','카라반 22호');return false;" id="caa_22" class="num "><span>22</span></a>
+														</div>
+
+<script type="text/javascript">
+<!--
+function zone_area_select(site,siteId,siteName) {
+	$(".proTxt").html(siteName);
+	$("#r_pro_idx").val(site);
+	$(".num").removeClass('active');
+	$("#"+siteId).addClass('active');
+}	
+//-->
+</script>

@@ -71,10 +71,21 @@ const addDays = (date: string, days: number) =>
 
 const nightsOf = (q: AvailabilityQuery) => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 
+/** 예약처가 `NOPASS:`로 키·세션을 거절했다. 바퀴가 한 번만 다시 진입한다. */
+class NoPassError extends AdapterError {
+  constructor(what: string) {
+    super("unrecognized", `${what}: NOPASS 응답`);
+  }
+}
+
 async function fetchOk(res: Promise<{ status: number; body: string }>, what: string): Promise<string> {
   const r = await res;
+  if (r.body.startsWith("NOPASS:")) throw new NoPassError(what);
   if (r.status >= 500) throw new AdapterError("transient", `${what}: HTTP ${r.status}`);
-  if (r.status !== 200) throw new AdapterError("unrecognized", `${what}: 예상 밖 HTTP ${r.status}`);
+  if (r.status !== 200) {
+    const common404 = r.status === 404 && r.body.includes("mError1") ? "(공통 404 화면) " : "";
+    throw new AdapterError("unrecognized", `${what}: ${common404}예상 밖 HTTP ${r.status}`);
+  }
   return r.body;
 }
 
@@ -125,6 +136,13 @@ async function enterQueue(ctx: AdapterContext): Promise<QueuePass> {
     await ctx.clock.sleep(ttlMs, ctx.signal);
   }
 }
+
+/** 진입 페이지가 대기열 키를 서버에 등록하는 흐름. 하나라도 사라지면 예약처 구조가 바뀐 것이다. */
+const ENTRY_MARKERS: [RegExp, string][] = [
+  [/name="netfunnel_key"/, "netfunnel_key 필드"],
+  [/ND_setNfKey\.do/, "ND_setNfKey.do 호출"],
+  [/NetFunnel_Action\(\{action_id:"reserve"\}/, 'NetFunnel_Action({action_id:"reserve"}'],
+];
 
 /** 세션(HttpClient)이 들고 있는 대기열 키. 세션 사이로 옮기지 않으려고 HttpClient에 묶는다. */
 interface KeyState {
@@ -180,6 +198,9 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
     }),
     "예약 화면 진입",
   );
+  for (const [marker, what] of ENTRY_MARKERS) {
+    if (!marker.test(entry)) throw new AdapterError("unrecognized", `예약 화면 흐름 문자열이 사라졌다: ${what}`);
+  }
   const state: KeyState = {
     key: pass.key,
     issuedAt,
@@ -224,8 +245,27 @@ function parseReduced(html: string): Map<string, number> {
   return reduced;
 }
 
+const KNOWN_ZONES = new Set(ZONES.map((z) => z.name));
+/** 세션(HttpClient)마다 이미 경고한 구역 차이. 같은 차이는 한 번만 남긴다. */
+const warnedDrift = new WeakMap<HttpClient, Set<string>>();
+
+/** 쓰지 않는 구역이 사라지거나 새 구역이 생긴 것은 경고만 남긴다. 감시 조건이 쓰는 구역이 사라진 것은 조회 단위 판정이 실패로 처리한다. */
+function warnZoneDrift(counts: Map<string, number>, ctx: AdapterContext): void {
+  const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
+  warnedDrift.set(ctx.http, warned);
+  const drift = [
+    ...[...counts.keys()].filter((n) => !KNOWN_ZONES.has(n)).map((n) => `new:${n}`),
+    ...[...KNOWN_ZONES].filter((n) => !counts.has(n)).map((n) => `gone:${n}`),
+  ];
+  for (const d of drift) {
+    if (warned.has(d)) continue;
+    warned.add(d);
+    ctx.log?.("donghae zone drift", { change: d.startsWith("new:") ? "new" : "gone", zone: d.slice(d.indexOf(":") + 1) });
+  }
+}
+
 /** 하룻밤 응답에서 구역 이름 → 남은 수. 임시 중단 호실은 이름이 정확히 같을 때만 뺀다. */
-function parseNight(body: string, reduced: Map<string, number>): Map<string, number> {
+function parseNight(body: string, reduced: Map<string, number>, ctx: AdapterContext): Map<string, number> {
   let json: { result?: unknown; value?: unknown; message?: unknown };
   try {
     json = JSON.parse(body);
@@ -251,6 +291,7 @@ function parseNight(body: string, reduced: Map<string, number>): Map<string, num
     const cut = reduced.get(name);
     counts.set(name, cut === undefined ? n : Math.max(0, n - cut));
   }
+  warnZoneDrift(counts, ctx);
   return counts;
 }
 
@@ -304,7 +345,7 @@ async function readCalendars(
       if (cal.month !== month) throw new AdapterError("unrecognized", `월 달력 ${month}을(를) 요청했는데 ${cal.month}이(가) 왔다`);
       for (const [d, state] of cal.days) days.set(d, state);
     } catch (e) {
-      if (e instanceof AdapterError) return { days, failure: e };
+      if (e instanceof AdapterError && !(e instanceof NoPassError)) return { days, failure: e };
       throw e;
     }
   }
@@ -335,9 +376,9 @@ async function readNights(
         }),
         `날짜 조회 ${date}`,
       );
-      nights.set(date, parseNight(body, reduced));
+      nights.set(date, parseNight(body, reduced, ctx));
     } catch (e) {
-      if (e instanceof AdapterError) return { nights, failure: e };
+      if (e instanceof AdapterError && !(e instanceof NoPassError)) return { nights, failure: e };
       throw e;
     }
   }
@@ -360,6 +401,24 @@ export const donghaeAdapter: ProviderAdapter = {
    * 이미 읽은 밤만으로 판정되는 조회 단위는 결과를 돌려준다.
    */
   async queryAvailabilityBatch(units, ctx) {
+    try {
+      return await this.runBatch!(units, ctx);
+    } catch (e) {
+      if (!(e instanceof NoPassError)) throw e;
+    }
+    // NOPASS: 키와 쿠키 세션을 버리고 같은 바퀴에서 한 번만 다시 진입한다.
+    ctx.log?.("donghae NOPASS, re-entering", {});
+    sessions.delete(ctx.http);
+    ctx.http.clearSession();
+    try {
+      return await this.runBatch!(units, ctx);
+    } catch (e) {
+      if (e instanceof NoPassError) sessions.delete(ctx.http);
+      throw e;
+    }
+  },
+
+  async runBatch(units, ctx) {
     const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
     const { state, waitedMs } = await acquireSession(ctx);
     const pass: QueuePass = { key: state.key, waitedMs };

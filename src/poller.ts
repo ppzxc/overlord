@@ -94,6 +94,7 @@ async function runProvider(
   const ctx: AdapterContext = {
     clock,
     signal,
+    log,
     http: createHttpClient({
       transport: deps.transport,
       version: deps.version,

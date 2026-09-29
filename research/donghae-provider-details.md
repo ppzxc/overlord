@@ -8,7 +8,7 @@
 - UA는 `overlord-availability-poller/0.1 (research)` 하나만 썼다. 개인 헤더는 넣지 않았고 쿠키는 보내지 않았다. 요청마다 새 세션으로 보냈다.
 - POST는 한 번도 보내지 않았다. 폼 제출, 로그인, NetFunnel 참여도 하지 않았다.
 - archive.org CDX를 한 번 조회했다. 이 조회는 대상 서버를 거치지 않는다.
-- 차단 신호는 없었다. 22회가 모두 정상 크기의 200으로 왔고, 예외는 `robots.txt`의 404뿐이다.
+- 차단 신호는 없었다. 21회는 정상 크기의 200이었고, 나머지 1회는 `robots.txt`의 404였다.
 - 원본은 `raw/donghae/`에 있다. 원본 HTML에 박혀 있던 방문자 IP(`anlzClientIp`), 분석용 세션 id(`anlzSessionId`), `DHCMP_JSESSIONID` 쿠키는 `REDACTED`로 지웠다. 응답 헤더 파일은 올리지 않았다.
 
 **핵심 결론을 먼저 적는다.** 빈자리 조회 화면은 NetFunnel 대기열 뒤에 있다. 대기열에서 받은 키를 서버 세션에 등록한 뒤 폼을 POST해야 들어갈 수 있고, 이 구조는 JS와 서버 엔드포인트 이름으로 확인했다. 그 뒤에서 실제로 빈자리를 묻는 요청은 보지 못했다(**미검증**). 그 요청의 URL과 파라미터가 무엇인지, 요청마다 키를 검사하는지, 로그인이 필요한지는 모두 모른다. 우회를 하지 않고서는 알아낼 방법이 없었다.
@@ -88,6 +88,14 @@ opcode는 5101(getTidChkEnter), 5002(chkEnter), 5003(aliveNotice), 5004(setCompl
 
 예약처 페이지의 정상 흐름에서도 한 세션 안에서는 키 하나를 2시간까지 다시 쓴다. 이것은 지도의 "키 재사용 금지"와 부딪칠 수 있다. 예약처가 정한 TTL 안에서, 같은 세션에서, 서버가 받아 주는 동안 쓰는 것은 브라우저의 정상 동작과 같다. 이것을 금지하는 "재사용"으로 볼지는 [#26](https://github.com/ppzxc/overlord/issues/26)에서 정해야 한다. 이번 조사에서 정하지 않았다.
 
+정상 참여는 GET만으로 끝나지 않는다는 점도 #26에서 함께 정해야 한다. 새 키를 받을 때마다 다음 요청이 든다.
+
+- NetFunnel `ts.wseq` 호출 여러 번과 setComplete
+- `POST ND_setNfKey.do`
+- 폼 `POST BD_reservation.do`
+
+2시간 TTL이 다가오면 적어도 `POST ND_checkNfKeyAvail.do`를 한 번 보내야 한다. 이것은 지도의 "읽기 전용 GET 위주" 원칙과 맞지 않는다. 다만 셋 다 로그아웃한 방문자의 브라우저가 보내는 요청이고 예약 상태를 만들지 않는다.
+
 ### 판정: 로그인이 필요한가
 
 - **예약**은 로그인해야 한다(확인). 예약안내(`useGuidance01.jsp`)에 "온라인예약은 회원가입후 가능합니다"라고 적혀 있다.
@@ -146,7 +154,7 @@ opcode는 5101(getTidChkEnter), 5002(chkEnter), 5003(aliveNotice), 5004(setCompl
 - **시설** = `trrsrtCode`. 망상은 `1000`이다.
 - **구역** = 유형과 가격이 같은 묶음이다.
   - 탭이 없는 곳은 `upperFcltyCode`를 쓴다. 1600 자동차캠핑장, 1700 캐라반, 1200 캐빈하우스가 여기에 든다.
-  - 탭이 있는 곳은 `fcltyCode`를 쓴다. 1101 단독객실, 1801 글램핑(4인) 등이다. 요금표가 탭마다 따로 있으므로 가격이 같은 묶음은 `fcltyCode` 쪽이다.
+  - 탭이 있는 곳은 `fcltyCode`를 쓴다. 1101 단독객실, 1801 글램핑(4인) 등이다. 탭마다 페이지가 따로 있어서 요금표도 탭마다 다를 것이고, 그렇다면 가격이 같은 묶음은 `fcltyCode` 쪽이다. `upperFcltyCode`마다 탭 하나만 받아 봤으므로 이 부분은 추정이다.
   - 예약처 원문의 "시설(`fcltyCode`)"은 **자리가 아니라 구역**이다. 탭 하나에 자리 번호(호실)가 여러 개 딸려 있기 때문이다.
 - **자리** = 번호다. 1600은 1~41번, 1101은 831호 등이다.
 - 구역 코드로 `upperFcltyCode`를 쓸지 `fcltyCode`를 쓸지, `fcltyTyCode`를 쓸지는 예약 화면의 실제 파라미터를 본 뒤 [#25](https://github.com/ppzxc/overlord/issues/25)에서 정한다.
@@ -163,7 +171,7 @@ opcode는 5101(getTidChkEnter), 5002(chkEnter), 5003(aliveNotice), 5004(setCompl
   - 공지 [20210217101522607]에는 "모든 예약은 희망일 30일전 오전 11시부터"라고 적혀 있다.
   - 공지의 예시는 "10월 1일~2일(1박2일) 사용을 원할시 9월 1일 낮 11시부터"다. 10월 1일의 30일 전은 9월 1일이므로 D−30과 맞는다.
   - `OpeningRule`로는 `openDaysBefore: 30`, `openTime: "11:00"`이다.
-- **당일 입실**: "오늘날짜 하루뒤부터"라는 문구로 보아 **당일 입실 예약은 받지 않는 것**으로 읽힌다. 공지 [20251016190925018]의 "당일예약"은 예약한 당일 자정까지 결제해야 한다는 뜻이다. 당일 입실과는 다른 이야기다.
+- **당일 입실**: "오늘날짜 하루뒤부터"라는 문구로 보아 **당일 입실 예약은 받지 않는 것**으로 읽힌다. 공지 [20251016190925018]("망상리조트 당일예약 결제 안내")도 당일 입실 이야기가 아니다. 본문은 "망상리조트는 예약 당일 자정 (24:00) 까지 결제가 완료되어야 예약이 확정 되는 시스템으로 운영되고 있습니다"이고, 이어서 카드결제와 가상계좌(23:30 전 입금)의 결제 기한만 다룬다. 여기서 "당일"은 예약한 날이다.
   - 그래서 `sameDayCutoff`는 "당일 입실 불가"로 표현해야 한다. 지금 `OpeningRule`은 당일 마감 시각만 표현할 수 있으므로 모델을 조정해야 할 수 있다. 예를 들어 cutoff를 `00:00`으로 두는 방법이 있다(미결정).
 - **최대 박수**: 3박이다(`maxNights: 3`).
 - **연박의 선점 효과**: 날짜 D가 열리는 순간 D부터 3박으로 예약하면 D+1과 D+2도 함께 잡힌다. 두 날짜의 창은 아직 열리지 않았는데도 그렇다. 공지는 "예약가능일에 접속시 일부 시설이 예약완료로 확인되는 경우가 종종 발생"한다고 적고 있다. 따라서 오픈 직후의 D+1, D+2는 이미 차 있을 수 있다. 감시 입장에서는 오픈 전 날짜에도 빈자리가 줄어들 수 있다는 뜻이다.
@@ -213,7 +221,7 @@ opcode는 5101(getTidChkEnter), 5002(chkEnter), 5003(aliveNotice), 5004(setCompl
 - `raw/donghae/root.html`: `GET /` (JS 리다이렉트)
 - `raw/donghae/index.do.html`: NetFunnel `index`
 - `raw/donghae/BD_reservation.do.html`: NetFunnel `reserve`, 키 등록 흐름, 숨은 폼
-- `raw/donghae/netfunnel.js`: NetFunnel 설정, 결과 코드, `MP_*`
+- `raw/donghae/netfunnel.excerpt.js`: NetFunnel 설정 발췌(헤더, EditZone, 상수만 남김. 원본은 92,328바이트), 결과 코드, `MP_*`
 - `raw/donghae/robots.txt.404.html`: robots.txt 404, 공통 404 마크업
 - `raw/donghae/BD_loginForm.do.html`: 로그인 폼, `ND_loginAction.do`, NICE 재인증 분기
 - `raw/donghae/fclty_1000_1600_autocamping.html`, `fclty_1000_1700_caravan.html`, `fclty_1000_1100_1101_hanok.html`: 구역 정보

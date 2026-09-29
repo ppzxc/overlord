@@ -5,7 +5,7 @@ import { loadConfig } from "../src/config.js";
 import { Liveness } from "../src/liveness.js";
 import { runPoller } from "../src/poller.js";
 import type { TelegramMessage, TelegramSink } from "../src/telegram.js";
-import type { Clock, ProviderAdapter, Transport, TransportRequest } from "../src/types.js";
+import type { Clock, HttpClient, ProviderAdapter, Transport, TransportRequest, TransportResponse } from "../src/types.js";
 
 export const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
@@ -90,7 +90,7 @@ const isCalendar = (r: TransportRequest) => new URL(r.url).pathname.endsWith("/s
 
 /** 폴러 전체를 실제 설정으로 띄우고 Transport, Clock, Telegram Sink만 교체한다. */
 export function startPoller(
-  respondDetail: (req: TransportRequest) => { status: number; body: string },
+  respondDetail: (req: TransportRequest) => TransportResponse,
   opts: {
     /** true나 Error를 돌려주면 그 전송 시도가 실패한다. */
     failSend?: () => boolean | Error;
@@ -169,3 +169,12 @@ export const queryOf = (r: TransportRequest) => {
     nights: u.searchParams.get("site_date"),
   };
 };
+
+/** GET만 흉내 내는 HttpClient. 어댑터를 폴러 없이 직접 부를 때 쓴다. */
+export const fakeHttp = (get: (url: string) => Promise<TransportResponse>): HttpClient => ({
+  get,
+  post: async (url) => {
+    throw new Error(`POST는 흉내 내지 않는다: ${url}`);
+  },
+  clearSession: () => {},
+});

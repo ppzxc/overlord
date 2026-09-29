@@ -38,6 +38,8 @@ const INFO: ProviderInfo = {
   zones: ZONES,
   maxNights: 2,
   openingRule: { openDaysBefore: 30, openTime: "10:00", sameDayCutoff: "18:00" },
+  // robots.txt가 막은 경로다.
+  blockedPaths: ["/bbs/"],
 };
 
 // 예약처가 차단 페이지를 HTTP 200으로 준다.

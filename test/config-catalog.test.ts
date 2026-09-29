@@ -213,6 +213,17 @@ describe("catalog 명령", () => {
     expect(d.out.join("")).toContain("DKA");
   });
 
+  it("listSeats가 없는 예약처에 --live를 하면 묻지 않고 안내만 한다", async () => {
+    const zoneOnly = { ...goraebulAdapter, listSeats: undefined };
+    const d = deps({
+      adapters: { goraebul: zoneOnly },
+      transport: async () => { throw new Error("호출되면 안 된다"); },
+    });
+    expect(await runCatalog({ kind: "catalog", provider: "goraebul", live: true }, d.deps)).toBe(0);
+    expect(d.out.join("")).toContain("자리 단위로 보지 않는 예약처");
+    expect(d.sleeps).toEqual([]);
+  });
+
   it("--live 조회에 실패하면 1을 돌려주고, 요청 사이에 5초에 0~3초 지터를 쉰다", async () => {
     const d = deps();
     expect(await runCatalog({ kind: "catalog", provider: "goraebul", live: true }, d.deps)).toBe(1);

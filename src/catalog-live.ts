@@ -22,8 +22,17 @@ export interface LiveResult {
  * 한 구역이 실패해도 나머지는 계속 조회한다. 차단되면 더 부담을 주지 않도록 멈춘다.
  */
 export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions): Promise<LiveResult> {
+  const info = adapter.describe();
+  if (!adapter.listSeats) {
+    return { text: `${info.id}는 자리 단위로 보지 않는 예약처라 비교할 자리 목록이 없다\n`, failed: false };
+  }
   const ctx: AdapterContext = {
-    http: createHttpClient({ transport: opts.transport, version: opts.version, userAgentSuffix: "" }),
+    http: createHttpClient({
+      transport: opts.transport,
+      version: opts.version,
+      userAgentSuffix: "",
+      blockedPaths: info.blockedPaths,
+    }),
   };
   // 당일 입실은 18:00에 마감되므로 내일 날짜로 묻는다.
   const checkIn = addDays(kstDate(opts.now), 1);
@@ -31,7 +40,7 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
   let differences = 0;
   let failures = 0;
   let first = true;
-  for (const zone of adapter.describe().zones) {
+  for (const zone of info.zones) {
     if (!first) await opts.pause();
     first = false;
     let actual: string[];

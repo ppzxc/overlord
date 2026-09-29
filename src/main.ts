@@ -12,9 +12,10 @@ import type { Clock, Transport } from "./types.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
 
-const transport: Transport = async ({ url, headers, timeoutMs }) => {
-  const res = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
-  return { status: res.status, body: await res.text() };
+const transport: Transport = async ({ method, url, headers, body, timeoutMs }) => {
+  const res = await fetch(url, { method, headers, body, signal: AbortSignal.timeout(timeoutMs) });
+  // headers.get("set-cookie")는 여러 값을 쉼표로 이어 붙여 Expires의 쉼표와 섞인다.
+  return { status: res.status, body: await res.text(), setCookie: res.headers.getSetCookie() };
 };
 
 const clock: Clock = {

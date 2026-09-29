@@ -1,12 +1,17 @@
 export interface TransportRequest {
+  method: "GET" | "POST";
   url: string;
   headers: Record<string, string>;
+  /** POST 본문. form 인코딩된 문자열이다. */
+  body?: string;
   timeoutMs: number;
 }
 
 export interface TransportResponse {
   status: number;
   body: string;
+  /** Set-Cookie 헤더 값들. 한 줄에 쿠키 하나다. */
+  setCookie?: string[];
 }
 
 /** 실제 네트워크 호출 경계. 테스트에서 바꿔 끼운다. */
@@ -18,8 +23,17 @@ export interface Clock {
   sleep(ms: number, signal?: AbortSignal): Promise<void>;
 }
 
+export interface RequestOptions {
+  /** 요청 간격 큐를 거치지 않고 바로 보낸다. 간격 계산에도 끼지 않는다. 대기열 서버 요청용이다. */
+  unpaced?: boolean;
+}
+
+/** 예약처 하나가 쓰는 HTTP 클라이언트. 받은 쿠키를 들고 있다가 같은 클라이언트의 다음 요청에 싣는다. */
 export interface HttpClient {
-  get(url: string): Promise<TransportResponse>;
+  get(url: string, opts?: RequestOptions): Promise<TransportResponse>;
+  post(url: string, form: Record<string, string>, opts?: RequestOptions): Promise<TransportResponse>;
+  /** 들고 있던 쿠키를 모두 버린다. */
+  clearSession(): void;
 }
 
 export interface AdapterContext {
@@ -50,6 +64,8 @@ export interface ProviderInfo {
   zones: ZoneInfo[];
   maxNights: number;
   openingRule: OpeningRule;
+  /** 어떤 경우에도 호출하지 않는 경로 접두어. 예: robots.txt가 막은 /bbs/ */
+  blockedPaths: string[];
 }
 
 export interface AvailabilityQuery {
@@ -63,6 +79,8 @@ export interface AvailableSite {
   id: string;
   /** 예약처가 쓰는 자리 이름. 예: 텐트사이트 A02호 */
   name: string;
+  /** 구역 단위로만 잔여를 아는 예약처가 주는 남은 수. N박이면 밤마다의 최솟값이다. */
+  remaining?: number;
 }
 
 export class AdapterError extends Error {
@@ -89,6 +107,9 @@ export interface ProviderAdapter {
     ctx: AdapterContext,
   ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>>;
   deepLink(q: AvailabilityQuery): string;
-  /** 예약 여부와 관계없이 구역의 모든 자리 id를 읽는다. catalog --live가 고정 목록과 비교한다. */
-  listSeats(q: AvailabilityQuery, ctx: AdapterContext): Promise<string[]>;
+  /**
+   * 예약 여부와 관계없이 구역의 모든 자리 id를 읽는다. catalog --live가 고정 목록과 비교한다.
+   * 자리 단위로 보지 않는 예약처는 구현하지 않는다.
+   */
+  listSeats?(q: AvailabilityQuery, ctx: AdapterContext): Promise<string[]>;
 }

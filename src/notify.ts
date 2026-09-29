@@ -72,7 +72,7 @@ export function createShared(deps: PollerDeps, signal: AbortSignal): Shared {
     lastPingAt = nowMs;
     try {
       // 헤더도 본문도 싣지 않는 GET만 보낸다.
-      const res = await deps.transport({ url, headers: {}, timeoutMs: 10_000 });
+      const res = await deps.transport({ method: "GET", url, headers: {}, timeoutMs: 10_000 });
       if (res.status >= 400) log("dead-man ping failed", { status: res.status });
     } catch (err) {
       // URL에 비밀 토큰이 들어 있는 경우가 많아 오류 메시지의 URL을 가린다.

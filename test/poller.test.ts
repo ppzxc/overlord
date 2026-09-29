@@ -9,6 +9,7 @@ import {
   calendarHtml,
   configWith,
   fixture,
+  fakeHttp,
   queryOf,
   settle,
   startPoller,
@@ -70,6 +71,48 @@ describe("고래불 폴러 워킹 스켈레톤", () => {
     await p.clock.advance(POLL_MS);
     for (const r of p.allRequests)
       expect(new URL(r.url).pathname.startsWith("/bbs/")).toBe(false);
+    await p.stop();
+  });
+
+  it("어댑터가 선언한 접근 금지 경로는 폴러의 HTTP 클라이언트가 막는다", async () => {
+    const adapter: ProviderAdapter = {
+      ...goraebulAdapter,
+      queryAvailabilityBatch: undefined,
+      queryAvailability: async (_q, ctx) => {
+        await ctx.http.get("https://stay.yd.go.kr/bbs/list.htm");
+        return [];
+      },
+    };
+    const p = startPoller(open, { adapters: { goraebul: adapter } });
+    await settle();
+    expect(p.allRequests.filter((r) => new URL(r.url).pathname.startsWith("/bbs/"))).toEqual([]);
+    await p.stop();
+  });
+
+  it("한 예약처가 받은 쿠키는 다른 예약처 요청에 실리지 않는다", async () => {
+    const other: ProviderAdapter = {
+      ...goraebulAdapter,
+      id: "other",
+      queryAvailabilityBatch: undefined,
+      queryAvailability: async (_q, ctx) => {
+        await ctx.http.get("https://other.example/enter");
+        await ctx.http.get("https://other.example/next");
+        return [];
+      },
+    };
+    const yaml = configWith(
+      `  - { name: 고래불, provider: goraebul, zones: [DKA], checkIn: { from: 2026-09-29, to: 2026-09-29 }, nights: 1, notify: [default] }`,
+      `  - { name: 다른곳, provider: other, zones: [DKA], checkIn: { from: 2026-09-29, to: 2026-09-29 }, nights: 1, notify: [default] }`,
+    ).replace("providers:\n", "providers:\n  other: { pollIntervalSeconds: 150 }\n");
+    const p = startPoller(
+      (req) => (req.url.endsWith("/enter") ? { status: 200, body: "", setCookie: ["SID=other"] } : open()),
+      { yaml, adapters: { goraebul: goraebulAdapter, other } },
+    );
+    await settle();
+    await p.clock.advance(POLL_MS);
+    const withCookie = p.allRequests.filter((r) => r.headers.Cookie);
+    expect(withCookie.length).toBeGreaterThan(0);
+    expect(withCookie.every((r) => new URL(r.url).hostname === "other.example")).toBe(true);
     await p.stop();
   });
 
@@ -464,15 +507,13 @@ describe("캘린더 선필터와 요청 매너", () => {
 
 describe("고래불 실제 캘린더 fixture", () => {
   const ctxFor = (body: string, seen: string[] = []) => ({
-    http: {
-      get: async (url: string) => {
-        seen.push(url);
-        return {
-          status: 200,
-          body: url.includes("view_cate=") ? body : open().body,
-        };
-      },
-    },
+    http: fakeHttp(async (url) => {
+      seen.push(url);
+      return {
+        status: 200,
+        body: url.includes("view_cate=") ? body : open().body,
+      };
+    }),
   });
 
   it("(N) 잔여가 있는 구역만 상세 조회하고 (마감)과 td.not은 빈 결과로 둔다", async () => {
@@ -513,16 +554,14 @@ describe("캘린더 실패 격리", () => {
       nights: 1,
     }));
     const ctx = {
-      http: {
-        get: async (url: string) => {
-          if (!url.includes("view_cate="))
-            return { status: 200, body: open().body };
-          return {
-            status: 200,
-            body: url.includes("view_cate2=9") ? body : calendarHtml("2026-10"),
-          };
-        },
-      },
+      http: fakeHttp(async (url) => {
+        if (!url.includes("view_cate="))
+          return { status: 200, body: open().body };
+        return {
+          status: 200,
+          body: url.includes("view_cate2=9") ? body : calendarHtml("2026-10"),
+        };
+      }),
     };
     return {
       units,

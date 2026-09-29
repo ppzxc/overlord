@@ -95,6 +95,7 @@ async function runProvider(
       transport: deps.transport,
       version: deps.version,
       userAgentSuffix: config.userAgentSuffix,
+      blockedPaths: info.blockedPaths,
       pacing: { clock, random, signal },
     }),
   };

@@ -62,17 +62,17 @@ export function renderOpenings<E extends OpeningEntry>(opts: {
   entries: E[];
   /** 프로세스를 시작한 뒤 첫 바퀴에서 나가는 메시지인가 */
   startupSnapshot?: boolean;
-}): { message: TelegramMessage; entries: E[] }[] {
+}): { message: TelegramMessage; items: { entry: E; sites: AvailableSite[] }[] }[] {
   const header = opts.startupSnapshot ? "🔄 재시작 직후 현황" : "🏕 빈자리 발견";
   const limit = MAX_TEXT - PAGE_MARK_ROOM;
   interface Page {
     lines: string[];
     length: number;
     buttons: { text: string; url: string }[];
-    entries: Set<E>;
+    items: Map<E, AvailableSite[]>;
     watchName?: string;
   }
-  const fresh = (): Page => ({ lines: [header], length: header.length, buttons: [], entries: new Set() });
+  const fresh = (): Page => ({ lines: [header], length: header.length, buttons: [], items: new Map() });
   const pages: Page[] = [];
   let page = fresh();
 
@@ -95,7 +95,7 @@ export function renderOpenings<E extends OpeningEntry>(opts: {
         return { added, addButton: room && !linked, size: added.reduce((n, l) => n + l.length + 1, 0) };
       };
       let placed = place(page);
-      if (page.entries.size > 0 && page.length + placed.size > limit) {
+      if (page.items.size > 0 && page.length + placed.size > limit) {
         pages.push(page);
         page = fresh();
         placed = place(page);
@@ -103,11 +103,12 @@ export function renderOpenings<E extends OpeningEntry>(opts: {
       page.lines.push(...placed.added);
       page.length += placed.size;
       page.watchName = entry.watchName;
-      page.entries.add(entry);
+      const chunk = entry.sites.slice(i, i + MAX_SITES_PER_LINE);
+      page.items.set(entry, [...(page.items.get(entry) ?? []), ...chunk]);
       if (placed.addButton) page.buttons.push({ text: `${zoneName} ${q.checkIn} 예약 화면`, url: entry.link });
     }
   }
-  if (page.entries.size > 0) pages.push(page);
+  if (page.items.size > 0) pages.push(page);
 
   return pages.map((p, i) => {
     const lines = [...p.lines];
@@ -119,7 +120,7 @@ export function renderOpenings<E extends OpeningEntry>(opts: {
         parse_mode: "HTML",
         ...(p.buttons.length > 0 ? { reply_markup: { inline_keyboard: p.buttons.map((b) => [b]) } } : {}),
       },
-      entries: [...p.entries],
+      items: [...p.items].map(([entry, sites]) => ({ entry, sites })),
     };
   });
 }

@@ -193,9 +193,9 @@ async function runProvider(
     for (const [name, entries] of pending) {
       const chatId = config.notifiers[name]?.chatId ?? "";
       for (const part of renderOpenings({ chatId, info, entries, startupSnapshot: firstCycle })) {
-        const label = [...new Set(part.entries.map((e) => e.watchName))].join(", ");
+        const label = [...new Set(part.items.map((i) => i.entry.watchName))].join(", ");
         if (!(await trySend(name, label, () => part.message))) break; // 순서를 지키려고 뒤 메시지도 다음 바퀴로 미룬다.
-        for (const e of part.entries) e.sites.forEach((s) => e.known.add(s.name));
+        for (const { entry, sites } of part.items) sites.forEach((s) => entry.known.add(s.name)); // 이 메시지에 실린 자리만 기록한다.
       }
     }
     firstCycle = false;

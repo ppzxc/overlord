@@ -130,7 +130,7 @@ Status: ready-for-agent
                                 // openingRule(입실일 D가 열리는 시각, 당일 마감 시각), deepLink(시설, 구역, 입실일)
     init?(ctx: AdapterContext): Promise<void>;
     queryAvailability(q: { facility; zone; checkIn; nights }, ctx): Promise<AvailableSite[]>; // N박 연속 빈 자리만
-    queryAvailabilityBatch?(units, ctx): Promise<Map<Unit, AvailableSite[]>>;
+    queryAvailabilityBatch?(units, ctx): Promise<Map<Unit, AvailableSite[] | AdapterError>>; // 단위별 실패는 값으로, 차단은 던진다
     dispose?(): Promise<void>;
   }
   // 실패: AdapterError{ kind: 'transient' | 'blocked' | 'unrecognized' | 'unavailable' }

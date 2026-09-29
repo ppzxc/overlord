@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
+import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
 import { loadConfig } from "../src/config.js";
 import { runPoller } from "../src/poller.js";
 import type { TelegramMessage, TelegramSink } from "../src/telegram.js";
@@ -12,8 +13,8 @@ export class FakeClock implements Clock {
   private timers: { at: number; resolve: () => void }[] = [];
   now = () => new Date(this.current);
   sleep(ms: number, signal?: AbortSignal): Promise<void> {
-    // 요청 사이의 짧은 대기(최대 8초)는 바로 지나간 것으로 친다. 바퀴 간격 같은 긴 대기만 advance로 넘긴다.
-    if (ms <= 8_000) {
+    // 요청 사이의 짧은 대기는 바로 지나간 것으로 친다. 바퀴 간격 같은 긴 대기만 advance로 넘긴다.
+    if (ms <= MAX_REQUEST_WAIT_MS) {
       this.current += ms;
       return Promise.resolve();
     }
@@ -74,6 +75,12 @@ export function calendarHtml(
   return `<table class="t_calendar"><tr>${cells.join("")}</tr></table>`;
 }
 
+/** 캘린더 요청 URL의 월(YYYY-MM). */
+const calendarMonth = (r: TransportRequest) => {
+  const q = new URL(r.url).searchParams;
+  return `${q.get("view_cate")}-${q.get("view_cate2")!.padStart(2, "0")}`;
+};
+
 const isCalendar = (r: TransportRequest) => new URL(r.url).pathname.endsWith("/sub.htm");
 
 /** 폴러 전체를 실제 설정으로 띄우고 Transport, Clock, Telegram Sink만 교체한다. */
@@ -89,7 +96,7 @@ export function startPoller(
 ) {
   const respond = (req: TransportRequest) =>
     isCalendar(req)
-      ? { status: 200, body: calendarHtml(new URL(req.url).searchParams.get("view_cate")! + "-" + new URL(req.url).searchParams.get("view_cate2")!.padStart(2, "0"), opts.remaining) }
+      ? { status: 200, body: calendarHtml(calendarMonth(req), opts.remaining) }
       : respondDetail(req);
   const allRequests: TransportRequest[] = [];
   const requests: TransportRequest[] = []; // 상세 조회(zoneAreaAjax)만

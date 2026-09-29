@@ -29,6 +29,9 @@ const STAGGER_MS = 30_000;
 /** 바퀴 간격의 ±비율. */
 const INTERVAL_JITTER = 0.2;
 
+/** ms에 ±ratio 안에서 지터를 준다. random이 0이면 -ratio, 0.5면 그대로. */
+const jittered = (ms: number, ratio: number, random: () => number) => ms * (1 + (random() * 2 - 1) * ratio);
+
 type Watch = Config["watches"][number];
 
 /** 예약처마다 바퀴 루프를 하나씩 돌린다. */
@@ -38,15 +41,21 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
     if (!deps.adapters[id]) throw new Error(`알 수 없는 예약처: ${id}`);
   }
   // 예약처가 여럿이면 첫 바퀴 시작 시각을 분산한다. 첫 예약처는 바로 시작한다.
+  const random = deps.random ?? Math.random;
   await Promise.all(
     providers.map(async (id, i) => {
-      if (i > 0) await deps.clock.sleep(i * STAGGER_MS + (deps.random ?? Math.random)() * STAGGER_MS, signal);
-      await runProvider(deps, id, signal);
+      if (i > 0) await deps.clock.sleep(i * STAGGER_MS + random() * STAGGER_MS, signal);
+      await runProvider(deps, id, random, signal);
     }),
   );
 }
 
-async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSignal): Promise<void> {
+async function runProvider(
+  deps: PollerDeps,
+  providerId: string,
+  random: () => number,
+  signal: AbortSignal,
+): Promise<void> {
   const { config, clock } = deps;
   const log = deps.log ?? (() => {});
   const adapter = deps.adapters[providerId]!;
@@ -54,7 +63,6 @@ async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSi
   const watches = config.watches.filter((w) => w.provider === providerId);
   const intervalMs = (config.providers[providerId]?.pollIntervalSeconds ?? 150) * 1000;
 
-  const random = deps.random ?? Math.random;
   const ctx = {
     http: createHttpClient({
       transport: deps.transport,
@@ -110,10 +118,11 @@ async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSi
     for (const { units } of plans) for (const q of units) queries.set(unitKey(q), q);
     const fail = (key: string, err: unknown) => {
       results.set(key, null);
+      if (signal.aborted) return; // 종료 중 끊긴 요청은 오류로 기록하지 않는다.
       const kind = err instanceof AdapterError ? err.kind : "error";
       log("query failed", { kind, unit: key, message: errMessage(err) });
     };
-    if (adapter.queryAvailabilityBatch && queries.size > 0) {
+    if (adapter.queryAvailabilityBatch && queries.size > 0 && !signal.aborted) {
       try {
         const batch = await adapter.queryAvailabilityBatch([...queries.values()], ctx);
         for (const [key, q] of queries) {
@@ -173,7 +182,7 @@ async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSi
       }
     }
     firstCycle = false;
-    await clock.sleep(intervalMs * (1 + (random() * 2 - 1) * INTERVAL_JITTER), signal);
+    await clock.sleep(jittered(intervalMs, INTERVAL_JITTER, random), signal);
   }
 }
 

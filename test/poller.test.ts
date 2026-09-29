@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
-import { CONFIG_YAML, ENV, configWith, fixture, queryOf, settle, startPoller } from "./harness.js";
+import { CONFIG_YAML, ENV, calendarHtml, configWith, fixture, queryOf, settle, startPoller } from "./harness.js";
 
 const POLL_MS = 150_000;
 const open = () => ({ status: 200, body: fixture("dka-2026-09-29-1night.htm") });
@@ -389,8 +389,35 @@ describe("고래불 실제 캘린더 fixture", () => {
 
   it("캘린더 구조를 읽지 못하면 unrecognized로 실패한다", async () => {
     const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
-    await expect(
-      goraebulAdapter.queryAvailabilityBatch!([{ zone: "DKA", checkIn: "2026-09-29", nights: 1 }], ctxFor("<html></html>")),
-    ).rejects.toMatchObject({ kind: "unrecognized" });
+    const unit = { zone: "DKA", checkIn: "2026-09-29", nights: 1 };
+    const res = await goraebulAdapter.queryAvailabilityBatch!([unit], ctxFor("<html></html>"));
+    expect(res.get(unit)).toMatchObject({ kind: "unrecognized" });
+  });
+});
+
+describe("캘린더 실패 격리", () => {
+  const run = async (body: string, months: string[]) => {
+    const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
+    const units = months.map((m) => ({ zone: "DKA", checkIn: `${m}-29`, nights: 1 }));
+    const ctx = {
+      http: {
+        get: async (url: string) => {
+          if (!url.includes("view_cate=")) return { status: 200, body: open().body };
+          return { status: 200, body: url.includes("view_cate2=9") ? body : calendarHtml("2026-10") };
+        },
+      },
+    };
+    return { units, res: await goraebulAdapter.queryAvailabilityBatch!(units, ctx) };
+  };
+
+  it("구역 링크에서 type을 읽지 못하면 매진으로 착각하지 않고 unrecognized다", async () => {
+    const { units, res } = await run(calendarHtml("2026-09").replaceAll("type=", "kind="), ["2026-09"]);
+    expect(res.get(units[0]!)).toMatchObject({ kind: "unrecognized" });
+  });
+
+  it("한 달의 캘린더가 깨져도 다른 달 조회 단위는 계속 처리한다", async () => {
+    const { units, res } = await run("<html></html>", ["2026-09", "2026-10"]);
+    expect(res.get(units[0]!)).toMatchObject({ kind: "unrecognized" });
+    expect(Array.isArray(res.get(units[1]!))).toBe(true);
   });
 });

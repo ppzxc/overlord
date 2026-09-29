@@ -99,10 +99,14 @@ const calendarUrl = (month: string) => {
  * 월 캘린더에서 날짜별로 1박 잔여가 1 이상인 구역 코드를 읽는다.
  * 매진((마감))과 아직 안 열렸거나 지난 날짜(td.not)는 빈 집합이다.
  */
+/** 정상 캘린더는 한 달 28~31칸이다. 이보다 적으면 구조가 바뀐 것으로 본다. */
+const MIN_CALENDAR_CELLS = 28;
+const monthOf = (date: string) => date.slice(0, 7);
+
 function parseCalendar(html: string, month: string): Map<string, Set<string>> {
   const $ = cheerio.load(html);
   const cells = $("table.t_calendar td").filter((_, td) => $(td).find("span.day").length > 0);
-  if (cells.length < 28) throw new AdapterError("unrecognized", `캘린더 날짜 칸이 ${cells.length}개뿐이다`);
+  if (cells.length < MIN_CALENDAR_CELLS) throw new AdapterError("unrecognized", `캘린더 날짜 칸이 ${cells.length}개뿐이다`);
   const days = new Map<string, Set<string>>();
   cells.each((_, td) => {
     const day = $(td).find("span.day").first().text().trim();
@@ -112,9 +116,15 @@ function parseCalendar(html: string, month: string): Map<string, Set<string>> {
     const items = $(td).find("ul.list li");
     if (items.length === 0) throw new AdapterError("unrecognized", `캘린더 ${day}일 칸에 구역 목록이 없다`);
     items.each((_, li) => {
-      const zone = new URL($(li).find("a").attr("href") ?? "", BASE).searchParams.get("type");
       const remaining = /^\((\d+)\)$/.exec($(li).find("em").text().trim())?.[1];
-      if (zone && remaining && +remaining >= 1) zones.add(zone);
+      if (remaining === undefined) {
+        // 잔여 수가 없으면 (마감)이어야 한다. 아니면 마크업이 바뀐 것이다.
+        if (!$(li).text().includes("(마감)")) throw new AdapterError("unrecognized", `캘린더 ${day}일 구역 칸을 읽지 못했다`);
+        return;
+      }
+      const zone = new URL($(li).find("a").attr("href") ?? "", BASE).searchParams.get("type");
+      if (!zone) throw new AdapterError("unrecognized", `캘린더 ${day}일 구역 링크에 type이 없다`);
+      if (+remaining >= 1) zones.add(zone);
     });
   });
   return days;
@@ -132,17 +142,31 @@ export const goraebulAdapter: ProviderAdapter = {
   /** 캘린더를 월마다 한 번 읽어 1박 잔여가 있는 (구역, 입실일)만 자세히 조회한다. 나머지는 빈 결과다. */
   async queryAvailabilityBatch(units, ctx) {
     const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
-    const months = [...new Set(units.map((u) => u.checkIn.slice(0, 7)))].sort();
+    const months = [...new Set(units.map((u) => monthOf(u.checkIn)))].sort();
     const calendars = new Map<string, Map<string, Set<string>>>();
-    for (const month of months) calendars.set(month, parseCalendar(await fetchPage(calendarUrl(month), ctx), month));
+    const failedMonths = new Map<string, AdapterError>();
+    for (const month of months) {
+      try {
+        calendars.set(month, parseCalendar(await fetchPage(calendarUrl(month), ctx), month));
+      } catch (e) {
+        // 한 달이 실패해도 다른 달은 계속 본다. 차단은 전체가 멈춘다.
+        if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
+        failedMonths.set(month, e);
+      }
+    }
     for (const q of units) {
+      const failed = failedMonths.get(monthOf(q.checkIn));
+      if (failed) {
+        results.set(q, failed);
+        continue;
+      }
       // N박 연속으로 비려면 입실일 1박은 비어 있어야 하므로 1박 잔여로 거를 수 있다.
-      if (!calendars.get(q.checkIn.slice(0, 7))?.get(q.checkIn)?.has(q.zone)) {
+      if (!calendars.get(monthOf(q.checkIn))?.get(q.checkIn)?.has(q.zone)) {
         results.set(q, []);
         continue;
       }
       try {
-        results.set(q, await goraebulAdapter.queryAvailability(q, ctx));
+        results.set(q, parseOpenSites(await fetchLayout(q, ctx), q.zone));
       } catch (e) {
         if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
         results.set(q, e);

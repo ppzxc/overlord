@@ -5,6 +5,8 @@ const TIMEOUT_MS = 10_000;
 /** 같은 예약처로 가는 요청 사이의 최소 간격과 최대 추가 지터. */
 export const REQUEST_GAP_MS = 5_000;
 export const REQUEST_JITTER_MS = 3_000;
+/** 요청 사이에 기다리는 시간의 상한(지터 최대). */
+export const MAX_REQUEST_WAIT_MS = REQUEST_GAP_MS + REQUEST_JITTER_MS;
 
 export interface Pacing {
   clock: Clock;

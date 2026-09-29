@@ -154,7 +154,7 @@ const ENTRY_MARKERS: { pattern: RegExp; label: string }[] = [
   { pattern: /NetFunnel_Action\(\{action_id:"reserve"\}/, label: 'NetFunnel_Action({action_id:"reserve"}' },
 ];
 
-/** `netfunnel.js` 경고 확인을 이미 한 세션. 세션당 한 번만 한다. */
+/** `netfunnel.js` 경고 확인을 이미 한 세션. 새 키로 진입할 때마다 다시 확인한다. */
 const scriptChecked = new WeakSet<HttpClient>();
 
 /**
@@ -242,6 +242,7 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
     waitedMs: pass.waitedMs,
   };
   sessions.set(ctx.http, state);
+  scriptChecked.delete(ctx.http);
   return state;
 }
 

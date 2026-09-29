@@ -573,6 +573,17 @@ describe("동해시 대기열 키 재사용과 수명", () => {
       expect(p.allRequests.filter((r) => r.url.endsWith("netfunnel.js"))).toHaveLength(1);
       await p.stop();
     });
+
+    it("키를 새로 받으면 netfunnel.js를 다시 확인한다", async () => {
+      const p = run(donghaeServer({ counts: () => 3 }));
+      await settle();
+      for (let i = 0; i < 60; i++) {
+        await p.clock.advance(150_000);
+        await settle();
+      }
+      expect(p.allRequests.filter((r) => r.url.endsWith("netfunnel.js")).length).toBeGreaterThan(1);
+      await p.stop();
+    });
   });
 });
 

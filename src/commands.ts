@@ -20,7 +20,6 @@ export interface CatalogDeps {
   config?: Config;
 }
 
-
 /** catalog 명령을 실행하고 종료 코드를 돌려준다. */
 export async function runCatalog(command: Extract<Command, { kind: "catalog" }>, deps: CatalogDeps): Promise<number> {
   const adapter = deps.adapters[command.provider ?? ""];

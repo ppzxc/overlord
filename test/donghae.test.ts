@@ -419,7 +419,6 @@ describe("동해시 대기열 키 재사용과 수명", () => {
 
   describe("신호 분류", () => {
     const failedKinds = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "query failed").map((l) => l.fields?.kind);
-    const json = (o: object) => ({ status: 200, body: JSON.stringify(o) });
     const detailReq = (r: { url: string }) => r.url.endsWith("ND_selectFcltyCalendarDetail.do");
 
     it("NetFunnel 302도 차단으로 멈추고 가상 대기에 참여하지 않는다", async () => {
@@ -572,6 +571,17 @@ describe("동해시 대기열 키 재사용과 수명", () => {
       await p.clock.advance(150_000);
       await settle();
       expect(p.allRequests.filter((r) => r.url.endsWith("netfunnel.js"))).toHaveLength(1);
+      await p.stop();
+    });
+
+    it("키를 새로 받으면 netfunnel.js를 다시 확인한다", async () => {
+      const p = run(donghaeServer({ counts: () => 3 }));
+      await settle();
+      for (let i = 0; i < 60; i++) {
+        await p.clock.advance(150_000);
+        await settle();
+      }
+      expect(p.allRequests.filter((r) => r.url.endsWith("netfunnel.js")).length).toBeGreaterThan(1);
       await p.stop();
     });
   });

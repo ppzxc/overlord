@@ -23,7 +23,7 @@ const KEY_TTL_MS = 2 * 60 * 60 * 1000;
 /** 페이지의 5분 타이머. 진입 뒤 이 시간이 지난 첫 시점에 setComplete(5004)를 한 번 보낸다. */
 const COMPLETE_AFTER_MS = 5 * 60 * 1000;
 
-// 구역 코드와 이름은 모두 응답의 표시 이름이다(2026-09-29 확인). 유형은 넓은 분류이고 든바다·난바다·허허바다는 확인하지 못했다. 정원은 확인한 구역만 적는다.
+// 구역 코드와 이름은 모두 응답의 표시 이름이다(2026-09-29 확인). 구역 이름 앞의 분류는 넓은 분류일 뿐이고 든바다·난바다·허허바다는 확인하지 못했다. 정원은 확인한 구역만 적는다.
 const zone = (name: string, type: string, capacity?: number): ZoneInfo => ({
   code: name,
   name,
@@ -154,13 +154,16 @@ const ENTRY_MARKERS: { pattern: RegExp; label: string }[] = [
   { pattern: /NetFunnel_Action\(\{action_id:"reserve"\}/, label: 'NetFunnel_Action({action_id:"reserve"}' },
 ];
 
+/** `netfunnel.js` 경고 확인을 이미 한 세션. 새 키로 진입할 때마다 다시 확인한다. */
+const scriptChecked = new WeakSet<HttpClient>();
+
 /**
  * `netfunnel.js`의 버전과 `TS_HOST`가 확인한 값과 다르면 경고만 남긴다. 페이지와 같은 요청 순서를 지키려고 첫 조회가 끝난 뒤 세션당 한 번 받는다.
  * 받지 못해도 감시는 그대로다.
  */
-async function warnNetfunnelDrift(ctx: AdapterContext, state: KeyState): Promise<void> {
-  if (state.scriptChecked || ctx.signal?.aborted) return;
-  state.scriptChecked = true;
+async function warnNetfunnelDrift(ctx: AdapterContext): Promise<void> {
+  if (scriptChecked.has(ctx.http) || ctx.signal?.aborted) return;
+  scriptChecked.add(ctx.http);
   try {
     const res = await ctx.http.get(NETFUNNEL_JS);
     if (res.status !== 200) return;
@@ -180,8 +183,6 @@ interface KeyState {
   enteredAt: number;
   reduced: Map<string, number>;
   completed: boolean;
-  /** `netfunnel.js` 경고 확인을 이미 했는지. 세션당 한 번만 한다. */
-  scriptChecked: boolean;
   /** 이 키를 받으려고 대기열에서 기다린 시간(ms). */
   waitedMs: number;
 }
@@ -238,10 +239,10 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
     enteredAt: ctx.clock.now().getTime(),
     reduced: parseReduced(entry),
     completed: false,
-    scriptChecked: false,
     waitedMs: pass.waitedMs,
   };
   sessions.set(ctx.http, state);
+  scriptChecked.delete(ctx.http);
   return state;
 }
 
@@ -249,14 +250,14 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
  * 이 세션이 쓸 키를 정한다. 2시간 안의 키는 서버 확인을 거쳐 다시 쓰고, 아니면 새로 진입한다.
  * 다시 쓰려던 키가 거절되면 실패가 아니라 새 진입이다. 새 키까지 곧바로 거절되면 구조 변경이다.
  */
-async function acquireSession(ctx: AdapterContext): Promise<{ state: KeyState; waitedMs: number }> {
+async function acquireSession(ctx: AdapterContext): Promise<{ state: KeyState; pass: QueuePass }> {
   let state = sessions.get(ctx.http);
   const now = ctx.clock.now().getTime();
   if (state && !state.completed && now - state.enteredAt >= COMPLETE_AFTER_MS) await sendComplete(ctx, state);
   if (state && now - state.issuedAt >= KEY_TTL_MS) state = undefined;
   let rejected = false;
   if (state) {
-    if (await keyAvailable(ctx, state.key)) return { state, waitedMs: 0 };
+    if (await keyAvailable(ctx, state.key)) return { state, pass: { key: state.key, waitedMs: 0 } };
     rejected = true;
   }
   sessions.delete(ctx.http);
@@ -265,7 +266,7 @@ async function acquireSession(ctx: AdapterContext): Promise<{ state: KeyState; w
     sessions.delete(ctx.http);
     throw new AdapterError("unrecognized", "새로 받은 키를 서버가 곧바로 거절했다(NOT Available)");
   }
-  return { state: fresh, waitedMs: fresh.waitedMs };
+  return { state: fresh, pass: { key: fresh.key, waitedMs: fresh.waitedMs } };
 }
 
 /** 진입 응답의 `temporaryReducedCounts = { '이름' : 20 }`을 읽는다. 상수가 없으면 구조 변경이다. */
@@ -357,37 +358,42 @@ function parseCalendar(html: string): { month: string; days: Map<string, Calenda
 }
 
 /**
- * 필요한 밤이 있는 달마다 BD_reservationOrigin으로 월 달력을 읽는다. 진입 응답에는 달력이 없다(기록 확인).
- * 첫 실패에서 멈추고 그때까지 읽은 날짜와 실패를 함께 돌려준다.
+ * 항목을 차례로 읽는다. 첫 실패에서 멈추고 그때까지 읽은 결과와 실패를 함께 돌려준다.
+ * 중단 신호가 오면 transient 실패로 멈춘다. NOPASS는 던져 올려 바퀴가 다시 진입하게 한다.
  */
-async function readCalendars(
-  dates: string[],
+async function readEach<K, V>(
+  keys: Iterable<K>,
   ctx: AdapterContext,
-  pass: QueuePass,
-): Promise<{ days: Map<string, CalendarDay>; failure?: AdapterError }> {
-  const days = new Map<string, CalendarDay>();
-  for (const month of new Set(dates.map((d) => d.slice(0, 7)))) {
-    if (ctx.signal?.aborted) return { days, failure: new AdapterError("transient", "중단되었다") };
-    const [year, mm] = month.split("-");
+  read: (key: K) => Promise<V>,
+): Promise<{ read: Map<K, V>; failure?: AdapterError }> {
+  const done = new Map<K, V>();
+  for (const key of keys) {
+    if (ctx.signal?.aborted) return { read: done, failure: new AdapterError("transient", "중단되었다") };
     try {
-      const body = await fetchOk(
-        ctx.http.post(`${RESERVATION}/BD_reservationOrigin.do`, {
-          trrsrtCode: TRRSRT_CODE,
-          q_year: year!,
-          q_month: mm!,
-          netfunnel_key: pass.key,
-        }),
-        `월 달력 ${month}`,
-      );
-      const cal = parseCalendar(body);
-      if (cal.month !== month) throw new AdapterError("unrecognized", `월 달력 ${month}을(를) 요청했는데 ${cal.month}이(가) 왔다`);
-      for (const [d, state] of cal.days) days.set(d, state);
+      done.set(key, await read(key));
     } catch (e) {
-      if (isUnitFailure(e)) return { days, failure: e };
+      if (isUnitFailure(e)) return { read: done, failure: e };
       throw e;
     }
   }
-  return { days };
+  return { read: done };
+}
+
+/** 월 달력 하나를 BD_reservationOrigin으로 읽는다. 진입 응답에는 달력이 없다(기록 확인). */
+async function readCalendar(month: string, ctx: AdapterContext, pass: QueuePass): Promise<Map<string, CalendarDay>> {
+  const [year, mm] = month.split("-");
+  const body = await fetchOk(
+    ctx.http.post(`${RESERVATION}/BD_reservationOrigin.do`, {
+      trrsrtCode: TRRSRT_CODE,
+      q_year: year!,
+      q_month: mm!,
+      netfunnel_key: pass.key,
+    }),
+    `월 달력 ${month}`,
+  );
+  const cal = parseCalendar(body);
+  if (cal.month !== month) throw new AdapterError("unrecognized", `월 달력 ${month}을(를) 요청했는데 ${cal.month}이(가) 왔다`);
+  return cal.days;
 }
 
 /** 하룻밤 조회 응답 본문. 바퀴와 catalog --live가 같은 요청을 보낸다. */
@@ -407,39 +413,19 @@ function fetchNight(date: string, ctx: AdapterContext, pass: QueuePass): Promise
   );
 }
 
-/** 필요한 밤을 차례로 읽는다. 첫 실패에서 멈추고, 그때까지 읽은 밤과 실패를 함께 돌려준다. */
-async function readNights(
-  dates: string[],
-  ctx: AdapterContext,
-  reduced: Map<string, number>,
-  pass: QueuePass,
-): Promise<{ nights: Map<string, Map<string, number>>; failure?: AdapterError }> {
-  const nights = new Map<string, Map<string, number>>();
-  for (const date of dates) {
-    if (ctx.signal?.aborted) return { nights, failure: new AdapterError("transient", "중단되었다") };
-    try {
-      const body = await fetchNight(date, ctx, pass);
-      nights.set(date, parseNight(body, reduced, ctx));
-    } catch (e) {
-      if (isUnitFailure(e)) return { nights, failure: e };
-      throw e;
-    }
-  }
-  return { nights };
-}
-
 /** 대기열 진입부터 밤 조회까지 한 바퀴. NOPASS는 NoPassError로 던져 호출자가 재진입하게 한다. */
 async function runBatch(
   units: AvailabilityQuery[],
   ctx: AdapterContext,
 ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>> {
-    const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
-  const { state, waitedMs } = await acquireSession(ctx);
-  const pass: QueuePass = { key: state.key, waitedMs };
+  const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
+  const { state, pass } = await acquireSession(ctx);
   const reduced = state.reduced;
 
   const allDates = [...new Set(units.flatMap(nightsOf))].sort();
-  const calendar = await readCalendars(allDates, ctx, pass);
+  const months = new Set(allDates.map((d) => d.slice(0, 7)));
+  const calendars = await readEach(months, ctx, (month) => readCalendar(month, ctx, pass));
+  const calendar = { days: new Map([...calendars.read.values()].flatMap((m) => [...m])), failure: calendars.failure };
   // 필요한 밤 하나라도 예약마감이면 날짜 조회 없이 빈 결과다.
   const closed = (q: AvailabilityQuery) => nightsOf(q).some((d) => calendar.days.get(d) === "closed");
   for (const q of units) if (closed(q)) results.set(q, []);
@@ -447,10 +433,11 @@ async function runBatch(
 
   // 달력에서 실패했으면 그게 바퀴의 첫 실패이므로 날짜 조회는 보내지 않는다.
   const liveDates = calendar.failure ? [] : [...new Set(live.flatMap(nightsOf))].sort();
-  const read = await readNights(liveDates, ctx, reduced, pass);
-  const { nights } = read;
-  const failure = calendar.failure ?? read.failure;
-  await warnNetfunnelDrift(ctx, state);
+  const { read: nights, failure: nightFailure } = await readEach(liveDates, ctx, async (date) =>
+    parseNight(await fetchNight(date, ctx, pass), reduced, ctx),
+  );
+  const failure = calendar.failure ?? nightFailure;
+  await warnNetfunnelDrift(ctx);
 
   for (const q of live) {
     const needed = nightsOf(q);
@@ -470,6 +457,24 @@ async function runBatch(
   return results;
 }
 
+/** NOPASS: 키와 쿠키 세션을 버리고 같은 바퀴에서 한 번만 다시 진입한다. */
+async function withNoPassRetry<T>(ctx: AdapterContext, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (e) {
+    if (!(e instanceof NoPassError)) throw e;
+  }
+  ctx.log?.("donghae NOPASS, re-entering", {});
+  sessions.delete(ctx.http);
+  ctx.http.clearSession();
+  try {
+    return await run();
+  } catch (e) {
+    if (e instanceof NoPassError) sessions.delete(ctx.http);
+    throw e;
+  }
+}
+
 export const donghaeAdapter: ProviderAdapter = {
   id: "donghae",
 
@@ -485,44 +490,18 @@ export const donghaeAdapter: ProviderAdapter = {
    * 같은 세션의 키가 2시간 안이고 서버가 받아 주면 다시 쓰고, 아니면 새로 대기열에 들어가 필요한 밤을 한 번씩 읽는다. 첫 실패에서 멈추고,
    * 이미 읽은 밤만으로 판정되는 조회 단위는 결과를 돌려준다.
    */
-  async queryAvailabilityBatch(units, ctx) {
-    try {
-      return await runBatch(units, ctx);
-    } catch (e) {
-      if (!(e instanceof NoPassError)) throw e;
-    }
-    // NOPASS: 키와 쿠키 세션을 버리고 같은 바퀴에서 한 번만 다시 진입한다.
-    ctx.log?.("donghae NOPASS, re-entering", {});
-    sessions.delete(ctx.http);
-    ctx.http.clearSession();
-    try {
-      return await runBatch(units, ctx);
-    } catch (e) {
-      if (e instanceof NoPassError) sessions.delete(ctx.http);
-      throw e;
-    }
-  },
+  queryAvailabilityBatch: (units, ctx) => withNoPassRetry(ctx, () => runBatch(units, ctx)),
 
   /** 내일(query의 입실일) 하룻밤만 읽어 구역 이름 집합과 모르는 값을 돌려준다. 달력은 읽지 않는다. */
   async listZones(q, ctx): Promise<ZoneObservation> {
-    const read = async (): Promise<ZoneObservation> => {
-      const { state, waitedMs } = await acquireSession(ctx);
-      const pass: QueuePass = { key: state.key, waitedMs };
-      const body = await fetchNight(q.checkIn, ctx, pass);
-      const items = splitNight(body);
+    return withNoPassRetry(ctx, async () => {
+      const { pass } = await acquireSession(ctx);
+      const items = splitNight(await fetchNight(q.checkIn, ctx, pass));
       return {
         zones: items.map((i) => i.name),
         unknown: items.filter((i) => countOf(i.value) === undefined).map((i) => ({ zone: i.name, value: i.value })),
       };
-    };
-    try {
-      return await read();
-    } catch (e) {
-      if (!(e instanceof NoPassError)) throw e;
-    }
-    sessions.delete(ctx.http);
-    ctx.http.clearSession();
-    return read();
+    });
   },
 
   async close(ctx) {

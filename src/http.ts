@@ -1,3 +1,4 @@
+import { CookieJar } from "./cookies.js";
 import type { Clock, HttpClient, RequestOptions, Transport, TransportRequest, TransportResponse } from "./types.js";
 
 const BASE_UA = "overlord-availability-poller";
@@ -20,52 +21,6 @@ export function userAgent(version: string, suffix: string): string {
   return suffix.trim() ? `${base} ${suffix.trim()}` : base;
 }
 
-interface Cookie {
-  name: string;
-  value: string;
-  domain: string;
-  /** Domain 속성 없이 받은 쿠키. 받은 호스트에만 싣는다. */
-  hostOnly: boolean;
-}
-
-const domainMatches = (host: string, domain: string) => host === domain || host.endsWith(`.${domain}`);
-const cookieKey = (c: Pick<Cookie, "name" | "domain" | "hostOnly">) => `${c.hostOnly ? "" : "."}${c.domain} ${c.name}`;
-
-/**
- * Set-Cookie 값들을 담는다. RFC 6265처럼 Domain 속성이 없으면 받은 호스트에만, 있으면 그 도메인과 하위 호스트에 싣는다.
- * 받은 호스트와 맞지 않는 Domain은 버린다. Max-Age가 0 이하이거나 Expires가 지났으면 지운다. 경로는 보지 않는다.
- */
-function storeCookies(jar: Map<string, Cookie>, host: string, setCookie: string[], now: number): void {
-  for (const line of setCookie) {
-    const [pair, ...attrs] = line.split(";");
-    const eq = pair!.indexOf("=");
-    if (eq <= 0) continue;
-    const name = pair!.slice(0, eq).trim();
-    const value = pair!.slice(eq + 1).trim();
-    let maxAgeExpired: boolean | undefined;
-    let expiresPassed = false;
-    let domain: string | undefined;
-    for (const a of attrs) {
-      const [key = "", val = ""] = a.split("=").map((x) => x.trim());
-      if (/^max-age$/i.test(key)) maxAgeExpired = Number(val) <= 0;
-      else if (/^expires$/i.test(key)) expiresPassed = Date.parse(val) <= now;
-      else if (/^domain$/i.test(key) && val) domain = val.replace(/^\./, "").toLowerCase();
-    }
-    // Max-Age가 있으면 Expires보다 앞선다.
-    const expired = maxAgeExpired ?? expiresPassed;
-    if (domain !== undefined && !domainMatches(host, domain)) continue;
-    const cookie: Cookie = { name, value, domain: domain ?? host, hostOnly: domain === undefined };
-    if (expired) jar.delete(cookieKey(cookie));
-    else jar.set(cookieKey(cookie), cookie);
-  }
-}
-
-const cookieHeader = (jar: Map<string, Cookie>, host: string) =>
-  [...jar.values()]
-    .filter((c) => (c.hostOnly ? c.domain === host : domainMatches(host, c.domain)))
-    .map((c) => `${c.name}=${c.value}`)
-    .join("; ");
-
 /** 한 요청이 따라가는 리다이렉트의 상한. */
 const MAX_REDIRECTS = 5;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
@@ -85,7 +40,7 @@ export function createHttpClient(opts: {
   const { pacing } = opts;
   let queue: Promise<unknown> = Promise.resolve();
   let lastAt: number | undefined;
-  const jar = new Map<string, Cookie>();
+  const jar = new CookieJar();
 
   const assertAllowed = (url: string) => {
     const { pathname } = new URL(url);
@@ -98,11 +53,11 @@ export function createHttpClient(opts: {
     const { hostname } = new URL(url);
     const headers: Record<string, string> = { "User-Agent": ua };
     if (body !== undefined) headers["Content-Type"] = contentType;
-    const cookie = cookieHeader(jar, hostname);
+    const cookie = jar.header(hostname);
     if (cookie) headers.Cookie = cookie;
     const res = await opts.transport({ method, url, headers, body, timeoutMs: TIMEOUT_MS, redirect: "manual" });
     if (opts.cookieSession && res.setCookie) {
-      storeCookies(jar, hostname, res.setCookie, (pacing?.clock.now() ?? new Date()).getTime());
+      jar.store(hostname, res.setCookie, (pacing?.clock.now() ?? new Date()).getTime());
     }
     return res;
   };

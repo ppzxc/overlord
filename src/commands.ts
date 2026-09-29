@@ -20,9 +20,6 @@ export interface CatalogDeps {
   config?: Config;
 }
 
-/** 요청 사이 최소 간격 5초에 0~3초 지터를 더한다. */
-export const liveGapMs = (random: () => number) => 5000 + Math.floor(random() * 3000);
-
 /** catalog 명령을 실행하고 종료 코드를 돌려준다. */
 export async function runCatalog(command: Extract<Command, { kind: "catalog" }>, deps: CatalogDeps): Promise<number> {
   const adapter = deps.adapters[command.provider ?? ""];
@@ -42,7 +39,8 @@ export async function runCatalog(command: Extract<Command, { kind: "catalog" }>,
     transport: deps.transport,
     version: deps.version,
     now: deps.now(),
-    pause: () => deps.sleep(liveGapMs(deps.random)),
+    clock: { now: deps.now, sleep: (ms) => deps.sleep(ms) },
+    random: deps.random,
   });
   deps.out(result.text);
   return result.failed ? 1 : 0;

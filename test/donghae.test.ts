@@ -109,6 +109,13 @@ describe("동해시 폴러", () => {
     await p.stop();
   });
 
+  it("중단 호실 수가 남은 수보다 커도 0으로 맞추고 알리지 않는다", async () => {
+    const p = run(donghaeServer({ counts: (z) => (z === "자동차캠핑장" ? 5 : "예약완료"), reduced: { 자동차캠핑장: 20 } }));
+    await settle();
+    expect(p.sent).toHaveLength(0);
+    await p.stop();
+  });
+
   it("같은 빈자리는 다음 바퀴에 다시 알리지 않고, 남은 수가 바뀌어도 알리지 않으며, 0이 된 뒤 다시 생기면 알린다", async () => {
     let n: number | string = 20;
     const p = run(donghaeServer({ counts: (z) => (z === "자동차캠핑장" ? n : "예약완료") }));

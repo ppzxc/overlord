@@ -1,3 +1,4 @@
+import { systemClock } from "./clock.js";
 import { compact } from "./catalog.js";
 import { createHttpClient } from "./http.js";
 import { addDays, kstDate } from "./schedule.js";
@@ -27,7 +28,7 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
     return { text: `${info.id}는 자리 단위로 보지 않는 예약처라 비교할 자리 목록이 없다\n`, failed: false };
   }
   const ctx: AdapterContext = {
-    clock: { now: () => new Date(), sleep: (ms) => new Promise((r) => setTimeout(r, ms)) },
+    clock: systemClock,
     http: createHttpClient({
       transport: opts.transport,
       version: opts.version,

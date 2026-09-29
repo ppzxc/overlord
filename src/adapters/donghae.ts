@@ -83,8 +83,14 @@ function parseNf(body: string): { code: number; fields: URLSearchParams } {
 const nfUrl = (opcode: number, now: number, key?: string) =>
   `${NF_URL}?opcode=${opcode}&nfid=0&prefix=NetFunnel.gRtype=${opcode};&sid=service_1&aid=reserve&js=yes${key ? `&key=${encodeURIComponent(key)}` : ""}&${now}`;
 
+/** 대기열을 통과해 받은 키와 기다린 시간(ms). */
+interface QueuePass {
+  key: string;
+  waitedMs: number;
+}
+
 /** 대기열에 참여해 키와 기다린 시간(ms)을 받는다. 대기열 서버 요청은 간격 큐 밖에서 보낸다. */
-async function enterQueue(ctx: AdapterContext): Promise<{ key: string; waitedMs: number }> {
+async function enterQueue(ctx: AdapterContext): Promise<QueuePass> {
   const started = ctx.clock.now().getTime();
   let opcode = 5101;
   let key: string | undefined;
@@ -153,16 +159,16 @@ function parseNight(body: string, reduced: Map<string, number>): Map<string, num
   return counts;
 }
 
+/** 필요한 밤을 차례로 읽는다. 첫 실패에서 멈추고, 그때까지 읽은 밤과 실패를 함께 돌려준다. */
 async function readNights(
   dates: string[],
   ctx: AdapterContext,
   reduced: Map<string, number>,
-  key: string,
-  waitedMs: number,
-  nights: Map<string, Map<string, number>>,
-): Promise<AdapterError | undefined> {
+  pass: QueuePass,
+): Promise<{ nights: Map<string, Map<string, number>>; failure?: AdapterError }> {
+  const nights = new Map<string, Map<string, number>>();
   for (const date of dates) {
-    if (ctx.signal?.aborted) return new AdapterError("transient", "중단되었다");
+    if (ctx.signal?.aborted) return { nights, failure: new AdapterError("transient", "중단되었다") };
     const [year, month, day] = date.split("-");
     try {
       const body = await fetchOk(
@@ -172,18 +178,18 @@ async function readNights(
           q_month: month!,
           qDay: String(Number(day)),
           passResv1: "",
-          passNfTime: String(waitedMs),
-          netfunnel_key: key,
+          passNfTime: String(pass.waitedMs),
+          netfunnel_key: pass.key,
         }),
         `날짜 조회 ${date}`,
       );
       nights.set(date, parseNight(body, reduced));
     } catch (e) {
-      if (e instanceof AdapterError) return e;
+      if (e instanceof AdapterError) return { nights, failure: e };
       throw e;
     }
   }
-  return undefined;
+  return { nights };
 }
 
 export const donghaeAdapter: ProviderAdapter = {
@@ -203,9 +209,9 @@ export const donghaeAdapter: ProviderAdapter = {
    */
   async queryAvailabilityBatch(units, ctx) {
     const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
-    const { key, waitedMs } = await enterQueue(ctx);
+    const pass = await enterQueue(ctx);
     await fetchOk(
-      ctx.http.post(`${RESERVATION}/ND_setNfKey.do`, key, { contentType: "application/json" }),
+      ctx.http.post(`${RESERVATION}/ND_setNfKey.do`, pass.key, { contentType: "application/json" }),
       "키 등록",
     );
     const entry = await fetchOk(
@@ -215,15 +221,14 @@ export const donghaeAdapter: ProviderAdapter = {
         trrsrtCode: "",
         q_year: "",
         q_month: "",
-        netfunnel_key: key,
+        netfunnel_key: pass.key,
       }),
       "예약 화면 진입",
     );
     const reduced = parseReduced(entry);
 
     const dates = [...new Set(units.flatMap(nightsOf))].sort();
-    const nights = new Map<string, Map<string, number>>();
-    const failure = await readNights(dates, ctx, reduced, key, waitedMs, nights);
+    const { nights, failure } = await readNights(dates, ctx, reduced, pass);
 
     for (const q of units) {
       const needed = nightsOf(q);

@@ -209,8 +209,6 @@ export function donghaeServer(
     /** 대기열 응답 순서. 다 쓰면 마지막을 되풀이한다. 기본은 바로 통과다. */
     queue?: string[];
     detailBody?: (date: string) => string | undefined;
-    /** 진입 응답이 보여 주는 달. 기본은 시험 시계의 달이다. */
-    entryMonth?: string;
     /** 월 달력에서 예약마감으로 보일 날짜. 기본은 모두 열려 있다. */
     closed?: (date: string) => boolean;
   } = {},
@@ -229,8 +227,7 @@ export function donghaeServer(
     }
     if (url.pathname.endsWith("/BD_reservation.do")) {
       const reduced = Object.entries(opts.reduced ?? {}).map(([k, v]) => `'${k}' : ${v}`).join(", ");
-      const calendar = donghaeCalendar(opts.entryMonth ?? "2026-09", opts.closed);
-      return { status: 200, body: `<html><script>var temporaryReducedCounts = { ${reduced} };</script>${calendar}</html>` };
+      return { status: 200, body: `<html><script>var temporaryReducedCounts = { ${reduced} };</script></html>` };
     }
     if (url.pathname.endsWith("/BD_reservationOrigin.do")) {
       const form = new URLSearchParams(req.body ?? "");

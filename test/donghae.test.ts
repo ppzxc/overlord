@@ -198,11 +198,24 @@ describe("동해시 폴러", () => {
     await p.stop();
   });
 
-  it("진입한 달에 든 밤은 달력을 다시 읽지 않는다", async () => {
-    const p = run(donghaeServer({ counts: () => 5, entryMonth: "2026-10" }));
+  it("여러 달에 걸치면 달마다 한 번씩만 달력을 읽는다", async () => {
+    const w = HEAD_WATCH().replace("from: 2026-10-03, to: 2026-10-03", "from: 2026-09-30, to: 2026-09-30").replace("nights: 1", "nights: 2");
+    const p = run(donghaeServer({ counts: () => 5 }), w);
     await settle();
-    expect(p.allRequests.some((r) => wwwPath(r) === "BD_reservationOrigin.do")).toBe(false);
-    expect(p.sent).toHaveLength(1);
+    const months = p.allRequests.filter((r) => wwwPath(r) === "BD_reservationOrigin.do").map((r) => new URLSearchParams(r.body).get("q_month"));
+    expect(months).toEqual(["09", "10"]);
+    await p.stop();
+  });
+
+  it("두 번째 달 달력이 실패하면 날짜 조회를 보내지 않는다", async () => {
+    const w = HEAD_WATCH().replace("from: 2026-10-03, to: 2026-10-03", "from: 2026-09-30, to: 2026-09-30").replace("nights: 1", "nights: 2");
+    const p = startPoller(() => ({ status: 404, body: "" }), {
+      yaml: yaml(w),
+      server: (req) => (req.url.endsWith("BD_reservationOrigin.do") && new URLSearchParams(req.body).get("q_month") === "10" ? { status: 500, body: "" } : donghaeServer({ counts: () => 5 })(req)),
+    });
+    await settle();
+    expect(p.allRequests.some((r) => wwwPath(r) === "ND_selectFcltyCalendarDetail.do")).toBe(false);
+    expect(p.sent).toHaveLength(0);
     await p.stop();
   });
 

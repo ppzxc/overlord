@@ -942,7 +942,7 @@ describe("quietHours, 일일 요약, dead-man ping", () => {
     expect(s.text).toContain("goraebul");
     expect(s.text).toContain("정상");
     expect(s.text).toContain("활성 감시 조건: 1건");
-    expect(s.text).toContain("바퀴 2회, 실패 1회");
+    expect(s.text).toContain("바퀴 2회, 실패한 바퀴 1회");
     expect(s.text).toContain("곧 만료");
     await p.stop();
   });
@@ -984,6 +984,44 @@ describe("quietHours, 일일 요약, dead-man ping", () => {
     broken = false;
     await p.clock.advance(POLL_MS);
     expect(pings(p)).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("요약 전송이 실패하면 10분 뒤 다시 시도한다", async () => {
+    let broken = true;
+    const p = startPoller(soldOut, {
+      yaml: withTop('dailySummary: { at: "09:00" }'),
+      failSend: () => broken && new TelegramError("잘못된 요청", 400),
+    });
+    await settle();
+    await p.clock.advance(24 * 3600_000);
+    expect(p.sent).toHaveLength(0);
+    broken = false;
+    await p.clock.advance(10 * 60_000);
+    expect(p.sent.filter((m) => m.text.includes("일일 요약"))).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("전날 기록이 없으면 0회가 아니라 기록 없음으로 적는다", async () => {
+    const p = startPoller(soldOut, { yaml: withTop('dailySummary: { at: "09:00" }') });
+    await settle();
+    await p.clock.advance(2 * 24 * 3600_000);
+    const texts = p.sent.filter((m) => m.text.includes("일일 요약")).map((m) => m.text);
+    expect(texts.some((t) => t.includes("기록 없음"))).toBe(true);
+    await p.stop();
+  });
+
+  it("예약처가 둘이어도 ping은 바퀴 간격의 절반에 한 번만 나간다", async () => {
+    const other: ProviderAdapter = { ...goraebulAdapter, id: "other", queryAvailabilityBatch: undefined, queryAvailability: async () => [] };
+    const yaml = withTop(`deadManPingUrl: ${PING}`)
+      .replace("providers:\n", "providers:\n  other: { pollIntervalSeconds: 150 }\n")
+      .concat(`  - { name: 다른곳, provider: other, zones: [DKA], checkIn: { from: 2026-09-29, to: 2026-09-29 }, nights: 1, notify: [default] }\n`);
+    const p = startPoller(soldOut, { yaml, adapters: { goraebul: goraebulAdapter, other } });
+    await settle();
+    await p.clock.advance(POLL_MS);
+    await p.clock.advance(POLL_MS);
+    // 바퀴는 예약처마다 3번 안팎이지만 ping은 150초 간격당 한 번이다.
+    expect(pings(p).length).toBeLessThanOrEqual(4);
     await p.stop();
   });
 

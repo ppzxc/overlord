@@ -240,8 +240,8 @@ export function renderHealth(opts: {
 export interface SummaryProvider {
   id: string;
   status: HealthStatus;
-  rounds: number;
-  failures: number;
+  /** 전날 기록. 없으면 알 수 없다. */
+  day?: { rounds: number; failures: number } | undefined;
 }
 
 const STATUS_LABELS: Record<HealthStatus, string> = {
@@ -261,7 +261,7 @@ export function renderSummary(opts: {
 }): TelegramMessage {
   const lines = ["📋 일일 요약", `활성 감시 조건: ${opts.activeWatches}건`];
   for (const p of opts.providers) {
-    lines.push(`예약처 <b>${escapeHtml(p.id)}</b>: ${STATUS_LABELS[p.status]} · ${opts.date} 바퀴 ${p.rounds}회, 실패 ${p.failures}회`);
+    lines.push(`예약처 <b>${escapeHtml(p.id)}</b>: ${STATUS_LABELS[p.status]} · ${opts.date} ${p.day ? `바퀴 ${p.day.rounds}회, 실패한 바퀴 ${p.day.failures}회` : "기록 없음"}`);
   }
   if (opts.expiring.length > 0) {
     lines.push("곧 만료:");

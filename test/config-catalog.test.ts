@@ -366,6 +366,11 @@ describe("catalog donghae --live 구역 대조", () => {
     expect(result.failed).toBe(false);
     expect(requests.filter((r) => r.endsWith("ND_selectFcltyCalendarDetail.do"))).toHaveLength(1);
     expect(requests.some((r) => r.endsWith("BD_reservationOrigin.do"))).toBe(false);
+    expect(requests.filter((r) => r.includes("/user/reservation/"))).toEqual([
+      "POST /user/reservation/ND_setNfKey.do",
+      "POST /user/reservation/BD_reservation.do",
+      "POST /user/reservation/ND_selectFcltyCalendarDetail.do",
+    ]);
   });
 
   it("사라지거나 새로 생긴 구역과 모르는 값을 보고한다", async () => {

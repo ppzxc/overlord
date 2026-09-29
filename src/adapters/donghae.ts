@@ -385,6 +385,47 @@ async function readNights(
   return { nights };
 }
 
+/** 대기열 진입부터 밤 조회까지 한 바퀴. NOPASS는 NoPassError로 던져 호출자가 재진입하게 한다. */
+async function runBatch(
+  units: AvailabilityQuery[],
+  ctx: AdapterContext,
+): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>> {
+    const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
+  const { state, waitedMs } = await acquireSession(ctx);
+  const pass: QueuePass = { key: state.key, waitedMs };
+  const reduced = state.reduced;
+
+  const allDates = [...new Set(units.flatMap(nightsOf))].sort();
+  const calendar = await readCalendars(allDates, ctx, pass);
+  // 필요한 밤 하나라도 예약마감이면 날짜 조회 없이 빈 결과다.
+  const closed = (q: AvailabilityQuery) => nightsOf(q).some((d) => calendar.days.get(d) === "closed");
+  for (const q of units) if (closed(q)) results.set(q, []);
+  const live = units.filter((q) => !closed(q));
+
+  // 달력에서 실패했으면 그게 바퀴의 첫 실패이므로 날짜 조회는 보내지 않는다.
+  const liveDates = calendar.failure ? [] : [...new Set(live.flatMap(nightsOf))].sort();
+  const read = await readNights(liveDates, ctx, reduced, pass);
+  const { nights } = read;
+  const failure = calendar.failure ?? read.failure;
+
+  for (const q of live) {
+    const needed = nightsOf(q);
+    const counts = needed.map((d) => nights.get(d));
+    if (counts.some((c) => !c)) {
+      results.set(q, failure ?? new AdapterError("transient", "밤 조회가 끝나지 않았다"));
+      continue;
+    }
+    const perNight = counts.map((c) => c!.get(q.zone));
+    if (perNight.some((n) => n === undefined)) {
+      results.set(q, new AdapterError("unrecognized", `응답에서 구역 ${q.zone}이(가) 사라졌다`));
+      continue;
+    }
+    const remaining = Math.min(...(perNight as number[]));
+    results.set(q, remaining >= 1 ? [{ id: q.zone, name: q.zone, remaining }] : []);
+  }
+  return results;
+}
+
 export const donghaeAdapter: ProviderAdapter = {
   id: "donghae",
 
@@ -402,7 +443,7 @@ export const donghaeAdapter: ProviderAdapter = {
    */
   async queryAvailabilityBatch(units, ctx) {
     try {
-      return await this.runBatch!(units, ctx);
+      return await runBatch(units, ctx);
     } catch (e) {
       if (!(e instanceof NoPassError)) throw e;
     }
@@ -411,48 +452,11 @@ export const donghaeAdapter: ProviderAdapter = {
     sessions.delete(ctx.http);
     ctx.http.clearSession();
     try {
-      return await this.runBatch!(units, ctx);
+      return await runBatch(units, ctx);
     } catch (e) {
       if (e instanceof NoPassError) sessions.delete(ctx.http);
       throw e;
     }
-  },
-
-  async runBatch(units, ctx) {
-    const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
-    const { state, waitedMs } = await acquireSession(ctx);
-    const pass: QueuePass = { key: state.key, waitedMs };
-    const reduced = state.reduced;
-
-    const allDates = [...new Set(units.flatMap(nightsOf))].sort();
-    const calendar = await readCalendars(allDates, ctx, pass);
-    // 필요한 밤 하나라도 예약마감이면 날짜 조회 없이 빈 결과다.
-    const closed = (q: AvailabilityQuery) => nightsOf(q).some((d) => calendar.days.get(d) === "closed");
-    for (const q of units) if (closed(q)) results.set(q, []);
-    const live = units.filter((q) => !closed(q));
-
-    // 달력에서 실패했으면 그게 바퀴의 첫 실패이므로 날짜 조회는 보내지 않는다.
-    const liveDates = calendar.failure ? [] : [...new Set(live.flatMap(nightsOf))].sort();
-    const read = await readNights(liveDates, ctx, reduced, pass);
-    const { nights } = read;
-    const failure = calendar.failure ?? read.failure;
-
-    for (const q of live) {
-      const needed = nightsOf(q);
-      const counts = needed.map((d) => nights.get(d));
-      if (counts.some((c) => !c)) {
-        results.set(q, failure ?? new AdapterError("transient", "밤 조회가 끝나지 않았다"));
-        continue;
-      }
-      const perNight = counts.map((c) => c!.get(q.zone));
-      if (perNight.some((n) => n === undefined)) {
-        results.set(q, new AdapterError("unrecognized", `응답에서 구역 ${q.zone}이(가) 사라졌다`));
-        continue;
-      }
-      const remaining = Math.min(...(perNight as number[]));
-      results.set(q, remaining >= 1 ? [{ id: q.zone, name: q.zone, remaining }] : []);
-    }
-    return results;
   },
 
   async close(ctx) {

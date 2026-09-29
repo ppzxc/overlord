@@ -119,11 +119,6 @@ export interface ProviderAdapter {
    * 없으면 코어가 조회 단위마다 queryAvailability를 따로 호출한다.
    * 결과 키는 넘겨받은 조회 단위 객체다. 단위 하나만 실패하면 그 값에 AdapterError를 담고, 차단처럼 전체가 실패하면 던진다.
    */
-  /** 어댑터 내부용. queryAvailabilityBatch가 NOPASS 재진입을 감싸 부른다. */
-  runBatch?(
-    units: AvailabilityQuery[],
-    ctx: AdapterContext,
-  ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>>;
   queryAvailabilityBatch?(
     units: AvailabilityQuery[],
     ctx: AdapterContext,

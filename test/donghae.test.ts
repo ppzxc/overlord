@@ -136,15 +136,6 @@ describe("동해시 폴러", () => {
     await p.stop();
   });
 
-  it("바퀴마다 새로 대기열에 진입한다", async () => {
-    const p = run(donghaeServer({ counts: () => "예약완료" }));
-    await settle();
-    await p.clock.advance(150_000);
-    await settle();
-    expect(p.allRequests.filter((r) => new URL(r.url).searchParams.get("opcode") === "5101")).toHaveLength(2);
-    await p.stop();
-  });
-
   it("아직 열리지 않은 날짜는 조회하지 않는다", async () => {
     // 지금은 2026-09-29 09:00 KST. 2026-10-29 입실은 D−30인 09-29 11:00에 열린다.
     const p = run(
@@ -316,5 +307,112 @@ describe("동해시 설정 검증", () => {
   it("3박을 넘으면 거부하고 3박은 받는다", () => {
     expect(load(HEAD_WATCH().replace("nights: 1", "nights: 4"))).toThrow(/최대 3박/);
     expect(load(HEAD_WATCH().replace("nights: 1", "nights: 3"))).not.toThrow();
+  });
+});
+
+describe("동해시 대기열 키 재사용과 수명", () => {
+  const opcodes = (p: ReturnType<typeof run>) =>
+    p.allRequests.filter((r) => new URL(r.url).hostname.startsWith("nf.")).map((r) => new URL(r.url).searchParams.get("opcode"));
+  const paths = (p: ReturnType<typeof run>) =>
+    p.allRequests.map((r) => (new URL(r.url).hostname.startsWith("nf.") ? `nf:${new URL(r.url).searchParams.get("opcode")}` : wwwPath(r)));
+  const rounds = async (p: ReturnType<typeof run>, n: number) => {
+    for (let i = 0; i < n; i++) {
+      await p.clock.advance(150_000);
+      await settle();
+    }
+  };
+
+  it("두 번째 바퀴는 5101 없이 ND_checkNfKeyAvail.do 뒤에 날짜 조회로 간다", async () => {
+    const p = run(donghaeServer({ counts: () => 3 }));
+    await settle();
+    const first = p.allRequests.length;
+    await rounds(p, 1);
+    const second = paths(p).slice(first);
+    expect(second.slice(0, 3)).toEqual(["ND_checkNfKeyAvail.do", "BD_reservationOrigin.do", "ND_selectFcltyCalendarDetail.do"]);
+    expect(opcodes(p)).toEqual(["5101"]);
+    const check = p.allRequests[first]!;
+    expect(new URLSearchParams(check.body).get("netfunnel_key")).toBe("KEY1");
+    const detail = new URLSearchParams(p.allRequests[first + 2]!.body);
+    expect(detail.get("netfunnel_key")).toBe("KEY1");
+    await p.stop();
+  });
+
+  it("NOT Available를 받으면 같은 바퀴에서 새로 진입하고 실패로 치지 않는다", async () => {
+    const p = run(donghaeServer({ counts: () => 3, keyAvailable: (k) => k !== "KEY1" }));
+    await settle();
+    await rounds(p, 1);
+    expect(opcodes(p)).toEqual(["5101", "5101"]);
+    const detail = p.allRequests.filter((r) => wwwPath(r) === "ND_selectFcltyCalendarDetail.do");
+    expect(new URLSearchParams(detail[1]!.body).get("netfunnel_key")).toBe("KEY2");
+    expect(p.logs.some((l) => l.msg === "query failed")).toBe(false);
+    expect(p.sent).toHaveLength(1); // 첫 바퀴의 빈자리 알림뿐이다. 재진입은 알림을 더하지 않는다.
+    await p.stop();
+  });
+
+  it("새로 받은 키도 곧바로 NOT Available이면 unrecognized다", async () => {
+    const p = run(donghaeServer({ counts: () => 3, keyAvailable: () => false }));
+    await settle();
+    await rounds(p, 1);
+    expect(p.logs.some((l) => l.msg === "query failed" && l.fields?.kind === "unrecognized")).toBe(true);
+    await p.stop();
+  });
+
+  it("2시간이 지난 키는 확인하지 않고 새로 진입한다", async () => {
+    const p = run(donghaeServer({ counts: () => 3 }));
+    await settle();
+    await p.clock.advance(7_000_000);
+    await settle();
+    expect(opcodes(p).filter((o) => o === "5101")).toHaveLength(1);
+    await p.clock.advance(300_000);
+    await settle();
+    expect(opcodes(p).filter((o) => o === "5101")).toHaveLength(2);
+    const seq = paths(p);
+    const second = seq.lastIndexOf("nf:5101");
+    expect(seq[second + 1]).toBe("ND_setNfKey.do");
+    await p.stop();
+  });
+
+  it("진입 뒤 5분이 지난 다음 바퀴 시작에 5004가 한 번 나간다", async () => {
+    const p = run(donghaeServer({ counts: () => 3 }));
+    await settle();
+    await rounds(p, 1); // 150초
+    expect(opcodes(p)).not.toContain("5004");
+    await rounds(p, 1); // 300초
+    expect(opcodes(p).filter((o) => o === "5004")).toHaveLength(1);
+    await rounds(p, 3);
+    expect(opcodes(p).filter((o) => o === "5004")).toHaveLength(1);
+    const seq = paths(p);
+    expect(seq[seq.indexOf("nf:5004") + 1]).toBe("ND_checkNfKeyAvail.do");
+    await p.stop();
+  });
+
+  it("5분 전에 종료해도 5004를 한 번 보낸다", async () => {
+    const p = run(donghaeServer({ counts: () => 3 }));
+    await settle();
+    await p.stop();
+    expect(opcodes(p)).toEqual(["5101", "5004"]);
+  });
+
+  it("5002가 120초 넘게 계속 대기를 돌려주면 그 바퀴는 transient로 끝난다", async () => {
+    const p = run(donghaeServer({ counts: () => 3, queue: ["5002:201:key=KEYW&nwait=5&nnext=1&tps=1&ttl=10&ip=x&port=443"] }));
+    await settle();
+    await p.clock.advance(130_000);
+    await settle();
+    expect(p.logs.some((l) => l.msg === "query failed" && l.fields?.kind === "transient")).toBe(true);
+    expect(p.allRequests.some((r) => wwwPath(r) === "ND_setNfKey.do")).toBe(false);
+    await p.stop();
+  });
+
+  it("대기 상한을 넘겨 transient로 끝나면 다음 바퀴까지의 간격이 늘어난다", async () => {
+    const p = run(donghaeServer({ counts: () => 3, queue: ["5002:201:key=KEYW&nwait=5&nnext=1&tps=1&ttl=10&ip=x&port=443"] }), undefined, () => 0.5);
+    await settle();
+    await p.clock.advance(130_000); // 첫 바퀴가 상한에서 끝난다.
+    await settle();
+    const nf = () => p.allRequests.filter((r) => new URL(r.url).hostname.startsWith("nf.") && new URL(r.url).searchParams.get("opcode") === "5101").length;
+    expect(nf()).toBe(1);
+    await p.clock.advance(150_000); // 기본 간격이면 이미 다음 바퀴가 시작했을 시간이다.
+    await settle();
+    expect(nf()).toBe(1);
+    await p.stop();
   });
 });

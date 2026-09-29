@@ -211,6 +211,8 @@ export function donghaeServer(
     detailBody?: (date: string) => string | undefined;
     /** 월 달력에서 예약마감으로 보일 날짜. 기본은 모두 열려 있다. */
     closed?: (date: string) => boolean;
+    /** ND_checkNfKeyAvail.do가 키를 받아 주는지. 기본은 받아 준다. */
+    keyAvailable?: (key: string) => boolean;
   } = {},
 ) {
   let queueStep = 0;
@@ -218,12 +220,20 @@ export function donghaeServer(
   const respond = (req: TransportRequest): TransportResponse => {
     const url = new URL(req.url);
     if (url.hostname === "nf.campingkorea.or.kr") {
+      if (url.searchParams.get("opcode") === "5004") {
+        return { status: 200, body: "NetFunnel.gRtype=5004;NetFunnel.gControl.result='5004:200:key=done'; NetFunnel.gControl._showResult();" };
+      }
       const list = opts.queue ?? [`5002:200:key=KEY${++seen.keys}&nwait=0&nnext=0&tps=0.000000&ttl=0&ip=nf.campingkorea.or.kr&port=443`];
       const line = list[Math.min(queueStep++, list.length - 1)]!;
       return { status: 200, body: `NetFunnel.gRtype=4999;NetFunnel.gControl.result='${line}'; NetFunnel.gControl._showResult();` };
     }
     if (url.pathname.endsWith("/ND_setNfKey.do")) {
       return { status: 200, body: '{ "success" : true }', setCookie: ["DHCMP_JSESSIONID=sess1; Path=/; HttpOnly"] };
+    }
+    if (url.pathname.endsWith("/ND_checkNfKeyAvail.do")) {
+      const key = new URLSearchParams(req.body ?? "").get("netfunnel_key") ?? "";
+      const ok = opts.keyAvailable ? opts.keyAvailable(key) : true;
+      return { status: 200, body: JSON.stringify({ result: true, message: ok ? "Available" : "NOT Available" }) };
     }
     if (url.pathname.endsWith("/BD_reservation.do")) {
       const reduced = Object.entries(opts.reduced ?? {}).map(([k, v]) => `'${k}' : ${v}`).join(", ");

@@ -32,6 +32,8 @@ export interface RequestOptions {
   unpaced?: boolean;
   /** POST 본문의 Content-Type. 없으면 form 인코딩이다. 본문을 문자열로 줄 때 쓴다. */
   contentType?: string;
+  /** 중단 신호가 서 있어도 보낸다. 종료 때 대기열에 마무리를 알리는 요청용이다. */
+  ignoreAbort?: boolean;
 }
 
 /** 예약처 하나가 쓰는 HTTP 클라이언트. 예약처가 쿠키 세션을 쓰면 받은 쿠키를 같은 클라이언트의 다음 요청에 싣는다. */
@@ -120,6 +122,8 @@ export interface ProviderAdapter {
     ctx: AdapterContext,
   ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>>;
   deepLink(q: AvailabilityQuery): string;
+  /** 예약처 루프가 끝날 때(프로세스 종료) 한 번 부른다. 들고 있던 세션을 마무리한다. 실패는 무시된다. */
+  close?(ctx: AdapterContext): Promise<void>;
   /**
    * 예약 여부와 관계없이 구역의 모든 자리 id를 읽는다. catalog --live가 고정 목록과 비교한다.
    * 자리 단위로 보지 않는 예약처는 구현하지 않는다.

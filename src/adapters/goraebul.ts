@@ -16,16 +16,16 @@ const NAV_CODE = "gor1501675800";
 const seatIds = (prefix: string, numbers: number[]) => numbers.map((n) => `${prefix}${String(n).padStart(2, "0")}`);
 const sequence = (count: number) => Array.from({ length: count }, (_, i) => i + 1);
 
-// 정원과 자리 목록은 2026-09-29 정찰로 확인한 값이다(폐쇄된 자리는 목록에 나오지 않는다). 확인하지 못한 구역은 비워 둔다.
+// 자리 목록은 2026-09-29 조회(catalog --live)로 확인한 값이다. 폐쇄된 자리는 목록에 나오지 않는다. 정원은 확인한 구역만 적는다.
 const ZONES: ZoneInfo[] = [
   { code: "CAA", name: "카라반 4인실", type: "카라반", capacity: 4, seats: seatIds("CAA", [1, 2, 6, 7, 11, 12, 20, 21, 22]) },
-  { code: "CAB", name: "카라반 6인실", type: "카라반", capacity: 6 },
+  { code: "CAB", name: "카라반 6인실", type: "카라반", capacity: 6, seats: seatIds("CAB", [3, 4, 5, 8, 9, 10, 13, 14, 15, 16, 17, 18, 19, 23, 24, 25]) },
   { code: "DKA", name: "숲속야영장 A", type: "숲속야영장", seats: seatIds("A", sequence(38)) },
   { code: "DKB", name: "숲속야영장 B", type: "숲속야영장", seats: seatIds("B", sequence(52)) },
-  { code: "DKC", name: "숲속야영장 C", type: "숲속야영장" },
-  { code: "AUA", name: "캠핑카존", type: "캠핑카" },
-  { code: "PEA", name: "펜션형 A", type: "펜션형", capacity: 6 },
-  { code: "PEB", name: "펜션형 B", type: "펜션형", capacity: 8 },
+  { code: "DKC", name: "숲속야영장 C", type: "숲속야영장", seats: seatIds("C", sequence(20)) },
+  { code: "AUA", name: "캠핑카존", type: "캠핑카", seats: seatIds("AUA", [4, 5, 6, 7, 10, 11, 12]) },
+  { code: "PEA", name: "펜션형 A", type: "펜션형", capacity: 6, seats: seatIds("PEA", [1]) },
+  { code: "PEB", name: "펜션형 B", type: "펜션형", capacity: 8, seats: seatIds("PEB", [1]) },
   { code: "PEC", name: "펜션형 C", type: "펜션형", capacity: 10, seats: seatIds("PEC", [1, 2]) },
 ];
 

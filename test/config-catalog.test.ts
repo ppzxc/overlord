@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
-import { renderCatalog, renderLiveDiff } from "../src/catalog.js";
+import { renderCatalog } from "../src/catalog.js";
+import { renderLiveDiff } from "../src/catalog-live.js";
+import { parseArgs } from "../src/cli.js";
 import { ConfigError, loadConfig } from "../src/config.js";
 import type { Transport } from "../src/types.js";
 import { ENV, configWith, fixture } from "./harness.js";
@@ -41,6 +43,13 @@ describe("설정 검증", () => {
     expect(msg).toContain("A01, A02");
   });
 
+  it("모든 구역에서 자리 번호 오타를 잡는다", () => {
+    for (const [zone, seat] of [["CAB", "CAB99"], ["DKC", "C21"], ["AUA", "AUA01"], ["PEA", "PEA02"]]) {
+      const yaml = configWith(watch(`    seats: [${seat}]`).replace("[DKA]", `[${zone}]`));
+      expect(messageOf(yaml)).toContain(seat);
+    }
+  });
+
   it("범위가 구역의 자리와 겹치기만 하면 받아들인다", () => {
     expect(() => loadConfig(configWith(watch('    seats: ["A30-A45"]')), ENV)).not.toThrow();
   });
@@ -61,7 +70,7 @@ describe("설정 검증", () => {
   });
 
   it("참조한 환경 변수가 비어 있으면 거부한다", () => {
-    expect(messageOf(configWith(watch("")), { ...ENV, TELEGRAM_BOT_TOKEN: "" })).toContain("TELEGRAM_BOT_TOKEN");
+    expect(messageOf(configWith(watch("")), { ...ENV, TELEGRAM_BOT_TOKEN: "" })).toMatch(/\d+번째 줄: .*TELEGRAM_BOT_TOKEN/);
     expect(messageOf(configWith(watch("")), { ...ENV, TELEGRAM_CHAT_ID: undefined })).toContain("TELEGRAM_CHAT_ID");
   });
 
@@ -99,10 +108,14 @@ describe("catalog", () => {
       .join("")}</div>`;
   const seq = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 
+  // 요소 id(dka_2)의 번호를 고정 목록에서 뽑아 응답을 만든다.
+  const fixedLayout = (zone: string) => {
+    const seats = goraebulAdapter.describe().zones.find((z) => z.code === zone)!.seats!;
+    return layout(zone, seats.map((id) => +/(\d+)$/.exec(id)![1]!));
+  };
+
   it("--live: 고정값과 실제 자리가 같으면 차이 없음을 보고한다", async () => {
-    const { requests, run } = live((z) =>
-      z === "DKA" ? fixture("dka-2026-09-29-1night.htm") : z === "DKB" ? layout(z, seq(52)) : z === "CAA" ? layout(z, [1, 2, 6, 7, 11, 12, 20, 21, 22]) : z === "PEC" ? layout(z, [1, 2]) : layout(z, [1]),
-    );
+    const { requests, run } = live((z) => (z === "DKA" ? fixture("dka-2026-09-29-1night.htm") : fixedLayout(z)));
     const out = await run();
     expect(requests).toHaveLength(9);
     expect(out).toContain("DKA: 일치 (38자리)");
@@ -115,5 +128,14 @@ describe("catalog", () => {
     expect(out).toContain("DKA: 예약처에서 사라진 자리 A38");
     expect(out).toContain("DKA: 예약처에 새로 생긴 자리 A40");
     expect(out).toContain("어댑터의 고정 목록을 갱신해야 한다");
+  });
+});
+
+describe("명령행 인자", () => {
+  it("catalog는 하위 명령이고 그 밖의 첫 인자는 설정 파일 경로다", () => {
+    expect(parseArgs(["catalog", "goraebul", "--live"])).toEqual({ kind: "catalog", provider: "goraebul", live: true });
+    expect(parseArgs(["my.yaml"])).toEqual({ kind: "run", configPath: "my.yaml" });
+    expect(parseArgs(["./catalog"])).toEqual({ kind: "run", configPath: "./catalog" });
+    expect(parseArgs([])).toEqual({ kind: "run", configPath: "config.yaml" });
   });
 });

@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { adapters } from "./adapters/index.js";
-import { renderCatalog, renderLiveDiff } from "./catalog.js";
+import { renderCatalog } from "./catalog.js";
+import { renderLiveDiff } from "./catalog-live.js";
+import { parseArgs } from "./cli.js";
 import { ConfigError, loadConfig } from "./config.js";
 import { runPoller } from "./poller.js";
 import type { TelegramSink } from "./telegram.js";
@@ -37,16 +39,16 @@ const sink: TelegramSink = {
   },
 };
 
-const [command, ...rest] = process.argv.slice(2);
+const command = parseArgs(process.argv.slice(2));
 
-if (command === "catalog") {
-  const adapter = adapters[rest.find((a) => !a.startsWith("--")) ?? ""];
+if (command.kind === "catalog") {
+  const adapter = adapters[command.provider ?? ""];
   if (!adapter) {
     console.error(`사용법: catalog <예약처> [--live]. 쓸 수 있는 예약처: ${Object.keys(adapters).join(", ")}`);
     process.exit(1);
   }
   process.stdout.write(renderCatalog(adapter));
-  if (rest.includes("--live")) {
+  if (command.live) {
     process.stdout.write("\n실제 예약처와 비교:\n");
     try {
       process.stdout.write(
@@ -65,7 +67,7 @@ if (command === "catalog") {
   process.exit(0);
 }
 
-const configPath = command ?? "config.yaml";
+const configPath = command.configPath;
 let config;
 try {
   config = loadConfig(readFileSync(configPath, "utf8"), process.env);

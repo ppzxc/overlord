@@ -9,8 +9,10 @@ export interface Failure {
 /** 예약처별 상태. stopped는 프로세스를 다시 시작해야 풀린다. */
 export type HealthStatus = "ok" | "degraded" | "unavailable" | "stopped";
 
+export type NoticeStatus = "blocked" | "unrecognized" | "unavailable" | "degraded" | "recovered";
+
 export interface HealthNotice {
-  status: "blocked" | "unrecognized" | "unavailable" | "degraded" | "recovered";
+  status: NoticeStatus;
   detail: string;
   /** 같은 상태가 이어져서 다시 알리는 것인가 */
   reminder: boolean;
@@ -62,6 +64,7 @@ export class ProviderHealth {
     if (failure.kind === "unrecognized") {
       this.transientStreak = 0;
       if (++this.unrecognizedStreak >= UNRECOGNIZED_ROUNDS) this.stop("unrecognized");
+      else this.status = "ok"; // 첫 바퀴는 아직 장애로 치지 않는다.
       return;
     }
     this.unrecognizedStreak = 0;
@@ -71,9 +74,8 @@ export class ProviderHealth {
       return;
     }
     if (this.transientStreak++ === 0) this.transientSince = nowMs;
-    if (this.transientStreak >= DEGRADED_ROUNDS && nowMs - this.transientSince >= DEGRADED_AFTER_MS) {
-      this.status = "degraded";
-    }
+    const degraded = this.transientStreak >= DEGRADED_ROUNDS && nowMs - this.transientSince >= DEGRADED_AFTER_MS;
+    this.status = degraded ? "degraded" : "ok"; // 점검이 끝나고 일시 오류로 바뀐 경우도 여기서 풀린다.
   }
 
   private stop(kind: "blocked" | "unrecognized"): void {
@@ -81,9 +83,14 @@ export class ProviderHealth {
     this.stopKind = kind;
   }
 
+  /** 멈춘 예약처가 다음에 깨어날 때까지의 시간. 첫 알림이 아직 안 갔으면 기본 간격으로 다시 시도한다. */
+  stoppedWaitMs(baseMs: number, nowMs: number): number {
+    const first = this.pendingNotice(nowMs);
+    return first && !first.reminder ? baseMs : REMINDER_MS;
+  }
+
   /** 다음 바퀴까지 기다릴 기준 시간(지터 전). */
   nextIntervalMs(baseMs: number): number {
-    if (this.status === "stopped") return REMINDER_MS;
     if (this.lastKind === "unavailable") return Math.max(baseMs, UNAVAILABLE_INTERVAL_MS);
     if (this.transientStreak > 0) return Math.min(baseMs * 2 ** this.transientStreak, Math.max(baseMs, MAX_BACKOFF_MS));
     return baseMs;

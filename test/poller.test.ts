@@ -867,3 +867,19 @@ describe("헬스 상태 머신", () => {
     await p.stop();
   });
 });
+
+describe("헬스 상태 머신 회귀", () => {
+  it("첫 알림 전송이 실패하면 24시간이 아니라 기본 간격으로 다시 시도한다", async () => {
+    let failing = true;
+    const p = startPoller(() => ({ status: 200, body: "<html>영덕군 전산팀 문의</html>" }), {
+      failSend: () => failing,
+    });
+    await settle();
+    expect(p.sent).toHaveLength(0);
+    failing = false;
+    await p.clock.advance(POLL_MS * 2);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("차단");
+    await p.stop();
+  });
+});

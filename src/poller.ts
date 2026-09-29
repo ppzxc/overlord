@@ -125,7 +125,7 @@ async function runProvider(
   while (!signal.aborted) {
     // 멈춘 예약처는 조회하지 않고, 같은 상태가 이어지면 24시간마다 리마인드만 한다.
     if (health.stopped) {
-      await clock.sleep(health.nextIntervalMs(intervalMs), signal);
+      await clock.sleep(health.stoppedWaitMs(intervalMs, clock.now().getTime()), signal);
       if (!signal.aborted) await announceHealth();
       continue;
     }

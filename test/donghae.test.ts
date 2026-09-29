@@ -490,7 +490,7 @@ describe("동해시 대기열 키 재사용과 수명", () => {
       ["ND_setNfKey.do", "ND_setNfKey.do 호출"],
       ['NetFunnel_Action({action_id:"reserve"}', "NetFunnel_Action"],
     ])("진입 페이지에서 %s가 사라지면 unrecognized다", async (gone, what) => {
-      const p = run(donghaeServer({ entryBody: (r) => DONGHAE_ENTRY(r).replace(gone.startsWith("<") ? /<input[^>]*>/ : gone, "") }));
+      const p = run(donghaeServer({ entryBody: () => DONGHAE_ENTRY().replace(gone.startsWith("<") ? /<input[^>]*>/ : gone, "") }));
       await settle();
       expect(failedKinds(p)).toEqual(["unrecognized"]);
       expect(p.logs.find((l) => l.msg === "query failed")!.fields?.message).toContain(what);
@@ -498,10 +498,11 @@ describe("동해시 대기열 키 재사용과 수명", () => {
       await p.stop();
     });
 
-    it("temporaryReducedCounts가 없으면 unrecognized이고 빈 {}는 정상이다", async () => {
-      const gone = run(donghaeServer({ entryBody: () => `<input name="netfunnel_key"/>ND_setNfKey.do NetFunnel_Action({action_id:"reserve"}` }));
+    it("달력 응답에 temporaryReducedCounts가 없으면 unrecognized이고 빈 {}는 정상이다", async () => {
+      const gone = run(donghaeServer({ calendarBody: (_r, cal) => `<html>${cal}</html>` }));
       await settle();
       expect(failedKinds(gone)).toEqual(["unrecognized"]);
+      expect(gone.allRequests.some(detailReq)).toBe(false);
       await gone.stop();
       const empty = run(donghaeServer({ counts: () => 3 }));
       await settle();

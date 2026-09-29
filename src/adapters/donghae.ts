@@ -181,7 +181,6 @@ interface KeyState {
   key: string;
   issuedAt: number;
   enteredAt: number;
-  reduced: Map<string, number>;
   completed: boolean;
   /** 이 키를 받으려고 대기열에서 기다린 시간(ms). */
   waitedMs: number;
@@ -237,7 +236,6 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
     key: pass.key,
     issuedAt,
     enteredAt: ctx.clock.now().getTime(),
-    reduced: parseReduced(entry),
     completed: false,
     waitedMs: pass.waitedMs,
   };
@@ -269,7 +267,7 @@ async function acquireSession(ctx: AdapterContext): Promise<{ state: KeyState; p
   return { state: fresh, pass: { key: fresh.key, waitedMs: fresh.waitedMs } };
 }
 
-/** 진입 응답의 `temporaryReducedCounts = { '이름' : 20 }`을 읽는다. 상수가 없으면 구조 변경이다. */
+/** 월 달력 응답의 `temporaryReducedCounts = { '이름' : 20 }`을 읽는다. 상수가 없으면 구조 변경이다. */
 function parseReduced(html: string): Map<string, number> {
   const m = /temporaryReducedCounts\s*=\s*\{([^}]*)\}/.exec(html);
   if (!m) throw new AdapterError("unrecognized", "temporaryReducedCounts를 찾지 못했다");
@@ -379,8 +377,12 @@ async function readEach<K, V>(
   return { read: done };
 }
 
-/** 월 달력 하나를 BD_reservationOrigin으로 읽는다. 진입 응답에는 달력이 없다(기록 확인). */
-async function readCalendar(month: string, ctx: AdapterContext, pass: QueuePass): Promise<Map<string, CalendarDay>> {
+/** 월 달력 하나를 BD_reservationOrigin으로 읽는다. 진입 응답에는 달력도 임시 중단 호실 상수도 없다(기록·실측 확인). */
+async function readCalendar(
+  month: string,
+  ctx: AdapterContext,
+  pass: QueuePass,
+): Promise<{ days: Map<string, CalendarDay>; reduced: Map<string, number> }> {
   const [year, mm] = month.split("-");
   const body = await fetchOk(
     ctx.http.post(`${RESERVATION}/BD_reservationOrigin.do`, {
@@ -393,7 +395,7 @@ async function readCalendar(month: string, ctx: AdapterContext, pass: QueuePass)
   );
   const cal = parseCalendar(body);
   if (cal.month !== month) throw new AdapterError("unrecognized", `월 달력 ${month}을(를) 요청했는데 ${cal.month}이(가) 왔다`);
-  return cal.days;
+  return { days: cal.days, reduced: parseReduced(body) };
 }
 
 /** 하룻밤 조회 응답 본문. 바퀴와 catalog --live가 같은 요청을 보낸다. */
@@ -419,13 +421,14 @@ async function runBatch(
   ctx: AdapterContext,
 ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>> {
   const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
-  const { state, pass } = await acquireSession(ctx);
-  const reduced = state.reduced;
+  const { pass } = await acquireSession(ctx);
 
   const allDates = [...new Set(units.flatMap(nightsOf))].sort();
   const months = new Set(allDates.map((d) => d.slice(0, 7)));
   const calendars = await readEach(months, ctx, (month) => readCalendar(month, ctx, pass));
-  const calendar = { days: new Map([...calendars.read.values()].flatMap((m) => [...m])), failure: calendars.failure };
+  const calendar = { days: new Map([...calendars.read.values()].flatMap((c) => [...c.days])), failure: calendars.failure };
+  // 상수는 달력 화면마다 같은 값이 들어 있다. 달력에서 실패했으면 날짜 조회를 보내지 않으므로 비어 있어도 쓰이지 않는다.
+  const reduced = new Map([...calendars.read.values()].flatMap((c) => [...c.reduced]));
   // 필요한 밤 하나라도 예약마감이면 날짜 조회 없이 빈 결과다.
   const closed = (q: AvailabilityQuery) => nightsOf(q).some((d) => calendar.days.get(d) === "closed");
   for (const q of units) if (closed(q)) results.set(q, []);

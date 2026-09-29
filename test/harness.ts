@@ -200,9 +200,9 @@ function donghaeCalendar(month: string, closed?: (date: string) => boolean): str
   return `<input type="hidden" id="q_year" name="q_year" value="${y}"><input type="hidden" id="q_month" name="q_month" value="${m}"><div class="mCalendar1"><table><tbody><tr>${cells.join("")}</tr></tbody></table></div>`;
 }
 
-/** 진입 페이지 응답. 대기열 키 등록 흐름 문자열을 갖춘 정상 형태다. */
+/** 진입 응답. 실제 응답처럼 대기열을 통과한 뒤의 달력 화면이고 temporaryReducedCounts를 갖는다. */
 export const DONGHAE_ENTRY = (reduced: string) =>
-  `<html><input type="hidden" id="netfunnel_key" name="netfunnel_key" value=''/><script>var temporaryReducedCounts = { ${reduced} }; $.post("/user/reservation/ND_setNfKey.do", {}); NetFunnel_Action({action_id:"reserve"}, {});</script></html>`;
+  `<html><input type="hidden" id="netfunnel_key" name="netfunnel_key" value=""/><script>var temporaryReducedCounts = { ${reduced} };</script><div class="mCalendar1"><table></table></div></html>`;
 
 /** 가짜 동해시 서버. 대기열 서버와 www를 함께 흉내 낸다. 값을 문자열로 주면 그대로 응답에 넣는다. */
 export function donghaeServer(

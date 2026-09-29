@@ -65,6 +65,12 @@ const INFO: ProviderInfo = {
   cookieSession: true,
 };
 
+/**
+ * 예약 화면은 브라우저 요청만 받는다. Referer·Origin 없이 진입 POST를 보내면 예약 화면 대신 대기 페이지(달력 없음)를 돌려준다(실측).
+ * 브라우저가 www POST마다 보내는 값을 그대로 싣는다.
+ */
+const PAGE_HEADERS = { Referer: `${RESERVATION}/BD_reservation.do`, Origin: WWW };
+
 const NETFUNNEL_JS = `${WWW}/resources/user/js/netfunnel.js`;
 // 2026-09-29에 확인한 값. 달라지면 경고만 남긴다.
 const NETFUNNEL_VERSION = "2.2.25_hotfix";
@@ -147,11 +153,13 @@ async function enterQueue(ctx: AdapterContext): Promise<QueuePass> {
   }
 }
 
-/** 진입 페이지가 대기열 키를 서버에 등록하는 흐름. 하나라도 사라지면 예약처 구조가 바뀐 것이다. */
+/**
+ * 대기열을 통과한 진입 응답이 갖춰야 하는 표식. 브라우저로 기록한 실제 응답은 이번 달 달력 화면이다(실측).
+ * 표식이 없으면 대기 페이지가 돌아온 것이거나 예약처 구조가 바뀐 것이다.
+ */
 const ENTRY_MARKERS: { pattern: RegExp; label: string }[] = [
   { pattern: /name="netfunnel_key"/, label: "netfunnel_key 필드" },
-  { pattern: /ND_setNfKey\.do/, label: "ND_setNfKey.do 호출" },
-  { pattern: /NetFunnel_Action\(\{action_id:"reserve"\}/, label: 'NetFunnel_Action({action_id:"reserve"}' },
+  { pattern: /class="mCalendar1"/, label: "월 달력" },
 ];
 
 /** `netfunnel.js` 경고 확인을 이미 한 세션. 새 키로 진입할 때마다 다시 확인한다. */
@@ -200,7 +208,7 @@ async function sendComplete(ctx: AdapterContext, state: KeyState, ignoreAbort = 
 
 /** `ND_checkNfKeyAvail.do`로 서버가 키를 아직 받아 주는지 묻는다. */
 async function keyAvailable(ctx: AdapterContext, key: string): Promise<boolean> {
-  const body = await fetchOk(ctx.http.post(`${RESERVATION}/ND_checkNfKeyAvail.do`, { netfunnel_key: key }), "키 확인");
+  const body = await fetchOk(ctx.http.post(`${RESERVATION}/ND_checkNfKeyAvail.do`, { netfunnel_key: key }, { headers: PAGE_HEADERS }), "키 확인");
   let message: unknown;
   try {
     message = (JSON.parse(body) as { message?: unknown }).message;
@@ -216,7 +224,7 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
   const pass = await enterQueue(ctx);
   const issuedAt = ctx.clock.now().getTime();
   await fetchOk(
-    ctx.http.post(`${RESERVATION}/ND_setNfKey.do`, pass.key, { contentType: "application/json" }),
+    ctx.http.post(`${RESERVATION}/ND_setNfKey.do`, pass.key, { contentType: "application/json", headers: PAGE_HEADERS }),
     "키 등록",
   );
   const entry = await fetchOk(
@@ -227,7 +235,7 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
       q_year: "",
       q_month: "",
       netfunnel_key: pass.key,
-    }),
+    }, { headers: PAGE_HEADERS }),
     "예약 화면 진입",
   );
   for (const { pattern, label } of ENTRY_MARKERS) {
@@ -388,7 +396,7 @@ async function readCalendar(month: string, ctx: AdapterContext, pass: QueuePass)
       q_year: year!,
       q_month: mm!,
       netfunnel_key: pass.key,
-    }),
+    }, { headers: PAGE_HEADERS }),
     `월 달력 ${month}`,
   );
   const cal = parseCalendar(body);
@@ -408,7 +416,7 @@ function fetchNight(date: string, ctx: AdapterContext, pass: QueuePass): Promise
       passResv1: "",
       passNfTime: String(pass.waitedMs),
       netfunnel_key: pass.key,
-    }),
+    }, { headers: PAGE_HEADERS }),
     `날짜 조회 ${date}`,
   );
 }

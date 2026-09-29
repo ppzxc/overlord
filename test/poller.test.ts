@@ -179,7 +179,7 @@ describe("감시 조건 전개", () => {
   it("같은 조회 단위를 쓰는 감시 조건 둘은 요청 한 번으로 둘 다 알림을 받는다", async () => {
     const range = "    checkIn: { from: 2026-10-02, to: 2026-10-02 }";
     const p = startPoller(open, {
-      yaml: configWith(watchYaml("첫째", range), watchYaml("둘째", `${range}\n    sites: [A02]`)),
+      yaml: configWith(watchYaml("첫째", range), watchYaml("둘째", `${range}\n    seats: [A02]`)),
     });
     await settle();
     expect(p.requests).toHaveLength(1);
@@ -192,7 +192,7 @@ describe("감시 조건 전개", () => {
   it("자리 필터에 맞지 않는 빈자리는 알리지 않는다", async () => {
     const p = startPoller(open, {
       yaml: configWith(
-        watchYaml("필터", '    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    sites: [A02, "A10-A12"]'),
+        watchYaml("필터", '    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [A02, "A10-A12"]'),
       ),
     });
     await settle();
@@ -204,7 +204,7 @@ describe("감시 조건 전개", () => {
 
   it("필터에 맞는 자리가 하나도 없으면 메시지를 보내지 않는다", async () => {
     const p = startPoller(open, {
-      yaml: configWith(watchYaml("없음", "    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    sites: [A99]")),
+      yaml: configWith(watchYaml("없음", "    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [A99]")),
     });
     await settle();
     expect(p.requests).toHaveLength(1);
@@ -262,5 +262,16 @@ describe("감시 조건 전개", () => {
     expect(p.requests).toHaveLength(1);
     expect(p.sent).toHaveLength(2);
     await p.stop();
+  });
+});
+
+describe("자리 필터 설정 검증", () => {
+  const withSeats = (s: string) =>
+    configWith(watchYaml("x", `    checkIn: { from: 2026-10-02, to: 2026-10-02 }\n    seats: [${s}]`));
+  it.each(["A15-A10", "A10-B15", "abc", "10"])("잘못된 자리 표기 %s를 거부한다", (s) => {
+    expect(() => loadConfig(withSeats(`"${s}"`), ENV)).toThrow();
+  });
+  it("A02와 A10-A15는 받아들인다", () => {
+    expect(() => loadConfig(withSeats('A02, "A10-A15", "A20-25"'), ENV)).not.toThrow();
   });
 });

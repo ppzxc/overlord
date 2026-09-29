@@ -1,7 +1,7 @@
 import type { Config } from "./config.js";
 import { createHttpClient } from "./http.js";
 import { expandWatch, isExpired, unitKey } from "./schedule.js";
-import { filterSites } from "./sites.js";
+import { filterSeats } from "./seats.js";
 import { renderOpenings, renderWatchExpired, type TelegramSink } from "./telegram.js";
 import {
   AdapterError,
@@ -54,9 +54,12 @@ async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSi
   const expiredSent = new Set<string>();
   let firstCycle = true;
 
-  const send = async (notifierName: string, watch: Watch, build: (chatId: string) => Parameters<TelegramSink["sendMessage"]>[1]) => {
+  const trySend = async (notifierName: string, watch: Watch, build: (chatId: string) => Parameters<TelegramSink["sendMessage"]>[1]) => {
     const notifier = config.notifiers[notifierName];
-    if (!notifier) return false;
+    if (!notifier) {
+      log("unknown notifier", { watch: watch.name, notifier: notifierName });
+      return true; // 다시 시도해도 소용없다
+    }
     try {
       await deps.sink.sendMessage(notifier.botToken, build(notifier.chatId));
       return true;
@@ -78,7 +81,7 @@ async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSi
       for (const name of watch.notify) {
         const key = `${watch.name}|${name}`;
         if (expiredSent.has(key)) continue;
-        const ok = await send(name, watch, (chatId) =>
+        const ok = await trySend(name, watch, (chatId) =>
           renderWatchExpired({ chatId, watchName: watch.name, checkIn: watch.checkIn }),
         );
         if (ok) expiredSent.add(key);
@@ -114,7 +117,7 @@ async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSi
           const key = unitKey(q);
           const found = results.get(key);
           if (!found) continue; // 조회 실패: 알림 상태를 건드리지 않는다.
-          const sites = filterSites(found, watch.sites);
+          const sites = filterSeats(found, watch.seats);
           const current = new Set(sites.map((s) => s.name));
           // 사라진 자리는 잊어서, 다시 생기면 새 빈자리로 알린다.
           const known = new Set([...(perUnit.get(key) ?? [])].filter((n) => current.has(n)));
@@ -122,7 +125,7 @@ async function runProvider(deps: PollerDeps, providerId: string, signal: AbortSi
           const fresh = sites.filter((s) => !known.has(s.name));
           if (fresh.length === 0) continue;
           const link = adapter.deepLink(q);
-          const ok = await send(name, watch, (chatId) =>
+          const ok = await trySend(name, watch, (chatId) =>
             renderOpenings({
               chatId,
               watchName: watch.name,

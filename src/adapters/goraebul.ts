@@ -47,7 +47,9 @@ function parseOpenSites(html: string, zone: string): AvailableSite[] {
     const match = /zone_area_select\('[^']*','[^']*','([^']*)'\)/.exec(onclick);
     // 빈 자리는 class가 num뿐이고 zone_area_select onclick이 있는 자리다.
     if (classes.length === 1 && classes[0] === "num" && match?.[1]) {
-      sites.push({ id: /([A-Za-z]+\d+)호/.exec(match[1])?.[1] ?? match[1], name: match[1] });
+      const id = /([A-Za-z]+\d+)호/.exec(match[1])?.[1];
+      if (!id) throw new AdapterError("unrecognized", `자리 번호를 읽지 못했다: ${match[1]}`);
+      sites.push({ id, name: match[1] });
     }
   });
   return sites;

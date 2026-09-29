@@ -1,0 +1,3015 @@
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>
+	
+		
+		자동차캠핑장 : HOME &gt; 시설안내 &gt; 망상오토캠핑리조트 &gt; 숙박시설 &gt; 자동차캠핑장
+	
+</title>
+<!-- customize
+<link rel="stylesheet" type="text/css" href="/resources/openworks4/css/openworks4-custom.css"> -->
+<link rel="shortcut icon" href="/resources/user/images/favicon.ico">
+<link rel="stylesheet" type="text/css" href="/resources/user/plugins/swiper/swiper.min.css">
+<link rel="stylesheet" href="/resources/user/css/ui.css">
+<link rel="stylesheet" href="/resources/user/css/common.css">
+    <script type="text/javascript">var CTX_PATH="";</script>
+<!-- jquery core -->
+<script type="text/javascript" src="/resources/libs/jquery/jquery-1.11.2.min.js"></script>
+<script type="text/javascript" src="/resources/libs/jquery-ui-1.11.3.custom/jquery-ui.min.js"></script>
+
+<!-- 설정 동기화 -->
+<script type="text/javascript" src="/component/js/ND_globalConfig.do" ></script>
+<script type="text/javascript" src="/component/js/ND_massageConfig.do" ></script>
+
+<!-- Openworks 공통 메소드 -->
+<script type="text/javascript" src="/resources/openworks4/js/openworks.global.js"></script>
+<script type="text/javascript" src="/resources/openworks4/js/openworks.message.js"></script>
+<script type="text/javascript" src="/resources/openworks4/js/openworks.initialize.js"></script>
+<!-- 사용자 레이아웃 -->
+<script src="/resources/user/plugins/swiper/swiper.min.js"></script>
+<script src="/resources/user/js/ui.js"></script>
+    
+    <script type="text/javascript" src="/resources/libs/js-cookie-1.5.1/js.cookie.js"></script>
+<script type="text/javascript" src="/component/popup/ND_popupConfig.do"></script>
+    <link rel="stylesheet" type="text/css" href="/resources/libs/fancybox-2.1.5/css/jquery.fancybox.css" />
+    <script type="text/javascript" src="/resources/libs/fancybox-2.1.5/js/jquery.fancybox.js"></script>
+<script type="text/javascript" src="/resources/openworks4/js/openworks.modal.js"></script>
+    
+<script>
+/* 초기화 */
+$(document).ready(function() {
+	// Script to Activate the Carousel
+	/* $('.carousel').carousel({
+		interval: 5000
+	});
+
+	//퀵메뉴관리
+	$("#quick-area").load("/ND_quickMenu.do", function(result) { }); */
+
+  	//로고클릭
+	$(".logoHome").click(function() {
+		location.href = "/index.do";
+	});
+
+	getClock();
+});
+
+var opUserMenuLayer = function(obj) {
+	$.fn.opmodal({
+		href : $(obj).attr("href"),
+		width : $(window).width() * 0.8,
+		height : $(window).height() * 0.8,
+		closeBtn : true
+	});
+};
+
+const openUrl = (url) => {
+	const screenWidth = window.screen.width;
+	const screenHeight = window.screen.height;
+
+	const width = Math.round(screenWidth * 0.8);
+	const height = Math.round(screenHeight * 0.8);
+
+	const left = (screenWidth - width) / 2;
+	const top = (screenHeight - height) / 2;
+
+	const option = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,location=0,status=0,menubar=0,toolbar=0`;
+	window.open(url, "dhsisul", option);
+}
+
+const getClock = () => {
+	const setClock = () => {
+		/* 요일명 */
+		let week = new Array("(일)", "(월)", "(화)", "(수)", "(목)", "(금)", "(토)")
+		/* 현재 날짜 */
+		let today = new Date();
+		/* AM,PM */
+		let ampm = today.getHours() < 12 ? "AM" : "PM"
+		/* 년 */
+		let year = today.getFullYear();
+		/* 월 */
+		let month = ('0' + (today.getMonth() + 1)).slice(-2);
+		/* 일 */
+		let day = ('0' + today.getDate()).slice(-2);
+		/* 요일 */
+		let dayName = week[today.getDay()];
+		/* 시*/
+		let hours = ('0' + today.getHours()).slice(-2);
+		/* 분*/
+		let min = ('0' + today.getMinutes()).slice(-2);
+		/* 초 */
+		let sec = ('0' + today.getSeconds()).slice(-2);
+
+		let date = `${year}년 ${month}월 ${day}일${dayName}`;
+		let time = `${hours}:${min}:${sec}`;
+
+		$("#dateClock").text(date);
+		$("#clock").text(time);
+	}
+
+	setClock();
+	setInterval(setClock, 1000);
+}
+</script>
+
+
+<script type="text/javascript">
+    var CTX_PATH="";
+</script>
+
+
+<!-- jquery core -->
+<script type="text/javascript" src="/resources/libs/jquery/jquery-1.11.2.min.js"></script>
+<script type="text/javascript" src="/resources/libs/jquery-ui-1.11.3.custom/jquery-ui.min.js"></script>
+<script type="text/javascript" src="/resources/openworks4/js/openworks.ui.js"></script>
+    <script type="text/javascript" src="/resources/openworks4/js/openworks.form.js"></script>
+    
+    <script type="text/javascript" src="/resources/libs/js-cookie-1.5.1/js.cookie.js"></script>
+<script type="text/javascript" src="/component/popup/ND_popupConfig.do"></script>
+    
+
+<script type="text/javascript">
+
+	$(document).ready(function() {
+	    $("#stayngPd option").not(":selected").attr("disabled", "disabled");
+	});
+
+	function tabMove(fcltyCode){
+       var formHidden = $('#form_hidden_fcltydetail');
+	   var trrsrtCode     = formHidden.find("[name='fcltyInfo.trrsrtCode']").val();
+	   var upperFcltyCode = formHidden.find("[name='fcltyInfo.upperFcltyCode']").val();
+
+	   location.href = "/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode="+trrsrtCode+"&upperFcltyCode="+upperFcltyCode+"&fcltyCode="+fcltyCode;
+
+	}
+
+	function vrPopOpen(){
+	    var formHidden = $('#form_hidden_fcltydetail');
+        var trrsrtCode     = formHidden.find("[name='fcltyInfo.trrsrtCode']").val();
+        var upperFcltyCode = formHidden.find("[name='fcltyInfo.upperFcltyCode']").val();
+        var fcltyTyCode    = formHidden.find("[name='fcltyTypeInfo.fcltyTyCode']").val();
+        
+		if(trrsrtCode == '1000' && upperFcltyCode == '1500') {
+	        alert("해당시설에 등록된 VR 이미지가 없습니다.");
+	        return false;
+	    }
+
+		if(trrsrtCode == '1000' && upperFcltyCode == '1400' && fcltyTyCode == 'NAB_F1') {
+	        alert("해당시설에 등록된 VR 이미지가 없습니다.");
+	        return false;
+	    }
+
+        var option = "chrome, centerscreen, dependent=yes, width=1300, height=800, dialog=yes, modal=yes, resizable=yes, scrollbars=yes, location=0, status=0, menubar=0, toolbar=0, left=50, top=50";
+        var url = "/user/guide/PD_selectFcltyVrView.do?trrsrtCode="+trrsrtCode+"&upperFcltyCode="+upperFcltyCode+"&fcltyTyCode="+fcltyTyCode;
+        window.open(url, "userPasswdScrtyGrad", option);
+	}
+
+</script>
+
+
+
+<script type="text/javascript">
+    var anlzSessionId = "REDACTED";
+    var anlzClientIp = "REDACTED";
+    var anlzMenuCode = "fcltyGuidance01_03_06";
+</script>
+<script type="text/javascript" src="/resources/openworks4/js/analyze/tracker.js"></script>
+
+
+
+</head>
+<body class="">
+	<!-- s:skip navigation -->
+	<div id="skipnavigation">
+		<ul class="skip">
+			<li><a href="#gnb">메인메뉴 바로가기</a></li>
+			<li><a href="#body">본문내용 바로가기</a></li>
+		</ul>
+	</div>
+	<!-- e:skip navigation -->
+
+	<!-- wrap -->
+	<div id="wrap">
+		<!-- header -->
+		<div id="header">
+			<div class="gnb_bg"></div>
+			<!-- uh -->
+			<div class="uh">
+				<div class="bg">
+					<div class="link">
+						<a href="/index.do" class="mw172 type2">통합예약</a>
+						<a href="https://www.dh.go.kr/www/index.do" class="mw150" target="_blank" rel="noopener noreferrer">동해시</a>
+						<a href="https://www.dhsisul.org/pages/index.htm" target="_blank" rel="noopener noreferrer">동해시시설관리공단</a>
+						<a href="https://www.dh.go.kr/tour/index.do" target="_blank" rel="noopener noreferrer">동해관광</a>
+					</div>
+					<div class="util">
+						
+							
+								<a href="/login/BD_loginForm.do" class="log">로그인</a>
+								<a href="/user/join/BD_insertTermsAgreeForm.do">회원가입 </a>
+							
+							
+						
+					</div>
+				</div>
+			</div>
+			<!-- //uh -->
+			<!-- mh -->
+			<div class="mh">
+				<div class="bg">
+					<h1>
+						<span class="forW toHm"><img class="logoHome" src="/resources/user/images/logo.png" alt="동해시 관광지 통합예약시스템" style="cursor: pointer"></span>
+						<span class="forM toHm"><img class="logoHome" src="/resources/user/images/logo_m.png" alt="동해시 관광지 통합예약시스템" style="cursor: pointer"></span>
+					</h1>
+					<!-- gnb -->
+					<div class="mGnb">
+						<div class="active-bg"></div>
+						<ul class="list">
+				
+					
+						
+							
+								
+								
+								
+							
+							
+							
+								
+									
+										
+										
+											
+												
+													
+													
+												
+											
+												
+											
+												
+											
+												
+											
+												
+											
+												
+											
+										
+									
+								
+									
+								
+									
+								
+									
+								
+									
+								
+							
+							<li class="m1">
+								<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_01.jsp" class="dep1" title='시설안내 바로가기'>시설안내</a>
+								
+									<div class="dep2">
+										<strong class="ti"><span>시설안내</span></strong>
+										<ul>
+									
+										
+											
+												
+												
+												
+											
+											
+											
+												
+													
+														
+													
+												
+													
+												
+													
+												
+													
+												
+													
+												
+													
+												
+											
+											<li class="has">
+												
+												
+												<button>망상오토캠핑리조트</button>
+												<ul class="dep3">
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_01.jsp" title='소개 바로가기'>소개</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_02.jsp" title='시설안내도 바로가기'>시설안내도</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&amp;upperFcltyCode=1100&amp;fcltyCode=1101" title='숙박시설 바로가기'>숙박시설</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_04.jsp" title='편의/부대시설 바로가기'>편의/부대시설</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_05.jsp" title='대관시설 바로가기'>대관시설</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_06.jsp" title='오시는 길 바로가기'>오시는 길</a></li>
+													
+												
+												</ul>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+												
+													
+														
+													
+												
+													
+												
+													
+												
+													
+												
+													
+												
+											
+											<li class="has">
+												
+												
+												<button>망상제2오토캠핑장</button>
+												<ul class="dep3">
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_01.jsp" title='소개 바로가기'>소개</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_02.jsp" title='시설안내도 바로가기'>시설안내도</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=2000&amp;upperFcltyCode=2100&amp;fcltyCode=2110" title='캠핑시설 바로가기'>캠핑시설</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_04.jsp" title='편의/부대시설 바로가기'>편의/부대시설</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_05.jsp" title='오시는 길 바로가기'>오시는 길</a></li>
+													
+												
+												</ul>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+												
+													
+														
+													
+												
+													
+												
+													
+												
+													
+												
+													
+												
+											
+											<li class="has">
+												
+												
+												<button>무릉힐링캠프장</button>
+												<ul class="dep3">
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_01.jsp" title='소개 바로가기'>소개</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_02.jsp" title='시설안내도 바로가기'>시설안내도</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=3000&amp;upperFcltyCode=3100&amp;fcltyCode=3101" title='캠핑시설 바로가기'>캠핑시설</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_04.jsp" title='편의/부대시설 바로가기'>편의/부대시설</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_05.jsp" title='오시는 길 바로가기'>오시는 길</a></li>
+													
+												
+												</ul>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+												
+													
+														
+													
+												
+													
+												
+													
+												
+													
+												
+													
+												
+											
+											<li class="has">
+												
+												
+												<button>추암오토캠핑장</button>
+												<ul class="dep3">
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_01.jsp" title='소개 바로가기'>소개</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_02.jsp" title='시설안내도 바로가기'>시설안내도</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+														
+															
+																
+															
+														
+															
+														
+													
+													
+													<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=4000&amp;upperFcltyCode=4100" title='캠핑시설 바로가기'>캠핑시설</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_04.jsp" title='편의/부대시설 바로가기'>편의/부대시설</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_05.jsp" title='오시는 길 바로가기'>오시는 길</a></li>
+													
+												
+												</ul>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+												
+													
+														
+													
+												
+													
+												
+													
+												
+													
+												
+											
+											<li class="has">
+												
+												
+												<button>시설별 문의/안내전화</button>
+												<ul class="dep3">
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/user/guide/BD_fcltyGuidance05.do?deptCode=msAtCpRs" title='망상오토캠핑리조트 바로가기'>망상오토캠핑리조트</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/user/guide/BD_fcltyGuidance05.do?deptCode=msAt2Cp" title='망상제2오토캠핑장 바로가기'>망상제2오토캠핑장</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/user/guide/BD_fcltyGuidance05.do?deptCode=mrHrCp" title='무릉힐링캠프장 바로가기'>무릉힐링캠프장</a></li>
+													
+												
+													
+														
+														
+														
+													
+													
+													
+													
+													<li><a href="/user/guide/BD_fcltyGuidance05.do?deptCode=caAtCp" title='추암오토캠핑장 바로가기'>추암오토캠핑장</a></li>
+													
+												
+												</ul>
+												
+											</li>
+										
+									
+										</ul>
+									</div>
+								
+							</li>
+						
+					
+						
+							
+								
+								
+								
+							
+							
+							
+								
+									
+										
+										
+									
+								
+									
+								
+									
+								
+									
+								
+									
+								
+							
+							<li class="m2">
+								<a href="/www/useGuidance/useGuidance01.jsp" class="dep1" title='이용안내 바로가기'>이용안내</a>
+								
+									<div class="dep2">
+										<strong class="ti"><span>이용안내</span></strong>
+										<ul>
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/www/useGuidance/useGuidance01.jsp" title='예약안내 바로가기'>예약안내</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/www/useGuidance/useGuidance02.jsp" title='이용요금 바로가기'>이용요금</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/www/useGuidance/useGuidance03.jsp" title='취소 및 환불 안내 바로가기'>취소 및 환불 안내</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/www/useGuidance/useGuidance04.jsp" title='입/퇴실 및 이용 안내 바로가기'>입/퇴실 및 이용 안내</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/www/useGuidance/useGuidance05.jsp" title='이용준수사항 바로가기'>이용준수사항</a>
+												
+											</li>
+										
+									
+										</ul>
+									</div>
+								
+							</li>
+						
+					
+						
+							
+								
+								
+								
+							
+							
+							
+								
+									
+										
+										
+									
+								
+									
+								
+							
+							<li class="m3">
+								<a href="/user/reservation/BD_reservation.do" class="dep1" title='온라인예약 바로가기'>온라인예약</a>
+								
+									<div class="dep2">
+										<strong class="ti"><span>온라인예약</span></strong>
+										<ul>
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/reservation/BD_reservation.do" title='온라인 예약하기 바로가기'>온라인 예약하기</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/myPage/BD_reservationReserveInfo.do" title='예약결제정보 바로가기'>예약결제정보</a>
+												
+											</li>
+										
+									
+										</ul>
+									</div>
+								
+							</li>
+						
+					
+						
+							
+								
+								
+								
+							
+							
+							
+								
+									
+										
+										
+									
+								
+									
+								
+									
+								
+							
+							<li class="m4">
+								<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1011" class="dep1" title='동해관광 바로가기'>동해관광</a>
+								
+									<div class="dep2">
+										<strong class="ti"><span>동해관광</span></strong>
+										<ul>
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1011" title='권역별 관광명소 바로가기'>권역별 관광명소</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1012" title='테마별 추천여행 바로가기'>테마별 추천여행</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1010" title='여행코스 바로가기'>여행코스</a>
+												
+											</li>
+										
+									
+										</ul>
+									</div>
+								
+							</li>
+						
+					
+						
+							
+								
+								
+								
+							
+							
+							
+								
+									
+										
+										
+									
+								
+									
+								
+									
+								
+									
+								
+									
+								
+									
+								
+									
+								
+									
+								
+									
+								
+									
+								
+									
+								
+							
+							<li class="m5">
+								<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1001" class="dep1" title='고객센터 바로가기'>고객센터</a>
+								
+									<div class="dep2">
+										<strong class="ti"><span>고객센터</span></strong>
+										<ul>
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1001" title='공지사항 바로가기'>공지사항</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1002" title='자주묻는질문 바로가기'>자주묻는질문</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1003" title='묻고답하기 바로가기'>묻고답하기</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1004" title='고객의 의견 바로가기'>고객의 의견</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1008" title='포토갤러리 바로가기'>포토갤러리</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1005" title='분실물센터 바로가기'>분실물센터</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1006" title='칭찬합시다 바로가기'>칭찬합시다</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1007" title='여행후기 바로가기'>여행후기</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1009" title='지역소식 바로가기'>지역소식</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/www/cstmrCnter/cstmrCnter06.jsp" title='동해관광안내소 바로가기'>동해관광안내소</a>
+												
+											</li>
+										
+									
+										
+											
+												
+												
+												
+											
+											
+											
+											<li >
+												<a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1015" title='업데이트 내역 바로가기'>업데이트 내역</a>
+												
+											</li>
+										
+									
+										</ul>
+									</div>
+								
+							</li>
+						
+					
+						
+					
+						
+					
+						
+					
+				
+						</ul>
+
+					</div>
+					<!-- //gnb -->
+					<div class="util">
+						<span class="posRt_m">
+							
+								
+									<a href="/login/BD_loginForm.do" class="iMem1 forM">로그인</a>
+								
+								
+							
+						</span>
+						<button class="iMenu1 jsBtnMenu1 forW">전체메뉴</button>
+						<a href="#jsMenu1_m" class="iMenu1 jsBtnMenu1_m forM">전체메뉴</a>
+					</div>
+				</div>
+			</div>
+			<!-- //mh -->
+		</div>
+		<!-- //header -->
+
+		<!-- body -->
+		<div id="body">
+			<div class="bg">
+				<!-- lnb -->
+				<div class="mLnb">
+					<h3><span>시설안내</span></h3>
+					<ul class="list">
+						
+							
+								
+									
+										<li class="active">
+											<button class="dep1">망상오토캠핑리조트</button>
+											<ul class="dep2" style="display: block">
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_01.jsp">소개</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_02.jsp">시설안내도</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+																<li class="active">
+																	<button>숙박시설</button>
+																	<ul class="dep3"
+																		style="display: block">
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&upperFcltyCode=1100&fcltyCode=1101">망상해변한옥마을(해안)</a>
+																				</li>
+																			
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&upperFcltyCode=1200">캐빈하우스</a>
+																				</li>
+																			
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&upperFcltyCode=1300&fcltyCode=1301">든바다</a>
+																				</li>
+																			
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&upperFcltyCode=1400&fcltyCode=1401">난바다</a>
+																				</li>
+																			
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&upperFcltyCode=1500&fcltyCode=1501">허허바다</a>
+																				</li>
+																			
+																		
+																			
+																				<li class="active">
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&upperFcltyCode=1600">자동차캠핑장</a>
+																				</li>
+																			
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&upperFcltyCode=1700">캐라반</a>
+																				</li>
+																			
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&upperFcltyCode=1800&fcltyCode=1801">글램핑</a>
+																				</li>
+																			
+																		
+																	</ul>
+																</li>
+															
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_04.jsp">편의/부대시설</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_05.jsp">대관시설</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_06.jsp">오시는 길</a>
+																</li>
+															
+														
+													
+												
+											</ul>
+										</li>
+									
+									
+								
+							
+						
+							
+								
+									
+										<li >
+											<button class="dep1">망상제2오토캠핑장</button>
+											<ul class="dep2" style="display: none">
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_01.jsp">소개</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_02.jsp">시설안내도</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+																<li >
+																	<button>캠핑시설</button>
+																	<ul class="dep3"
+																		style="display: none">
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=2000&upperFcltyCode=2100&fcltyCode=2110">A-ZONE</a>
+																				</li>
+																			
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=2000&upperFcltyCode=2200">B-ZONE</a>
+																				</li>
+																			
+																		
+																	</ul>
+																</li>
+															
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_04.jsp">편의/부대시설</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_05.jsp">오시는 길</a>
+																</li>
+															
+														
+													
+												
+											</ul>
+										</li>
+									
+									
+								
+							
+						
+							
+								
+									
+										<li >
+											<button class="dep1">무릉힐링캠프장</button>
+											<ul class="dep2" style="display: none">
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_01.jsp">소개</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_02.jsp">시설안내도</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+																<li >
+																	<button>캠핑시설</button>
+																	<ul class="dep3"
+																		style="display: none">
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=3000&upperFcltyCode=3100&fcltyCode=3101">제1힐링캠핑장</a>
+																				</li>
+																			
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=3000&upperFcltyCode=3200&fcltyCode=3201">제2힐링캠핑장</a>
+																				</li>
+																			
+																		
+																	</ul>
+																</li>
+															
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_04.jsp">편의/부대시설</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_05.jsp">오시는 길</a>
+																</li>
+															
+														
+													
+												
+											</ul>
+										</li>
+									
+									
+								
+							
+						
+							
+								
+									
+										<li >
+											<button class="dep1">추암오토캠핑장</button>
+											<ul class="dep2" style="display: none">
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_01.jsp">소개</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_02.jsp">시설안내도</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+																<li >
+																	<button>캠핑시설</button>
+																	<ul class="dep3"
+																		style="display: none">
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=4000&upperFcltyCode=4100">자동차캠핑장</a>
+																				</li>
+																			
+																		
+																			
+																				<li >
+																					<a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=4000&upperFcltyCode=4200">일반캠핑장</a>
+																				</li>
+																			
+																		
+																	</ul>
+																</li>
+															
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_04.jsp">편의/부대시설</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_05.jsp">오시는 길</a>
+																</li>
+															
+														
+													
+												
+											</ul>
+										</li>
+									
+									
+								
+							
+						
+							
+								
+									
+										<li >
+											<button class="dep1">시설별 문의/안내전화</button>
+											<ul class="dep2" style="display: none">
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/user/guide/BD_fcltyGuidance05.do?deptCode=msAtCpRs">망상오토캠핑리조트</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/user/guide/BD_fcltyGuidance05.do?deptCode=msAt2Cp">망상제2오토캠핑장</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/user/guide/BD_fcltyGuidance05.do?deptCode=mrHrCp">무릉힐링캠프장</a>
+																</li>
+															
+														
+													
+												
+													
+														
+															
+															
+																<li >
+																	<a href="/user/guide/BD_fcltyGuidance05.do?deptCode=caAtCp">추암오토캠핑장</a>
+																</li>
+															
+														
+													
+												
+											</ul>
+										</li>
+									
+									
+								
+							
+						
+					</ul>
+									   
+				</div>
+				<!-- //lnb -->
+
+				<!-- contents -->
+				<div class="contents">
+					<!-- title -->
+					<div class="gTitle1">
+						<h4 class="mTitle1">자동차캠핑장</h4>
+						<!-- bc -->
+						<div class="mBc1">
+							
+							
+								<span class="home">HOME </span>
+							
+								<span > 시설안내 </span>
+							
+								<span > 망상오토캠핑리조트 </span>
+							
+								<span > 숙박시설 </span>
+							
+								<span > 자동차캠핑장</span>
+							
+						</div>
+						<!-- //bc -->
+					</div>
+					<!-- //title -->
+
+					
+					
+
+					
+    
+				<!--
+                <h5 class="mTitle5"><span></span></h5>
+				-->
+                <!-- modify20240522-2 -->
+				<!-- tab -->
+				<div class="mTab3">
+					<ul>
+						
+					</ul>
+				</div>
+				<!-- //tab -->
+                <!-- type -->
+                <div class="mType1">
+                    <div class="cont">
+                        <div class="tit forM">
+                            <strong class="ti">자동차캠핑장</strong>
+                            <div class="tx">
+                            <!--
+                                <strong class="t">2인실/8인실</strong>
+                                <br>
+                            -->
+                            	
+                                
+                            	
+                            </div>
+                        </div>
+
+                        <!-- image -->
+                        <div class="image">
+                            <!-- swiper -->
+                            <div class="swiper">
+                                <div class="swiper-wrapper">
+	                                
+	                                    <div class="swiper-slide"><img src="/upload/fcltyTy/2024/6/14/dfaaca92-bdf3-4506-8cc6-db382138c04b.jpg" alt="" style="width:100%"></div>
+	                                
+	                                    <div class="swiper-slide"><img src="/upload/fcltyTy/2024/6/14/7fd8bc6d-4ddc-4024-8064-d84bb587447f.jpg" alt="" style="width:100%"></div>
+	                                
+	                                    <div class="swiper-slide"><img src="/upload/fcltyTy/2024/6/14/3d926138-6778-42d0-9491-125a87551306.jpg" alt="" style="width:100%"></div>
+	                                
+	                                    <div class="swiper-slide"><img src="/upload/fcltyTy/2024/6/14/98a16e6e-a10d-44e7-8ad3-c16963901922.jpg" alt="" style="width:100%"></div>
+	                                
+	                                    <div class="swiper-slide"><img src="/upload/fcltyTy/2024/6/14/2d2eca1c-6684-4b5f-ba2c-1785523a242c.jpg" alt="" style="width:100%"></div>
+	                                
+                                </div>
+                                <div class="swiper-button-next"></div>
+                                <div class="swiper-button-prev"></div>
+                            </div>
+                            <script>
+                                var swiper = new Swiper(".mType1 .image .swiper", {
+                                loop:true,
+                                navigation: {
+                                    nextEl: ".swiper-button-next",
+                                    prevEl: ".swiper-button-prev",
+                                },
+                                });
+                            </script>
+                            <!-- //swiper -->
+                            <!--
+                            <div class="mButton1">
+                                <a href="#">A타입</a>
+                                <a href="#">B타입</a>
+                            </div>
+                             -->
+                        </div>
+                        <!-- //image -->
+                        <!-- text -->
+                        <div class="text">
+                            <div class="tit forW">
+                                <strong class="ti">자동차캠핑장</strong>
+                                <div class="tx">
+                                    <strong class="t">4인실</strong>
+                                    <br>
+                            	
+                                    
+                            	
+                                </div>
+                            	
+									<a href="javascript:vrPopOpen()" class="bt">시설VR보기</a> <!-- modify20240522-3 -->
+                                
+                            </div>
+                            <div class="list">
+                                <ul>
+                                    <li class="i1">
+                                        <strong class="ti">시설형태</strong>
+                                        <div class="tx">
+                                        	<span id="fcltyStle">번호 1번~41번</span>
+                                        </div>
+                                    </li>
+                                    <li class="i2">
+                                        <strong class="ti">면적</strong>
+                                        <div class="tx">
+                                        	<span id="fcltyAr">3.6*5.4 (19.44㎡)</span>
+                                        </div>
+                                    </li>
+                                    <li class="i3">
+                                        <strong class="ti">수용인원</strong>
+                                        <div class="tx">
+                                        	<span id="nmprCo">4 명</span>
+                                        </div>
+                                    </li>
+                                    <li class="i4">
+                                        <strong class="ti">주차</strong>
+                                        <div class="tx">
+                                        	<span id="parkngCo">1 대</span>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <!-- //text -->
+                    </div>
+                </div>
+                <!-- //type -->
+
+                <h5 class="mTitle3">요금안내</h5>
+                <div class="mBoard1 type1_m">
+					<table>
+						<caption>요금안내</caption>
+						<colgroup>
+							<col style="width:310px">
+							<col style="width:520px">
+							<col style="width:*">
+						</colgroup>
+						<thead>
+							<tr>
+								<th scope="col">기간</th>
+								<th scope="col">사용료</th>
+								<th scope="col">비고</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>성수기</td>
+								<td>
+									50,000 원
+                                </td>
+								<td></td>
+							</tr>
+							<tr>
+								<td>주말/공휴일전 (준성수기)</td>
+								<td>
+									35,000 원
+                                </td>
+								<td></td>
+							</tr>
+							<tr>
+								<td>평일</td>
+								<td>
+									25,000 원
+                                </td>
+								<td></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+                <div class="mInfo2 type2">
+                    <ul>
+                        <li class="fs15">성수기는 2026-07-15 ~ 2026-08-20 일입니다.</li>
+                        <li class="fs15">성수기에는 주말,평일 모두 성수기요금이 적용</li>
+                        <li class="fs15">주말 적용일은 금요일, 토요일과 공휴일 전날</li>
+                    </ul>
+                </div>
+
+                <h5 class="mTitle3">시설안내</h5>
+                <div class="mInfo2">
+               		· 자동차캠핑장은 캠핑카 차량 전용 캠프사이트입니다.
+<br />· 전기사용, 공동취사장, 샤워장, 화장실 등이 마련되어 있습니다.
+<br />· 1사이트 이용 시 자동차 1대만 주차가능합니다.
+<br />· 대형버스 등 개조차량은 이용이 불가합니다.
+<br />· 캠프장은 캠핑카나 텐트를 가지고 오셔야합니다. 일반차량 텐트야영도 가능하며, 바닥에 텐트설치가 가능한 나무데크가 있습니다.
+				</div>
+
+                <h5 class="mTitle3">시설 상세정보</h5>
+                <div class="mInfo2">
+               		· 1번~32번, 38번~41번 3.6*5.4(19.44㎡)
+<br />· 33번~37번 3*4.8(14.4㎡)
+				</div>
+
+                <h5 class="mTitle3">이용안내 및 주의사항</h5>
+                <div class="mInfo2">
+                    <p style="color:red;">· 시설 내 장작 사용 금지
+<br />· 망상리조트 전시설은 바비큐 설비(그릴, 숯 등)가 비치되어 있지 않으며, 이용객 본인이 사전 준비해 오셔야 합니다.
+<br />· 캠핑장 내 매너타임 준수(21:00 ~ 07:00)
+<br />· 커뮤니티하우스 입실체크인 시 주차장 캐노피 높이는 2.7m이며, 높이가 2.7m 이상인 캠핑카는 출입을 금합니다.
+<br />· 데크 내 기물파손 시 변상조치할 수 있습니다.</p>
+				</div>
+				<!-- add20240522 -->
+                <h5 class="mTitle3">기타정보</h5>
+                <div class="mInfo2">
+                    · 주변시설 : 공동샤워장, 공동취사장, 공동화장실
+<br />· <span style="color:blue;">데크 뒤편 전기분전함 1데크 당 1콘센트 사용 가능</span>
+<br />· <span style="color:red;">각 데크당 발세척장은 성수기에만 운영</span>
+
+				</div>
+                <h5 class="mTitle3">위치보기</h5>
+				<div class="mImg2">
+					<img src="/upload/fcltyTy/2025/5/2/868f4834-1058-4d9b-b58c-f6ae2fb8b00f.jpg" alt="시설 위치보기">
+				</div>
+
+				
+				<!-- //add20240522 -->
+
+ <div class='invisible' style='display: none'>
+     <form id="form_hidden_fcltydetail" onsubmit='return false'>
+         <textarea name='fcltyInfo.trrsrtCode'>1000</textarea>
+         <textarea name='fcltyInfo.upperFcltyCode'>1600</textarea>
+         <textarea name='fcltyTypeInfo.fcltyTyCode'>MA_001</textarea>
+     </form>
+ </div>
+
+
+
+					
+					
+
+				</div>
+				<!-- //contents -->
+			</div>
+		</div>
+		<!-- //body -->
+	</div>
+	<!-- //wrap -->
+
+	<!-- footer -->
+	<div id="footer">
+		<div class="bg">
+			<div class="link">
+				
+				<a href="javascript:openUrl('https://www.dhsisul.org/pages/sub.htm?nav_code=new1701839544')">개인정보처리방침</a>
+				<a href="javascript:openUrl('https://www.dhsisul.org/pages/sub.htm?nav_code=new1701839875')">영상정보처리기기운영·관리방침</a>
+				<a href="javascript:openUrl('https://www.dhsisul.org/pages/sub.htm?nav_code=new1701839909')">이메일무단수집거부</a>
+			</div>
+			<div class="addr">
+				<div class="log"><img src="/resources/user/images/logo_footer.png" alt="동해시 시설관리공단"></div>
+				<div class="txt">
+					상호 : 동해시시설관리공단
+					<span class="bar">|</span>
+					대표자 : 이용빈 
+					<span class="bar">|</span>
+					사업자번호 : 222-82-08743
+					<span class="bar">|</span>
+					<br class="forM">통신판매업 신고번호 : 제 2020-강원동해-0055호
+					<br>주소 : 강원도 동해시 덕골길10 (천곡동) 
+                                        <br>전화번호 : 망상리조트 033-539-3600  망상2캠핑장 033-539-3618 <br class="forM">무릉힐링캠프장 033-539-3700  추암오토캠핑장 033-539-3737
+                                        <br>팩스번호 : 망상리조트 033-534-8661 망상2캠핑장 033-532-7352  <br class="forM">무릉힐링캠프장 033-534-8222 추암오토캠핑장 033-521-1934
+                                        <br>COPYRIGHT(C)MANGSANG CAMPING. ALL RIGHTS RESERVED.
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- //footer -->
+
+	<!-- mobile menu -->
+	<div id="jsMenu1_m" class="lMenu1_m">
+		<!-- title -->
+		<div class="title">
+			<div class="tit">
+				
+					
+						<strong>로그인하세요</strong>
+					
+					
+				
+			</div>
+			<div class="info">
+				<p class="tx">동해시관광지 통합예약시스템입니다.</p>
+				<div class="button">
+					
+						
+							<a href="/login/BD_loginForm.do">로그인</a>
+							<a href="/user/join/BD_insertTermsAgreeForm.do">회원가입</a>
+						
+						
+					
+				</div>
+			</div>
+			<button class="close">메뉴 닫기</button>
+		</div>
+		<!-- //title -->
+		<!-- list -->
+		<div class="list">
+			<!-- dep1 -->
+			
+			<div class="dep1">
+				<ul>
+				
+					
+					<li class="active">
+						<a href="#jsDep2_1_m">시설안내</a>
+					</li>
+					
+				
+					
+					<li >
+						<a href="#jsDep2_2_m">이용안내</a>
+					</li>
+					
+				
+					
+					<li >
+						<a href="#jsDep2_3_m">온라인예약</a>
+					</li>
+					
+				
+					
+					<li >
+						<a href="#jsDep2_4_m">동해관광</a>
+					</li>
+					
+				
+					
+					<li >
+						<a href="#jsDep2_5_m">고객센터</a>
+					</li>
+					
+				
+					
+				
+					
+				
+					
+				
+				</ul>
+			</div>
+			
+			<!-- //dep1 -->
+			
+				
+					
+						<div id="jsDep2_1_m" class="dep2">
+							
+								<ul>
+									
+										
+										
+											
+											
+											
+										
+										
+										
+											<li class="has active">
+												<button>망상오토캠핑리조트</button>
+												<ul class="dep3" style="display: block">
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_01.jsp" title='소개 바로가기'>소개</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_02.jsp" title='시설안내도 바로가기'>시설안내도</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li class="active">
+															
+															
+																<button>숙박시설</button>
+																<ul class="dep4" style="display: block">
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&amp;upperFcltyCode=1100&amp;fcltyCode=1101" >망상해변한옥마을(해안)</a></li>
+																			
+																		
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&amp;upperFcltyCode=1200" >캐빈하우스</a></li>
+																			
+																		
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&amp;upperFcltyCode=1300&amp;fcltyCode=1301" >든바다</a></li>
+																			
+																		
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&amp;upperFcltyCode=1400&amp;fcltyCode=1401" >난바다</a></li>
+																			
+																		
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&amp;upperFcltyCode=1500&amp;fcltyCode=1501" >허허바다</a></li>
+																			
+																		
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																				<li class="active"><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&amp;upperFcltyCode=1600" >자동차캠핑장</a></li>
+																			
+																			
+																		
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&amp;upperFcltyCode=1700" >캐라반</a></li>
+																			
+																		
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=1000&amp;upperFcltyCode=1800&amp;fcltyCode=1801" >글램핑</a></li>
+																			
+																		
+																	
+																</ul>
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_04.jsp" title='편의/부대시설 바로가기'>편의/부대시설</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_05.jsp" title='대관시설 바로가기'>대관시설</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance01/fcltyGuidance01_06.jsp" title='오시는 길 바로가기'>오시는 길</a>
+															
+															
+														</li>
+													
+												</ul>
+											</li>
+										
+									
+										
+										
+											
+											
+											
+										
+										
+										
+											<li class="has ">
+												<button>망상제2오토캠핑장</button>
+												<ul class="dep3" style="display: none">
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_01.jsp" title='소개 바로가기'>소개</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_02.jsp" title='시설안내도 바로가기'>시설안내도</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+															
+																<button>캠핑시설</button>
+																<ul class="dep4" style="display: none">
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=2000&amp;upperFcltyCode=2100&amp;fcltyCode=2110" >A-ZONE</a></li>
+																			
+																		
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=2000&amp;upperFcltyCode=2200" >B-ZONE</a></li>
+																			
+																		
+																	
+																</ul>
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_04.jsp" title='편의/부대시설 바로가기'>편의/부대시설</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance02/fcltyGuidance02_05.jsp" title='오시는 길 바로가기'>오시는 길</a>
+															
+															
+														</li>
+													
+												</ul>
+											</li>
+										
+									
+										
+										
+											
+											
+											
+										
+										
+										
+											<li class="has ">
+												<button>무릉힐링캠프장</button>
+												<ul class="dep3" style="display: none">
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_01.jsp" title='소개 바로가기'>소개</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_02.jsp" title='시설안내도 바로가기'>시설안내도</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+															
+																<button>캠핑시설</button>
+																<ul class="dep4" style="display: none">
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=3000&amp;upperFcltyCode=3100&amp;fcltyCode=3101" >제1힐링캠핑장</a></li>
+																			
+																		
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=3000&amp;upperFcltyCode=3200&amp;fcltyCode=3201" >제2힐링캠핑장</a></li>
+																			
+																		
+																	
+																</ul>
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_04.jsp" title='편의/부대시설 바로가기'>편의/부대시설</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance03/fcltyGuidance03_05.jsp" title='오시는 길 바로가기'>오시는 길</a>
+															
+															
+														</li>
+													
+												</ul>
+											</li>
+										
+									
+										
+										
+											
+											
+											
+										
+										
+										
+											<li class="has ">
+												<button>추암오토캠핑장</button>
+												<ul class="dep3" style="display: none">
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_01.jsp" title='소개 바로가기'>소개</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_02.jsp" title='시설안내도 바로가기'>시설안내도</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+															
+																<button>캠핑시설</button>
+																<ul class="dep4" style="display: none">
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=4000&amp;upperFcltyCode=4100" >자동차캠핑장</a></li>
+																			
+																		
+																	
+																		
+																		
+																			
+																				
+																				
+																				
+																			
+																			
+																			
+																			
+																				<li><a href="/user/guide/BD_selectFcltyDetailInfo.do?trrsrtCode=4000&amp;upperFcltyCode=4200" >일반캠핑장</a></li>
+																			
+																		
+																	
+																</ul>
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_04.jsp" title='편의/부대시설 바로가기'>편의/부대시설</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/www/fcltyGuidance/fcltyGuidance04/fcltyGuidance04_05.jsp" title='오시는 길 바로가기'>오시는 길</a>
+															
+															
+														</li>
+													
+												</ul>
+											</li>
+										
+									
+										
+										
+											
+											
+											
+										
+										
+										
+											<li class="has ">
+												<button>시설별 문의/안내전화</button>
+												<ul class="dep3" style="display: none">
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/user/guide/BD_fcltyGuidance05.do?deptCode=msAtCpRs" title='망상오토캠핑리조트 바로가기'>망상오토캠핑리조트</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/user/guide/BD_fcltyGuidance05.do?deptCode=msAt2Cp" title='망상제2오토캠핑장 바로가기'>망상제2오토캠핑장</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/user/guide/BD_fcltyGuidance05.do?deptCode=mrHrCp" title='무릉힐링캠프장 바로가기'>무릉힐링캠프장</a>
+															
+															
+														</li>
+													
+														
+														
+															
+																
+																
+																
+															
+															
+														
+														<li >
+															
+																<a href="/user/guide/BD_fcltyGuidance05.do?deptCode=caAtCp" title='추암오토캠핑장 바로가기'>추암오토캠핑장</a>
+															
+															
+														</li>
+													
+												</ul>
+											</li>
+										
+									
+								</ul>
+							
+						</div>
+					
+				
+					
+						<div id="jsDep2_2_m" class="dep2 hidden">
+							
+								<ul>
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/www/useGuidance/useGuidance01.jsp" title='예약안내 바로가기'>예약안내</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/www/useGuidance/useGuidance02.jsp" title='이용요금 바로가기'>이용요금</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/www/useGuidance/useGuidance03.jsp" title='취소 및 환불 안내 바로가기'>취소 및 환불 안내</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/www/useGuidance/useGuidance04.jsp" title='입/퇴실 및 이용 안내 바로가기'>입/퇴실 및 이용 안내</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/www/useGuidance/useGuidance05.jsp" title='이용준수사항 바로가기'>이용준수사항</a></li>
+										
+										
+									
+								</ul>
+							
+						</div>
+					
+				
+					
+						<div id="jsDep2_3_m" class="dep2 hidden">
+							
+								<ul>
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/reservation/BD_reservation.do" title='온라인 예약하기 바로가기'>온라인 예약하기</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/myPage/BD_reservationReserveInfo.do" title='예약결제정보 바로가기'>예약결제정보</a></li>
+										
+										
+									
+								</ul>
+							
+						</div>
+					
+				
+					
+						<div id="jsDep2_4_m" class="dep2 hidden">
+							
+								<ul>
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1011" title='권역별 관광명소 바로가기'>권역별 관광명소</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1012" title='테마별 추천여행 바로가기'>테마별 추천여행</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1010" title='여행코스 바로가기'>여행코스</a></li>
+										
+										
+									
+								</ul>
+							
+						</div>
+					
+				
+					
+						<div id="jsDep2_5_m" class="dep2 hidden">
+							
+								<ul>
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1001" title='공지사항 바로가기'>공지사항</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1002" title='자주묻는질문 바로가기'>자주묻는질문</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1003" title='묻고답하기 바로가기'>묻고답하기</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1004" title='고객의 의견 바로가기'>고객의 의견</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1008" title='포토갤러리 바로가기'>포토갤러리</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1005" title='분실물센터 바로가기'>분실물센터</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1006" title='칭찬합시다 바로가기'>칭찬합시다</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1007" title='여행후기 바로가기'>여행후기</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1009" title='지역소식 바로가기'>지역소식</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/www/cstmrCnter/cstmrCnter06.jsp" title='동해관광안내소 바로가기'>동해관광안내소</a></li>
+										
+										
+									
+										
+										
+											
+											
+											
+										
+										
+											<li><a href="/user/bbs/BD_selectBbsList.do?q_bbsCode=1015" title='업데이트 내역 바로가기'>업데이트 내역</a></li>
+										
+										
+									
+								</ul>
+							
+						</div>
+					
+				
+					
+				
+					
+				
+					
+				
+			
+		</div>
+		<!-- //list -->
+	</div>
+	<!-- //mobile menu -->
+</body>
+</html>
+

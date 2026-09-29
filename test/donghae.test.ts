@@ -402,4 +402,17 @@ describe("동해시 대기열 키 재사용과 수명", () => {
     expect(p.allRequests.some((r) => wwwPath(r) === "ND_setNfKey.do")).toBe(false);
     await p.stop();
   });
+
+  it("대기 상한을 넘겨 transient로 끝나면 다음 바퀴까지의 간격이 늘어난다", async () => {
+    const p = run(donghaeServer({ counts: () => 3, queue: ["5002:201:key=KEYW&nwait=5&nnext=1&tps=1&ttl=10&ip=x&port=443"] }), undefined, () => 0.5);
+    await settle();
+    await p.clock.advance(130_000); // 첫 바퀴가 상한에서 끝난다.
+    await settle();
+    const nf = () => p.allRequests.filter((r) => new URL(r.url).hostname.startsWith("nf.") && new URL(r.url).searchParams.get("opcode") === "5101").length;
+    expect(nf()).toBe(1);
+    await p.clock.advance(150_000); // 기본 간격이면 이미 다음 바퀴가 시작했을 시간이다.
+    await settle();
+    expect(nf()).toBe(1);
+    await p.stop();
+  });
 });

@@ -48,6 +48,7 @@ const INFO: ProviderInfo = {
   maxNights: 3,
   // 하루 뒤 입실부터 받으므로 당일 마감은 00:00이다.
   openingRule: { openDaysBefore: 30, openTime: "11:00", sameDayCutoff: "00:00" },
+  openingRush: { from: "10:55", to: "11:30" },
   // 예약·결제·취소·회원정보 경로와 captcha·선점 경로. 빈자리 조회에 필요 없다.
   blockedPaths: [
     "/user/reservation/ND_ncaptcha.do",

@@ -1,5 +1,5 @@
 export type Command =
-  | { kind: "catalog"; provider: string | undefined; live: boolean }
+  | { kind: "catalog"; provider: string | undefined; live: boolean; configPath?: string }
   | { kind: "telegram"; sub: "chats" | undefined }
   | { kind: "healthcheck"; configPath: string }
   | { kind: "run"; configPath: string };
@@ -11,7 +11,10 @@ export type Command =
 export function parseArgs(argv: string[]): Command {
   const [first, ...rest] = argv;
   if (first === "catalog") {
-    return { kind: "catalog", provider: rest.find((a) => !a.startsWith("--")), live: rest.includes("--live") };
+    const at = rest.indexOf("--config");
+    const configPath = at >= 0 ? rest[at + 1] : undefined;
+    const provider = rest.find((a, i) => !a.startsWith("--") && (at < 0 || i !== at + 1));
+    return { kind: "catalog", provider, live: rest.includes("--live"), ...(configPath ? { configPath } : {}) };
   }
   if (first === "telegram") return { kind: "telegram", sub: rest[0] === "chats" ? "chats" : undefined };
   if (first === "healthcheck") return { kind: "healthcheck", configPath: rest[0] ?? "config.yaml" };

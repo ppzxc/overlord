@@ -3,7 +3,7 @@ import { goraebulAdapter } from "../src/adapters/goraebul.js";
 import { renderCatalog } from "../src/catalog.js";
 import { renderLiveDiff } from "../src/catalog-live.js";
 import { parseArgs } from "../src/cli.js";
-import { liveGapMs, readConfig, runCatalog } from "../src/commands.js";
+import { liveGapMs, readConfig, runCatalog, runTelegram } from "../src/commands.js";
 import { ConfigError, loadConfig } from "../src/config.js";
 import type { Transport } from "../src/types.js";
 import { ENV, configWith, fixture } from "./harness.js";
@@ -247,5 +247,49 @@ describe("설정 오류 위치와 시설", () => {
 
   it("설정 파일이 없으면 경로를 담아 거부한다", () => {
     expect(() => readConfig("/no/such/config.yaml", ENV)).toThrow(/설정 파일을 찾을 수 없다: \/no\/such\/config.yaml/);
+  });
+});
+
+describe("telegram chats", () => {
+  const run = async (updates: unknown[] | Error, env: Record<string, string | undefined> = ENV) => {
+    let out = "";
+    let err = "";
+    const code = await runTelegram(parseArgs(["telegram", "chats"]) as never, {
+      sink: {
+        sendMessage: async () => {},
+        getUpdates: async () => {
+          if (updates instanceof Error) throw updates;
+          return updates;
+        },
+      },
+      env,
+      out: (t) => (out += t),
+      err: (t) => (err += t),
+    });
+    return { code, out, err };
+  };
+
+  it("최근 업데이트의 chat을 중복 없이 나열한다", async () => {
+    const r = await run([
+      { update_id: 1, message: { chat: { id: 42, type: "private", first_name: "홍", last_name: "길동" } } },
+      { update_id: 2, message: { chat: { id: 42, type: "private", first_name: "홍", last_name: "길동" } } },
+      { update_id: 3, my_chat_member: { chat: { id: -100123, type: "supergroup", title: "캠핑" } } },
+    ]);
+    expect(r.code).toBe(0);
+    expect(r.out.match(/^42\t/gm)).toHaveLength(1);
+    expect(r.out).toContain("-100123\tsupergroup\t캠핑");
+  });
+
+  it("업데이트가 없으면 안내한다", async () => {
+    const r = await run([]);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("봇에게 메시지를 보내");
+  });
+
+  it("토큰이 없으면 실패하고 API 오류에는 토큰이 나오지 않는다", async () => {
+    expect((await run([], {})).code).toBe(1);
+    const r = await run(new Error("fetch https://api.telegram.org/bottok/getUpdates"));
+    expect(r.code).toBe(1);
+    expect(r.err).not.toContain("tok/");
   });
 });

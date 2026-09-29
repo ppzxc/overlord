@@ -2,7 +2,14 @@ import type { Config } from "./config.js";
 import { createHttpClient } from "./http.js";
 import { expandWatch, isExpired, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
-import { renderOpenings, renderWatchExpired, type TelegramSink } from "./telegram.js";
+import {
+  renderOpenings,
+  renderWatchExpired,
+  sendWithRetry,
+  type OpeningEntry,
+  type TelegramMessage,
+  type TelegramSink,
+} from "./telegram.js";
 import {
   AdapterError,
   type AvailabilityQuery,
@@ -77,18 +84,27 @@ async function runProvider(
   const expiredSent = new Set<string>();
   let firstCycle = true;
 
-  const trySend = async (notifierName: string, watch: Watch, build: (chatId: string) => Parameters<TelegramSink["sendMessage"]>[1]) => {
+  const trySend = async (notifierName: string, label: string, msg: (chatId: string) => TelegramMessage) => {
     const notifier = config.notifiers[notifierName];
     if (!notifier) {
-      log("unknown notifier", { watch: watch.name, notifier: notifierName });
+      log("unknown notifier", { watch: label, notifier: notifierName });
       return true; // 다시 시도해도 소용없다
     }
     try {
-      await deps.sink.sendMessage(notifier.botToken, build(notifier.chatId));
+      await sendWithRetry(
+        deps.sink,
+        notifier.botToken,
+        msg(notifier.chatId),
+        (ms) => clock.sleep(ms, signal),
+        () => signal.aborted,
+      );
       return true;
     } catch (err) {
       // 전송 실패는 기록하지 않아 다음 바퀴에 다시 보낸다. 다른 알림 대상은 계속 진행한다.
-      log("notify failed", { watch: watch.name, notifier: notifierName, message: errMessage(err) });
+      if (!signal.aborted) {
+        const message = errMessage(err).replaceAll(notifier.botToken, "***").replaceAll(notifier.chatId, "***");
+        log("notify failed", { watch: label, notifier: notifierName, message });
+      }
       return false;
     }
   };
@@ -104,7 +120,7 @@ async function runProvider(
       for (const name of watch.notify) {
         const key = `${watch.name}|${name}`;
         if (expiredSent.has(key)) continue;
-        const ok = await trySend(name, watch, (chatId) =>
+        const ok = await trySend(name, watch.name, (chatId) =>
           renderWatchExpired({ chatId, watchName: watch.name, checkIn: watch.checkIn }),
         );
         if (ok) expiredSent.add(key);
@@ -145,6 +161,9 @@ async function runProvider(
       }
     }
 
+    // 알림 대상마다 이번 바퀴의 새 빈자리를 모아 메시지 한 건(넘치면 여러 건)으로 보낸다.
+    type Pending = OpeningEntry & { known: Set<string> };
+    const pending = new Map<string, Pending[]>();
     for (const { watch, units } of plans) {
       const byNotifier = notified.get(watch.name) ?? new Map<string, Map<string, Set<string>>>();
       notified.set(watch.name, byNotifier);
@@ -165,20 +184,18 @@ async function runProvider(
           perUnit.set(key, known);
           const fresh = sites.filter((s) => !known.has(s.name));
           if (fresh.length === 0) continue;
-          const link = adapter.deepLink(q);
-          const ok = await trySend(name, watch, (chatId) =>
-            renderOpenings({
-              chatId,
-              watchName: watch.name,
-              info,
-              query: q,
-              sites: fresh,
-              link,
-              startupSnapshot: firstCycle,
-            }),
-          );
-          if (ok) fresh.forEach((s) => known.add(s.name));
+          const list = pending.get(name) ?? [];
+          pending.set(name, list);
+          list.push({ watchName: watch.name, query: q, sites: fresh, link: adapter.deepLink(q), known });
         }
+      }
+    }
+    for (const [name, entries] of pending) {
+      const chatId = config.notifiers[name]?.chatId ?? "";
+      for (const part of renderOpenings({ chatId, info, entries, startupSnapshot: firstCycle })) {
+        const label = [...new Set(part.entries.map((e) => e.watchName))].join(", ");
+        if (!(await trySend(name, label, () => part.message))) break; // 순서를 지키려고 뒤 메시지도 다음 바퀴로 미룬다.
+        for (const e of part.entries) e.sites.forEach((s) => e.known.add(s.name));
       }
     }
     firstCycle = false;

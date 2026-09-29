@@ -3,6 +3,7 @@ import { renderCatalog } from "./catalog.js";
 import { renderLiveDiff } from "./catalog-live.js";
 import type { Command } from "./cli.js";
 import { ConfigError, loadConfig, type Config } from "./config.js";
+import { TelegramError, chatsFromUpdates, type TelegramSink } from "./telegram.js";
 import type { ProviderAdapter, Transport } from "./types.js";
 
 export interface CatalogDeps {
@@ -49,4 +50,40 @@ export function readConfig(path: string, env: Record<string, string | undefined>
     throw e;
   }
   return loadConfig(text, env);
+}
+
+export interface TelegramDeps {
+  sink: TelegramSink;
+  env: Record<string, string | undefined>;
+  out: (text: string) => void;
+  err: (text: string) => void;
+}
+
+/** telegram 하위 명령을 실행하고 종료 코드를 돌려준다. 봇 토큰은 환경 변수 TELEGRAM_BOT_TOKEN에서 읽는다. */
+export async function runTelegram(command: Extract<Command, { kind: "telegram" }>, deps: TelegramDeps): Promise<number> {
+  if (command.sub !== "chats") {
+    deps.err("사용법: telegram chats\n");
+    return 1;
+  }
+  const token = deps.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    deps.err("환경 변수 TELEGRAM_BOT_TOKEN이 비어 있다.\n");
+    return 1;
+  }
+  let updates: unknown[];
+  try {
+    updates = await deps.sink.getUpdates(token);
+  } catch (e) {
+    // 토큰이 들어 있을 수 있는 원문 대신 상태만 알린다.
+    const status = e instanceof TelegramError ? ` (HTTP ${e.status ?? "네트워크 오류"})` : "";
+    deps.err(`업데이트를 가져오지 못했다${status}. 토큰을 확인한다.\n`);
+    return 1;
+  }
+  const chats = chatsFromUpdates(updates);
+  if (chats.length === 0) {
+    deps.out("최근 받은 업데이트가 없다. 봇에게 메시지를 보내거나 그룹에 봇을 초대한 뒤 다시 실행한다.\n");
+    return 0;
+  }
+  deps.out(["chatId\t종류\t이름", ...chats.map((c) => `${c.id}\t${c.type}\t${c.title}`)].join("\n") + "\n");
+  return 0;
 }

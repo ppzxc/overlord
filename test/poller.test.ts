@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
+import { TelegramError } from "../src/telegram.js";
 import { CONFIG_YAML, ENV, calendarHtml, configWith, fixture, queryOf, settle, startPoller } from "./harness.js";
 
 const POLL_MS = 150_000;
@@ -183,9 +184,10 @@ describe("감시 조건 전개", () => {
     });
     await settle();
     expect(p.requests).toHaveLength(1);
-    expect(p.sent).toHaveLength(2);
+    expect(p.sent).toHaveLength(1); // 같은 알림 대상에는 메시지 한 건
     expect(p.sent[0]!.text).toContain("첫째");
-    expect(p.sent[1]!.text).toContain("둘째");
+    expect(p.sent[0]!.text).toContain("둘째");
+    expect(p.sent[0]!.reply_markup?.inline_keyboard).toHaveLength(1); // 같은 예약 화면 버튼은 한 번만
     await p.stop();
   });
 
@@ -419,5 +421,90 @@ describe("캘린더 실패 격리", () => {
     const { units, res } = await run("<html></html>", ["2026-09", "2026-10"]);
     expect(res.get(units[0]!)).toMatchObject({ kind: "unrecognized" });
     expect(Array.isArray(res.get(units[1]!))).toBe(true);
+  });
+});
+
+describe("Telegram 알림 완성", () => {
+  const watchesOver = (days: number, extra = "") =>
+    configWith(
+      watchYaml("긴 범위", `    checkIn: { from: 2026-09-29, to: 2026-${days > 2 ? "10" : "09"}-${String(28 + days - (days > 2 ? 30 : 0)).padStart(2, "0")} }${extra}`),
+    );
+
+  it("감시 조건별 블록에 날짜(요일) N박 · 구역명 · 자리 번호들을 적는다", async () => {
+    const p = startPoller(open);
+    await settle();
+    const lines = p.sent[0]!.text.split("\n");
+    expect(lines[1]).toBe("<b>9월 말 숲속야영장</b>");
+    expect(lines[2]).toMatch(/^2026-09-29\(화\) 1박 · .+ · .*텐트사이트 A02호/);
+    await p.stop();
+  });
+
+  it("(구역, 입실일)이 여덟 개를 넘으면 버튼은 여덟 개까지만 붙고 나머지는 본문 링크로 준다", async () => {
+    const p = startPoller(open, { yaml: watchesOver(10, "\n    seats: [A02]") });
+    await settle();
+    const total = p.requests.length;
+    expect(total).toBeGreaterThan(8);
+    const buttons = p.sent.flatMap((m) => m.reply_markup?.inline_keyboard.flat() ?? []);
+    expect(p.sent.every((m) => (m.reply_markup?.inline_keyboard.length ?? 0) <= 8)).toBe(true);
+    const bodyLinks = p.sent.flatMap((m) => m.text.match(/<a href="[^"]+">/g) ?? []);
+    expect(buttons.length + bodyLinks.length).toBe(total);
+    expect(bodyLinks.length).toBeGreaterThan(0);
+    await p.stop();
+  });
+
+  it("4096자를 넘으면 나눠 보내고 각 메시지는 한도 안이다", async () => {
+    const p = startPoller(open, {
+      yaml: configWith(
+        ...Array.from({ length: 30 }, (_, i) =>
+          watchYaml(`${"긴이름".repeat(20)}${i}`, `    checkIn: { from: 2026-09-29, to: 2026-09-29 }`),
+        ),
+      ),
+    });
+    await settle();
+    expect(p.sent.length).toBeGreaterThan(1);
+    for (const m of p.sent) expect(m.text.length).toBeLessThanOrEqual(4096);
+    await p.stop();
+  });
+
+  it("429는 retry_after를 지켜 다시 보낸다", async () => {
+    let n = 0;
+    const p = startPoller(open, {
+      failSend: () => (n++ === 0 ? new TelegramError("한도", 429, 30) : false),
+    });
+    await settle();
+    expect(p.sent).toHaveLength(0);
+    await p.clock.advance(29_000);
+    expect(p.sent).toHaveLength(0);
+    await p.clock.advance(1_000);
+    expect(p.sent).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("5xx는 최대 세 번 다시 시도하고 그래도 안 되면 다음 바퀴에 다시 보낸다", async () => {
+    let fail = true;
+    const p = startPoller(open, { failSend: () => fail && new TelegramError("서버", 502) });
+    await settle();
+    expect(p.attempts()).toBe(4); // 첫 시도 + 재시도 3회
+    expect(p.sent).toHaveLength(0);
+    fail = false;
+    await p.clock.advance(POLL_MS);
+    expect(p.sent).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("잘못된 요청(4xx)은 다시 시도하지 않는다", async () => {
+    const p = startPoller(open, { failSend: () => new TelegramError("chat 없음", 400) });
+    await settle();
+    expect(p.attempts()).toBe(1);
+    await p.stop();
+  });
+
+  it("notifiers에 없는 알림 대상은 설정 검증에서 거부한다", () => {
+    expect(() =>
+      loadConfig(
+        configWith(watchYaml("x", "    checkIn: { from: 2026-10-02, to: 2026-10-02 }").replace("[default]", "[nowhere]")),
+        ENV,
+      ),
+    ).toThrow(/nowhere[\s\S]*default/);
   });
 });

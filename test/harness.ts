@@ -87,7 +87,8 @@ const isCalendar = (r: TransportRequest) => new URL(r.url).pathname.endsWith("/s
 export function startPoller(
   respondDetail: (req: TransportRequest) => { status: number; body: string },
   opts: {
-    failSend?: () => boolean;
+    /** true나 Error를 돌려주면 그 전송 시도가 실패한다. */
+    failSend?: () => boolean | Error;
     yaml?: string;
     /** 캘린더 잔여. 기본은 모든 (구역, 날짜)에 잔여가 있다. */
     remaining?: (zone: string, date: string) => number;
@@ -102,6 +103,7 @@ export function startPoller(
   const requests: TransportRequest[] = []; // 상세 조회(zoneAreaAjax)만
   const requestTimes: number[] = [];
   const sent: TelegramMessage[] = [];
+  let attempts = 0;
   const clock = new FakeClock();
   const transport: Transport = async (req) => {
     allRequests.push(req);
@@ -111,9 +113,12 @@ export function startPoller(
   };
   const sink: TelegramSink = {
     sendMessage: async (_t, msg) => {
-      if (opts.failSend?.()) throw new Error("전송 실패");
+      attempts++;
+      const fail = opts.failSend?.();
+      if (fail) throw fail instanceof Error ? fail : new Error("전송 실패");
       sent.push(msg);
     },
+    getUpdates: async () => [],
   };
   const controller = new AbortController();
   const done = runPoller(
@@ -128,7 +133,7 @@ export function startPoller(
     },
     controller.signal,
   );
-  return { requests, allRequests, requestTimes, sent, clock, stop: () => (controller.abort(), done) };
+  return { requests, allRequests, requestTimes, sent, attempts: () => attempts, clock, stop: () => (controller.abort(), done) };
 }
 
 const HEAD = `

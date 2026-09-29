@@ -62,6 +62,17 @@ export class ConfigError extends Error {
   }
 }
 
+function checkNotifiers(config: Config): Problem[] {
+  const names = Object.keys(config.notifiers);
+  return config.watches.flatMap((w, i) =>
+    w.notify.flatMap((n, j) =>
+      names.includes(n)
+        ? []
+        : [{ path: ["watches", i, "notify", j], message: `알림 대상 ${n}이(가) notifiers에 없다. 쓸 수 있는 값: ${names.join(", ")}` }],
+    ),
+  );
+}
+
 const dotted = (path: PropertyKey[]) => path.map(String).join(".") || "(최상위)";
 
 export function loadConfig(
@@ -92,7 +103,7 @@ export function loadConfig(
   if (!parsed.success) {
     throw new ConfigError(parsed.error.issues.map((i) => describe(i.path as (string | number)[], i.message)));
   }
-  const problems: Problem[] = checkAgainstProviders(parsed.data, adapters);
+  const problems: Problem[] = [...checkNotifiers(parsed.data), ...checkAgainstProviders(parsed.data, adapters)];
   if (problems.length > 0) throw new ConfigError(problems.map((p) => describe(p.path, p.message)));
   return parsed.data;
 }

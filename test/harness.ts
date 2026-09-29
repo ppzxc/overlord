@@ -110,6 +110,7 @@ export function startPoller(
   const requests: TransportRequest[] = []; // 상세 조회(zoneAreaAjax)만
   const requestTimes: number[] = [];
   const sent: TelegramMessage[] = [];
+  const logs: { msg: string; fields?: Record<string, unknown> }[] = [];
   let attempts = 0;
   const clock = new FakeClock();
   const transport: Transport = async (req) => {
@@ -138,11 +139,12 @@ export function startPoller(
       sink,
       version: "0.1.0",
       liveness,
+      log: (msg, fields) => logs.push({ msg, fields }),
       random: opts.random ?? (() => 0.5), // 지터 0: 바퀴 간격 150초, 요청 간격 6.5초
     },
     controller.signal,
   );
-  return { liveness, requests, allRequests, requestTimes, sent, attempts: () => attempts, clock, stop: () => (controller.abort(), done) };
+  return { liveness, requests, allRequests, requestTimes, sent, logs, attempts: () => attempts, clock, stop: () => (controller.abort(), done) };
 }
 
 const HEAD = `

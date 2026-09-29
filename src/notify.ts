@@ -45,6 +45,7 @@ export function createShared(deps: PollerDeps, signal: AbortSignal): Shared {
         () => signal.aborted,
       );
       results.set(notifierName, true);
+      log("notify sent", { watch: label, notifier: notifierName });
       return true;
     } catch (err) {
       // 전송 실패는 기록하지 않아 다음 바퀴에 다시 보낸다. 다른 알림 대상은 계속 진행한다.

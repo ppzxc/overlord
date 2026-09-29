@@ -1030,3 +1030,23 @@ describe("quietHours, 일일 요약, dead-man ping", () => {
     expect(() => loadConfig(withTop('dailySummary: { at: "9시" }'), ENV)).toThrow(/dailySummary/);
   });
 });
+
+describe("동작 로그", () => {
+  it("시작, 알림 전송, 바퀴 완료를 로그로 남긴다", async () => {
+    const p = startPoller(open);
+    await settle();
+    expect(p.logs.map((l) => l.msg)).toEqual(["poller started", "notify sent", "cycle done"]);
+    expect(p.logs[0]!.fields).toMatchObject({ providers: ["goraebul"], watches: ["9월 말 숲속야영장"] });
+    expect(p.logs[1]!.fields).toMatchObject({ watch: "9월 말 숲속야영장", notifier: "default" });
+    expect(p.logs[2]!.fields).toMatchObject({ provider: "goraebul", queries: 1, failed: 0, newOpenings: 34, health: "ok" });
+    await p.stop();
+  });
+
+  it("빈자리가 없어도 바퀴 완료는 남기고 알림 로그는 없다", async () => {
+    const p = startPoller(soldOut);
+    await settle();
+    expect(p.logs.map((l) => l.msg)).toEqual(["poller started", "cycle done"]);
+    expect(p.logs[1]!.fields).toMatchObject({ newOpenings: 0, failed: 0 });
+    await p.stop();
+  });
+});

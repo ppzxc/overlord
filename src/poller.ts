@@ -57,6 +57,11 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
   // 예약처가 여럿이면 첫 바퀴 시작 시각을 분산한다. 첫 예약처는 바로 시작한다.
   const random = deps.random ?? Math.random;
   const shared = createShared(deps, signal);
+  deps.log?.("poller started", {
+    providers,
+    watches: deps.config.watches.map((w) => w.name),
+    version: deps.version,
+  });
   for (const id of providers) deps.liveness?.beat(id, LOOP_TURN);
   await Promise.all([
     ...providers.map(async (id, i) => {
@@ -112,7 +117,10 @@ async function runProvider(
       const ok = await shared.send(name, providerId, (chatId) => renderHealth({ chatId, provider: providerId, ...notice }));
       delivered ||= ok;
     }
-    if (delivered) health.markAnnounced(clock.now().getTime());
+    if (delivered) {
+      health.markAnnounced(clock.now().getTime());
+      log("health notice sent", { provider: providerId, status: notice.status, reminder: notice.reminder });
+    }
   };
 
   const sleep = (ms: number) => {
@@ -211,6 +219,8 @@ async function runProvider(
         }
       }
     }
+    let newOpenings = 0;
+    for (const entries of pending.values()) for (const e of entries) newOpenings += e.sites.length;
     for (const [name, entries] of pending) {
       const chatId = config.notifiers[name]!.chatId;
       for (const part of renderOpenings({ chatId, info, entries, startupSnapshot: firstCycle })) {
@@ -220,6 +230,15 @@ async function runProvider(
       }
     }
     firstCycle = false;
+    if (!signal.aborted) {
+      log("cycle done", {
+        provider: providerId,
+        queries: queries.size,
+        failed: failures.length,
+        newOpenings,
+        health: health.status,
+      });
+    }
     if (!signal.aborted && queries.size > 0) {
       const at = clock.now();
       health.record(worstFailure(failures), at.getTime());

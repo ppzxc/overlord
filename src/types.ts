@@ -30,18 +30,25 @@ export interface Clock {
 export interface RequestOptions {
   /** 요청 간격 큐를 거치지 않고 바로 보낸다. 간격 계산에도 끼지 않는다. 대기열 서버 요청용이다. */
   unpaced?: boolean;
+  /** POST 본문의 Content-Type. 없으면 form 인코딩이다. 본문을 문자열로 줄 때 쓴다. */
+  contentType?: string;
 }
 
 /** 예약처 하나가 쓰는 HTTP 클라이언트. 예약처가 쿠키 세션을 쓰면 받은 쿠키를 같은 클라이언트의 다음 요청에 싣는다. */
 export interface HttpClient {
   get(url: string, opts?: RequestOptions): Promise<TransportResponse>;
-  post(url: string, form: Record<string, string>, opts?: RequestOptions): Promise<TransportResponse>;
+  /** form이 문자열이면 그대로 본문으로 보낸다. */
+  post(url: string, form: Record<string, string> | string, opts?: RequestOptions): Promise<TransportResponse>;
   /** 들고 있던 쿠키를 모두 버린다. */
   clearSession(): void;
 }
 
 export interface AdapterContext {
   http: HttpClient;
+  /** 대기 시간을 재고 쉬는 데 쓴다. */
+  clock: Clock;
+  /** 종료 중이면 쉬는 것을 바로 끝낸다. */
+  signal?: AbortSignal;
 }
 
 export interface ZoneInfo {

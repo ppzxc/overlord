@@ -94,10 +94,10 @@ export function createHttpClient(opts: {
   };
 
   // 쿠키는 보내는 순간에 싣는다. 큐에서 기다리던 요청도 앞 요청이 받은 쿠키를 가져가야 한다.
-  const sendOnce = async (method: TransportRequest["method"], url: string, body?: string) => {
+  const sendOnce = async (method: TransportRequest["method"], url: string, body?: string, contentType = FORM_CONTENT_TYPE) => {
     const { hostname } = new URL(url);
     const headers: Record<string, string> = { "User-Agent": ua };
-    if (body !== undefined) headers["Content-Type"] = FORM_CONTENT_TYPE;
+    if (body !== undefined) headers["Content-Type"] = contentType;
     const cookie = cookieHeader(jar, hostname);
     if (cookie) headers.Cookie = cookie;
     const res = await opts.transport({ method, url, headers, body, timeoutMs: TIMEOUT_MS, redirect: "manual" });
@@ -108,10 +108,10 @@ export function createHttpClient(opts: {
   };
 
   // 리다이렉트를 직접 따라간다. 홉마다 접근 금지 경로를 검사하고 쿠키를 담고 싣는다. 간격은 한 칸만 쓴다.
-  const send = async (method: TransportRequest["method"], url: string, body?: string) => {
+  const send = async (method: TransportRequest["method"], url: string, body?: string, contentType?: string) => {
     for (let hop = 0; ; hop++) {
       assertAllowed(url);
-      const res = await sendOnce(method, url, body);
+      const res = await sendOnce(method, url, body, contentType);
       if (!REDIRECT_STATUSES.has(res.status) || !res.location) return res;
       if (hop === MAX_REDIRECTS) throw new Error(`리다이렉트가 ${MAX_REDIRECTS}번을 넘었다: ${url}`);
       url = new URL(res.location, url).toString();
@@ -135,7 +135,7 @@ export function createHttpClient(opts: {
       return Promise.reject(e);
     }
     if (pacing?.signal.aborted) return Promise.reject(new Error("중단되었다"));
-    if (!pacing || reqOpts.unpaced) return send(method, url, body);
+    if (!pacing || reqOpts.unpaced) return send(method, url, body, reqOpts.contentType);
     const run = queue.then(async () => {
       if (lastAt !== undefined) {
         const wait = lastAt + REQUEST_GAP_MS + pacing.random() * REQUEST_JITTER_MS - pacing.clock.now().getTime();
@@ -143,7 +143,7 @@ export function createHttpClient(opts: {
       }
       if (pacing.signal.aborted) throw new Error("중단되었다");
       try {
-        return await send(method, url, body);
+        return await send(method, url, body, reqOpts.contentType);
       } finally {
         lastAt = pacing.clock.now().getTime();
       }
@@ -154,7 +154,8 @@ export function createHttpClient(opts: {
 
   return {
     get: (url, reqOpts) => request("GET", url, undefined, reqOpts),
-    post: (url, form, reqOpts) => request("POST", url, new URLSearchParams(form).toString(), reqOpts),
+    post: (url, form, reqOpts) =>
+      request("POST", url, typeof form === "string" ? form : new URLSearchParams(form).toString(), reqOpts),
     clearSession: () => jar.clear(),
   };
 }

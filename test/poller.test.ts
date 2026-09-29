@@ -5,6 +5,7 @@ import { AdapterError, type ProviderAdapter } from "../src/types.js";
 import { TelegramError } from "../src/telegram.js";
 import {
   CONFIG_YAML,
+  FakeClock,
   ENV,
   calendarHtml,
   configWith,
@@ -512,6 +513,7 @@ describe("캘린더 선필터와 요청 매너", () => {
 
 describe("고래불 실제 캘린더 fixture", () => {
   const ctxFor = (body: string, seen: string[] = []) => ({
+    clock: new FakeClock(),
     http: fakeHttp(async (url) => {
       seen.push(url);
       return {
@@ -559,6 +561,7 @@ describe("캘린더 실패 격리", () => {
       nights: 1,
     }));
     const ctx = {
+      clock: new FakeClock(),
       http: fakeHttp(async (url) => {
         if (!url.includes("view_cate="))
           return { status: 200, body: open().body };

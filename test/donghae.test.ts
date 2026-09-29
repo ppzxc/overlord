@@ -1,0 +1,262 @@
+import { describe, expect, it } from "vitest";
+import { loadConfig } from "../src/config.js";
+import { createHttpClient } from "../src/http.js";
+import { DONGHAE_ZONES, ENV, configWith, donghaeServer, settle, startPoller } from "./harness.js";
+
+const HEAD_WATCH = (extra = "") => `
+  - name: 망상 가을
+    provider: donghae
+    zones: [자동차캠핑장]
+    checkIn: { from: 2026-10-03, to: 2026-10-03 }
+    nights: 1
+    notify: [default]${extra}`;
+
+const yaml = (watch = HEAD_WATCH()) => configWith(watch);
+const wwwPath = (r: { url: string }) => new URL(r.url).pathname.split("/").pop();
+
+const run = (server: ReturnType<typeof donghaeServer>, watch?: string, random?: () => number) =>
+  startPoller(() => ({ status: 404, body: "" }), { yaml: yaml(watch), server, random });
+
+describe("동해시 폴러", () => {
+  it("남은 수가 있으면 구역 이름·남은 수·딥링크가 담긴 메시지를 한 건 보낸다", async () => {
+    const p = run(donghaeServer({ counts: (z) => (z === "자동차캠핑장" ? 20 : "예약완료") }));
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("2026-10-03(토) 1박 · 자동차캠핑장 · 남은 20");
+    expect(JSON.stringify(p.sent[0]!.reply_markup)).toContain("/user/reservation/BD_reservation.do");
+    await p.stop();
+  });
+
+  it("요청 순서는 5101 → ND_setNfKey → BD_reservation → 날짜 조회이고 화면 구성용 요청은 없다", async () => {
+    const p = run(donghaeServer({ counts: () => 3 }));
+    await settle();
+    const seq = p.allRequests.map((r) => (new URL(r.url).hostname.startsWith("nf.") ? `nf:${new URL(r.url).searchParams.get("opcode")}` : `${r.method} ${wwwPath(r)}`));
+    expect(seq.slice(0, 4)).toEqual(["nf:5101", "POST ND_setNfKey.do", "POST BD_reservation.do", "POST ND_selectFcltyCalendarDetail.do"]);
+    expect(p.allRequests.some((r) => /ND_globalConfig|ND_massageConfig|ND_popupConfig/.test(r.url))).toBe(false);
+    const setKey = p.allRequests[1]!;
+    expect(setKey.body).toBe("KEY1");
+    expect(setKey.headers["Content-Type"]).toBe("application/json");
+    const enter = new URLSearchParams(p.allRequests[2]!.body);
+    expect(enter.get("q_complete")).toBe("Y");
+    expect(enter.get("netfunnel_key")).toBe("KEY1");
+    const detail = new URLSearchParams(p.allRequests[3]!.body);
+    expect(Object.fromEntries(detail)).toMatchObject({ trrsrtCode: "1000", q_year: "2026", q_month: "10", qDay: "3", netfunnel_key: "KEY1", passNfTime: "0" });
+    await p.stop();
+  });
+
+  it("모든 요청에 정직한 UA만 붙고 쿠키는 동해시 www 요청에만 이어진다", async () => {
+    const p = run(donghaeServer({ counts: () => 3 }));
+    await settle();
+    for (const r of p.allRequests) expect(r.headers["User-Agent"]).toMatch(/^overlord-availability-poller\/0\.1\.0 \(ops\)$/);
+    const www = p.allRequests.filter((r) => new URL(r.url).hostname === "www.campingkorea.or.kr");
+    expect(www[0]!.headers.Cookie).toBeUndefined(); // 첫 www 요청(ND_setNfKey) 전에는 쿠키가 없다.
+    for (const r of www.slice(1)) expect(r.headers.Cookie).toBe("DHCMP_JSESSIONID=sess1");
+    for (const r of p.allRequests.filter((r) => new URL(r.url).hostname.startsWith("nf."))) expect(r.headers.Cookie).toBeUndefined();
+    await p.stop();
+  });
+
+  it("www 요청은 5초 + 지터 간격으로 나가고 대기열 서버 요청은 그 간격을 따르지 않는다", async () => {
+    const p = run(donghaeServer({ counts: () => 3 }), undefined, () => 0.5);
+    await settle();
+    const times = p.requestTimes;
+    // nf(5101)와 첫 www(ND_setNfKey)는 같은 시각에 나간다.
+    expect(times[1]! - times[0]!).toBe(0);
+    expect(times[2]! - times[1]!).toBe(6_500);
+    expect(times[3]! - times[2]!).toBe(6_500);
+    await p.stop();
+  });
+
+  it("대기열이 201을 주면 서버가 준 간격대로 5002를 다시 보내고 기다린 시간을 passNfTime으로 보낸다", async () => {
+    const p = run(
+      donghaeServer({
+        counts: () => 3,
+        queue: ["5002:201:key=KEYW&nwait=5&nnext=1&tps=1&ttl=3&ip=x&port=443", "5002:200:key=KEYW&nwait=0&nnext=0&tps=0&ttl=0&ip=x&port=443"],
+      }),
+    );
+    await settle();
+    const nf = p.allRequests.filter((r) => new URL(r.url).hostname.startsWith("nf."));
+    expect(nf.map((r) => new URL(r.url).searchParams.get("opcode"))).toEqual(["5101", "5002"]);
+    expect(new URL(nf[1]!.url).searchParams.get("key")).toBe("KEYW");
+    expect(p.requestTimes[1]! - p.requestTimes[0]!).toBe(3_000);
+    const detail = p.allRequests.find((r) => wwwPath(r) === "ND_selectFcltyCalendarDetail.do")!;
+    expect(new URLSearchParams(detail.body).get("passNfTime")).toBe("3000");
+    await p.stop();
+  });
+
+  it("임시 사용 중단 호실은 이름이 정확히 같을 때만 남은 수에서 뺀다", async () => {
+    const p = run(
+      donghaeServer({ counts: (z) => (z === "자동차캠핑장" ? 20 : "예약완료"), reduced: { "A-zone 자동차캠핑장": 20 } }),
+    );
+    await settle();
+    expect(p.sent[0]!.text).toContain("남은 20"); // 이름이 다르면 빼지 않는다.
+    await p.stop();
+
+    const q = run(donghaeServer({ counts: (z) => (z === "자동차캠핑장" ? 20 : "예약완료"), reduced: { 자동차캠핑장: 20 } }));
+    await settle();
+    expect(q.sent).toHaveLength(0);
+    await q.stop();
+
+    const r = run(donghaeServer({ counts: (z) => (z === "자동차캠핑장" ? 25 : "예약완료"), reduced: { 자동차캠핑장: 20 } }));
+    await settle();
+    expect(r.sent[0]!.text).toContain("남은 5");
+    await r.stop();
+  });
+
+  it.each(["예약완료", "예약불가", "준비중", 0])("%s는 빈자리가 아니다", async (value) => {
+    const p = run(donghaeServer({ counts: () => value }));
+    await settle();
+    expect(p.sent).toHaveLength(0);
+    await p.stop();
+  });
+
+  it("같은 빈자리는 다음 바퀴에 다시 알리지 않고, 남은 수가 바뀌어도 알리지 않으며, 0이 된 뒤 다시 생기면 알린다", async () => {
+    let n: number | string = 20;
+    const p = run(donghaeServer({ counts: (z) => (z === "자동차캠핑장" ? n : "예약완료") }));
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    n = 19;
+    await p.clock.advance(150_000);
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    n = "예약완료";
+    await p.clock.advance(150_000);
+    await settle();
+    n = 4;
+    await p.clock.advance(150_000);
+    await settle();
+    expect(p.sent).toHaveLength(2);
+    expect(p.sent[1]!.text).toContain("남은 4");
+    await p.stop();
+  });
+
+  it("바퀴마다 새로 대기열에 진입한다", async () => {
+    const p = run(donghaeServer({ counts: () => "예약완료" }));
+    await settle();
+    await p.clock.advance(150_000);
+    await settle();
+    expect(p.allRequests.filter((r) => new URL(r.url).searchParams.get("opcode") === "5101")).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("아직 열리지 않은 날짜는 조회하지 않는다", async () => {
+    // 지금은 2026-09-29 09:00 KST. 2026-10-29 입실은 D−30인 09-29 11:00에 열린다.
+    const p = run(
+      donghaeServer({ counts: () => 3 }),
+      HEAD_WATCH().replace("2026-10-03", "2026-10-29").replace("2026-10-03", "2026-10-29"),
+    );
+    await settle();
+    expect(p.allRequests).toHaveLength(0);
+    await p.stop();
+  });
+
+  it("당일 입실은 조회하지 않는다", async () => {
+    const p = run(donghaeServer({ counts: () => 3 }), HEAD_WATCH().replace("2026-10-03", "2026-09-29").replace("2026-10-03", "2026-09-29"));
+    await settle();
+    expect(p.allRequests).toHaveLength(0);
+    await p.stop();
+  });
+
+  it("첫 실패에서 멈추고 이미 읽은 밤의 결과는 반영한다", async () => {
+    const w = HEAD_WATCH().replace("from: 2026-10-03, to: 2026-10-03", "from: 2026-10-03, to: 2026-10-04").replace(/\n {4}nights: 1/, "\n    nights: 1");
+    const p = run(
+      donghaeServer({
+        counts: (z) => (z === "자동차캠핑장" ? 7 : "예약완료"),
+        detailBody: (date) => (date === "2026-10-04" ? '{"result":true,"value":"자동차캠핑장:이상한값"}' : undefined),
+      }),
+      w,
+    );
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("2026-10-03");
+    expect(p.sent[0]!.text).not.toContain("2026-10-04");
+    await p.stop();
+  });
+
+  it("2박은 밤마다 남은 수의 최솟값과 연속 보장 없음을 알린다", async () => {
+    const w = HEAD_WATCH().replace("nights: 1", "nights: 2");
+    const p = run(donghaeServer({ counts: (z, d) => (z === "자동차캠핑장" ? (d === "2026-10-03" ? 9 : 4) : "예약완료") }), w);
+    await settle();
+    expect(p.sent[0]!.text).toContain("2026-10-03(토) 2박 · 자동차캠핑장 · 밤마다 남은 최소 4 (같은 자리 연속 보장 없음)");
+    await p.stop();
+  });
+
+  it("NetFunnel 301은 차단으로 멈추고 알린다", async () => {
+    const p = run(donghaeServer({ queue: ["5002:301:key=&nwait=0"] }));
+    await settle();
+    expect(p.sent.some((m) => /blocked|차단/.test(m.text))).toBe(true);
+    expect(p.allRequests.every((r) => new URL(r.url).hostname.startsWith("nf."))).toBe(true);
+    await p.stop();
+  });
+
+  it("고래불과 동해시를 한 설정에 두면 둘 다 감시한다", async () => {
+    const both = configWith(
+      `
+  - name: 고래불
+    provider: goraebul
+    zones: [DKA]
+    checkIn: { from: 2026-09-30, to: 2026-09-30 }
+    nights: 1
+    notify: [default]`,
+      HEAD_WATCH(),
+    );
+    const donghae = donghaeServer({ counts: () => 3 });
+    const p = startPoller(() => ({ status: 404, body: "" }), {
+      yaml: both,
+      server: (req) => (req.url.includes("stay.yd.go.kr") ? { status: 200, body: "" } : donghae(req)),
+    });
+    await settle();
+    await p.clock.advance(120_000);
+    await settle();
+    expect(p.allRequests.some((r) => r.url.includes("campingkorea"))).toBe(true);
+    expect(p.allRequests.some((r) => r.url.includes("stay.yd.go.kr"))).toBe(true);
+    await p.stop();
+  });
+});
+
+describe("동해시 접근 금지 경로", () => {
+  it.each([
+    "/user/reservation/ND_ncaptcha.do",
+    "/user/reservation/ND_chkAnswer.do",
+    "/user/reservation/BD_reservationReq.do",
+    "/user/reservation/ND_deletePreOcpcInfo.do",
+    "/login/BD_loginForm.do",
+    "/user/myPage/x.do",
+  ])("%s로는 요청이 나가지 않는다", async (path) => {
+    const { donghaeAdapter } = await import("../src/adapters/donghae.js");
+    const sent: string[] = [];
+    const http = createHttpClient({
+      transport: async (r) => (sent.push(r.url), { status: 200, body: "" }),
+      version: "0.1.0",
+      userAgentSuffix: "",
+      blockedPaths: donghaeAdapter.describe().blockedPaths,
+      cookieSession: true,
+    });
+    await expect(http.post(`https://www.campingkorea.or.kr${path}`, {})).rejects.toThrow(/접근 금지/);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("동해시 설정 검증", () => {
+  const load = (watch: string) => () => loadConfig(configWith(watch), ENV);
+
+  it("구역 오타는 쓸 수 있는 구역 9개와 함께 거부한다", () => {
+    let message = "";
+    try {
+      load(HEAD_WATCH().replace("자동차캠핑장", "자동차캠핑"))();
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toContain('없는 구역 "자동차캠핑"');
+    for (const z of DONGHAE_ZONES) expect(message).toContain(z);
+    expect(message).toMatch(/\d+번째 줄/);
+  });
+
+  it("자리 목록이 없는 구역에 seats를 걸면 거부한다", () => {
+    expect(load(HEAD_WATCH("\n    seats: [A01]"))).toThrow(/seats/);
+  });
+
+  it("3박을 넘으면 거부하고 3박은 받는다", () => {
+    expect(load(HEAD_WATCH().replace("nights: 1", "nights: 4"))).toThrow(/최대 3박/);
+    expect(load(HEAD_WATCH().replace("nights: 1", "nights: 3"))).not.toThrow();
+  });
+});

@@ -4,7 +4,8 @@ import { adapters } from "./adapters/index.js";
 import { parseArgs } from "./cli.js";
 import { readConfig, runCatalog, runTelegram } from "./commands.js";
 import { ConfigError } from "./config.js";
-import { Liveness, startHealthz, startWatchdog } from "./liveness.js";
+import { checkHealthz, startHealthz } from "./healthz.js";
+import { Liveness, startWatchdog } from "./liveness.js";
 import { runPoller } from "./poller.js";
 import { TelegramError, type TelegramSink } from "./telegram.js";
 import type { Clock, Transport } from "./types.js";
@@ -93,6 +94,7 @@ if (command.kind === "catalog") {
 let config;
 try {
   config = readConfig(command.configPath, process.env);
+  if (command.kind === "healthcheck") process.exit(await checkHealthz(config.healthz.bind));
 } catch (e) {
   if (e instanceof ConfigError) {
     console.error(e.message);
@@ -100,11 +102,10 @@ try {
   }
   throw e;
 }
-// JSON 줄 단위로 stdout에 남긴다. 비밀값이 필드로 들어와도 가린다.
+// JSON 줄 단위로 stdout에 남긴다. 비밀값은 아래 log가 가린다.
 const logger = pino({
   base: null,
   timestamp: pino.stdTimeFunctions.isoTime,
-  redact: { paths: ["botToken", "deadManPingUrl", "url", "*.botToken", "*.deadManPingUrl", "*.url"], censor: "***" },
 });
 // 오류 문구에 URL이 섞여 들어와도 비밀값은 남기지 않는다.
 const secrets = [
@@ -121,7 +122,7 @@ process.on("SIGTERM", () => controller.abort());
 
 const liveness = new Liveness(() => Date.now());
 const healthzServer = await startHealthz(config.healthz.bind, liveness).catch((e: unknown) => {
-  logger.fatal({ bind: config.healthz.bind, message: e instanceof Error ? e.message : String(e) }, "healthz 시작 실패");
+  logger.fatal({ bind: `${config.healthz.bind.host}:${config.healthz.bind.port}`, message: e instanceof Error ? e.message : String(e) }, "healthz 시작 실패");
   process.exit(1);
 });
 // 루프가 멈추면 프로세스를 끝내 Docker restart 정책이 다시 띄우게 한다.

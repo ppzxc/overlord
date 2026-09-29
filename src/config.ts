@@ -25,10 +25,11 @@ const configSchema = z.strictObject({
       bind: z
         .string()
         .regex(/^[^:\s]+:\d{1,5}$/, "host:port 형식이어야 한다 (예: 127.0.0.1:8080)")
-        .refine((b) => Number(b.slice(b.lastIndexOf(":") + 1)) <= 65535, "포트는 65535 이하여야 한다")
-        .default("127.0.0.1:8080"),
+        .transform((b) => ({ host: b.slice(0, b.lastIndexOf(":")), port: Number(b.slice(b.lastIndexOf(":") + 1)) }))
+        .refine((b) => b.port <= 65535, "포트는 65535 이하여야 한다")
+        .default({ host: "127.0.0.1", port: 8080 }),
     })
-    .default({ bind: "127.0.0.1:8080" }),
+    .default({ bind: { host: "127.0.0.1", port: 8080 } }),
   providers: z
     .record(z.string(), z.strictObject({ pollIntervalSeconds: z.number().int("정수여야 한다").min(60, "60초 이상이어야 한다").default(150) }))
     .default({}),

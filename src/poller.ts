@@ -1,6 +1,6 @@
 import type { Config } from "./config.js";
 import { ProviderHealth, worstFailure, type Failure } from "./health.js";
-import type { Liveness } from "./liveness.js";
+import { LOOP_TURN, type Liveness } from "./liveness.js";
 import { createHttpClient } from "./http.js";
 import { createShared, errMessage, type DayStats, type Shared } from "./notify.js";
 import { addDays, expandWatch, isExpired, isQuiet, kstDate, unitKey } from "./schedule.js";
@@ -57,7 +57,7 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
   // 예약처가 여럿이면 첫 바퀴 시작 시각을 분산한다. 첫 예약처는 바로 시작한다.
   const random = deps.random ?? Math.random;
   const shared = createShared(deps, signal);
-  for (const id of providers) deps.liveness?.beat(id, 0);
+  for (const id of providers) deps.liveness?.beat(id, LOOP_TURN);
   await Promise.all([
     ...providers.map(async (id, i) => {
       if (i > 0) {
@@ -121,7 +121,7 @@ async function runProvider(
   };
 
   while (!signal.aborted) {
-    deps.liveness?.beat(providerId, 0); // 바퀴 시작. 쉬는 동안은 sleep이 예정 시각을 알린다.
+    deps.liveness?.beat(providerId, LOOP_TURN); // 바퀴 시작. 쉬는 동안은 sleep이 예정 시각을 알린다.
     // 멈춘 예약처는 조회하지 않고, 같은 상태가 이어지면 24시간마다 리마인드만 한다.
     if (health.stopped) {
       await sleep(health.stoppedWaitMs(intervalMs, clock.now().getTime()));

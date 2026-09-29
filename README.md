@@ -20,7 +20,7 @@ docker compose up -d --build
 - `/healthz`(기본 `127.0.0.1:8080`)는 예약처 루프가 살아 있으면 200, 정해진 시간(다음 바퀴 예정 + 15분) 넘게 멈췄으면 503이다. 예약처가 차단 등으로 `stopped`여도 200이다.
 - 루프가 멈추면 watchdog이 프로세스를 종료하고 `restart: unless-stopped`가 다시 띄운다. `docker compose ps`에서 `healthy`를 확인한다.
 - `stopped` 예약처(차단, 인식 불가)는 Telegram 알림이 오며, 원인을 해결한 뒤 `docker compose restart`로 재개한다.
-- `healthz.bind`를 바꾸면 `Dockerfile`의 `HEALTHCHECK` 포트도 같이 바꾼다.
+- `HEALTHCHECK`는 `node dist/main.js healthcheck <설정>`으로 설정한 `healthz.bind`를 찌르므로 바인드를 바꿔도 따로 맞출 것이 없다.
 
 ## 개발
 

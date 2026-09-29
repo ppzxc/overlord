@@ -1,7 +1,8 @@
-import { createServer, type Server } from "node:http";
-
 /** 바퀴 하나가 (조회와 요청 간격을 포함해) 끝나기를 기다려 주는 여유. */
 export const LIVENESS_GRACE_MS = 15 * 60_000;
+
+/** 루프가 쉬지 않고 바로 다음 일을 한다는 뜻의 예정 시간. */
+export const LOOP_TURN = 0;
 
 /**
  * 예약처 루프가 살아 있는지 본다. 루프는 쉬기 전에 "이만큼 뒤에는 다시 온다"고 알리고,
@@ -25,26 +26,6 @@ export class Liveness {
     const now = this.now();
     return [...this.deadlines].filter(([, deadline]) => now > deadline).map(([id]) => id);
   }
-}
-
-/** 정체(Stall)가 없으면 200, 있으면 503. 예약처가 stopped여도 200이다. */
-export function startHealthz(bind: string, liveness: Liveness): Promise<Server> {
-  const colon = bind.lastIndexOf(":");
-  const host = bind.slice(0, colon);
-  const port = Number(bind.slice(colon + 1));
-  const server = createServer((req, res) => {
-    if (req.url !== "/healthz") {
-      res.writeHead(404).end();
-      return;
-    }
-    const stalled = liveness.stalled();
-    res.writeHead(stalled.length === 0 ? 200 : 503, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: stalled.length === 0, stalled }));
-  });
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, host, () => resolve(server));
-  });
 }
 
 /** 루프가 멈춘 채 있으면 onStall을 부른다. 반환값을 호출하면 감시를 끝낸다. */

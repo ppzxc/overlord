@@ -883,3 +883,112 @@ describe("헬스 상태 머신 회귀", () => {
     await p.stop();
   });
 });
+
+describe("quietHours, 일일 요약, dead-man ping", () => {
+  // 하네스 기본 설정은 일일 요약을 끈다. 요약을 다루는 테스트는 top에서 다시 켠다.
+  const withTop = (top: string) =>
+    (top.startsWith("dailySummary") ? CONFIG_YAML.replace("dailySummary: { enabled: false }\n", "") : CONFIG_YAML).replace(
+      "providers:",
+      `${top}\nproviders:`,
+    );
+  const PING = "https://hc.example/ping/abc";
+  const pings = (p: { allRequests: { url: string; headers?: unknown }[] }) => p.allRequests.filter((r) => r.url === PING);
+
+  it("quietHours 안에서는 모든 이벤트를 무음으로 보내고 바퀴 간격이 3배가 된다", async () => {
+    const p = startPoller(open, { yaml: withTop('quietHours: { from: "08:00", to: "10:00" }') });
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.disable_notification).toBe(true);
+    await p.clock.advance(POLL_MS);
+    expect(p.requests).toHaveLength(1);
+    await p.clock.advance(POLL_MS * 2);
+    expect(p.requests).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("자정을 넘는 quietHours도 지킨다", async () => {
+    const p = startPoller(open, { yaml: withTop('quietHours: { from: "22:00", to: "10:00" }') });
+    await settle();
+    expect(p.sent[0]!.disable_notification).toBe(true);
+    await p.stop();
+  });
+
+  it("quietHours 밖이거나 설정하지 않으면 소리가 나고 간격도 그대로다", async () => {
+    const outside = startPoller(open, { yaml: withTop('quietHours: { from: "02:00", to: "06:00" }') });
+    const none = startPoller(open);
+    await settle();
+    expect(outside.sent[0]!.disable_notification).toBeUndefined();
+    expect(none.sent[0]!.disable_notification).toBeUndefined();
+    await outside.clock.advance(POLL_MS);
+    expect(outside.requests).toHaveLength(2);
+    await outside.stop();
+    await none.stop();
+  });
+
+  it("일일 요약은 설정한 시각에 무음으로 한 건 나가고 전날 바퀴 수와 실패 수를 담는다", async () => {
+    let fail = true;
+    const p = startPoller(() => (fail ? { status: 503, body: "" } : soldOut()), {
+      yaml: withTop('dailySummary: { at: "09:00" }').replace("to: 2026-09-29", "to: 2026-10-03"),
+    });
+    await settle();
+    fail = false; // 첫 바퀴만 실패한다. 백오프로 두 배가 된 간격 뒤의 두 번째 바퀴는 성공한다.
+    await p.clock.advance(POLL_MS * 2);
+    // 다음 날 09:00까지 넘긴다.
+    await p.clock.advance(24 * 3600_000);
+    const summaries = p.sent.filter((m) => m.text.includes("일일 요약"));
+    expect(summaries).toHaveLength(1);
+    const s = summaries[0]!;
+    expect(s.disable_notification).toBe(true);
+    expect(s.text).toContain("goraebul");
+    expect(s.text).toContain("정상");
+    expect(s.text).toContain("활성 감시 조건: 1건");
+    expect(s.text).toContain("바퀴 2회, 실패 1회");
+    expect(s.text).toContain("곧 만료");
+    await p.stop();
+  });
+
+  it("dailySummary.enabled를 끄면 요약을 보내지 않는다", async () => {
+    const p = startPoller(soldOut, { yaml: withTop("dailySummary: { enabled: false }") });
+    await settle();
+    await p.clock.advance(25 * 3600_000);
+    expect(p.sent.filter((m) => m.text.includes("일일 요약"))).toHaveLength(0);
+    await p.stop();
+  });
+
+  it("deadManPingUrl이 있으면 바퀴가 끝날 때마다 헤더 없이 GET만 보낸다", async () => {
+    const p = startPoller(soldOut, { yaml: withTop(`deadManPingUrl: ${PING}`) });
+    await settle();
+    expect(pings(p)).toHaveLength(1);
+    expect(pings(p)[0]!.headers).toEqual({});
+    await p.clock.advance(POLL_MS);
+    expect(pings(p)).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("deadManPingUrl을 설정하지 않으면 ping을 보내지 않는다", async () => {
+    const p = startPoller(soldOut);
+    await settle();
+    expect(p.allRequests.every((r) => new URL(r.url).hostname === "stay.yd.go.kr")).toBe(true);
+    await p.stop();
+  });
+
+  it("알림 채널이 계속 실패하면 ping을 보내지 않고 회복하면 다시 보낸다", async () => {
+    let broken = true;
+    const p = startPoller(open, {
+      yaml: withTop(`deadManPingUrl: ${PING}`),
+      failSend: () => broken && new TelegramError("잘못된 요청", 400),
+    });
+    await settle();
+    await p.clock.advance(POLL_MS);
+    expect(pings(p)).toHaveLength(0);
+    broken = false;
+    await p.clock.advance(POLL_MS);
+    expect(pings(p)).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("quietHours와 dailySummary 형식이 틀리면 설정을 거부한다", () => {
+    expect(() => loadConfig(withTop('quietHours: { from: "25:00", to: "06:00" }'), ENV)).toThrow(/quietHours/);
+    expect(() => loadConfig(withTop('dailySummary: { at: "9시" }'), ENV)).toThrow(/dailySummary/);
+  });
+});

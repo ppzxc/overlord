@@ -56,3 +56,21 @@ export function expandWatch(w: WatchWindow & { zones: string[] }, rule: OpeningR
 }
 
 export const unitKey = (q: AvailabilityQuery) => `${q.zone}|${q.checkIn}|${q.nights}`;
+
+const minutesOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));
+
+/** 한국 시각으로 지금이 조용한 시간대인가. from > to면 자정을 넘는 구간이다. from은 포함, to는 제외한다. */
+export function isQuiet(now: Date, quiet: { from: string; to: string } | undefined): boolean {
+  if (!quiet) return false;
+  const t = Math.floor(((now.getTime() + KST_MS) % DAY_MS) / 60_000);
+  const from = minutesOf(quiet.from);
+  const to = minutesOf(quiet.to);
+  return from < to ? t >= from && t < to : t >= from || t < to;
+}
+
+/** now 이후(같은 시각 제외) 처음 오는 한국 시각 hhmm까지 남은 ms. */
+export function msUntilNext(now: Date, hhmm: string): number {
+  const today = kstDate(now);
+  const at = kstInstant(today, hhmm);
+  return (at > now.getTime() ? at : kstInstant(addDays(today, 1), hhmm)) - now.getTime();
+}

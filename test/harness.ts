@@ -38,6 +38,7 @@ export const settle = async () => {
 
 export const CONFIG_YAML = `
 userAgentSuffix: "\${UA_SUFFIX}"
+dailySummary: { enabled: false }
 providers:
   goraebul: { pollIntervalSeconds: 150 }
 notifiers:
@@ -140,6 +141,7 @@ export function startPoller(
 
 const HEAD = `
 userAgentSuffix: "\${UA_SUFFIX}"
+dailySummary: { enabled: false }
 providers:
   goraebul: { pollIntervalSeconds: 150 }
 notifiers:

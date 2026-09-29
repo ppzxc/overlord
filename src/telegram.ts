@@ -1,10 +1,12 @@
-import type { NoticeStatus } from "./health.js";
+import type { HealthStatus, NoticeStatus } from "./health.js";
 import type { AvailabilityQuery, AvailableSite, ProviderInfo } from "./types.js";
 
 export interface TelegramMessage {
   chatId: string;
   text: string;
   parse_mode: "HTML";
+  /** true면 알림음 없이 보낸다 */
+  disable_notification?: true;
   reply_markup?: { inline_keyboard: { text: string; url: string }[][] };
 }
 
@@ -233,4 +235,37 @@ export function renderHealth(opts: {
   if (opts.detail) lines.push(`상세: ${escapeHtml(opts.detail)}`);
   lines.push(HEALTH_ACTIONS[opts.status]);
   return { chatId: opts.chatId, text: lines.join("\n"), parse_mode: "HTML" };
+}
+
+export interface SummaryProvider {
+  id: string;
+  status: HealthStatus;
+  rounds: number;
+  failures: number;
+}
+
+const STATUS_LABELS: Record<HealthStatus, string> = {
+  ok: "정상",
+  degraded: "일시 오류 지속",
+  unavailable: "점검 중",
+  stopped: "멈춤",
+};
+
+export function renderSummary(opts: {
+  chatId: string;
+  /** 바퀴 수와 실패 수를 센 날짜(전날) */
+  date: string;
+  providers: SummaryProvider[];
+  activeWatches: number;
+  expiring: { name: string; lastCheckIn: string }[];
+}): TelegramMessage {
+  const lines = ["📋 일일 요약", `활성 감시 조건: ${opts.activeWatches}건`];
+  for (const p of opts.providers) {
+    lines.push(`예약처 <b>${escapeHtml(p.id)}</b>: ${STATUS_LABELS[p.status]} · ${opts.date} 바퀴 ${p.rounds}회, 실패 ${p.failures}회`);
+  }
+  if (opts.expiring.length > 0) {
+    lines.push("곧 만료:");
+    for (const e of opts.expiring) lines.push(`· ${escapeHtml(e.name)} (입실일 범위 끝 ${e.lastCheckIn})`);
+  }
+  return { chatId: opts.chatId, text: lines.join("\n"), parse_mode: "HTML", disable_notification: true };
 }

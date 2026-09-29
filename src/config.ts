@@ -8,8 +8,18 @@ import { WEEKDAY_KEYS } from "./schedule.js";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 한다");
 
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "HH:MM 형식이어야 한다");
+
 const configSchema = z.strictObject({
   userAgentSuffix: z.string().default(""),
+  quietHours: z
+    .strictObject({ from: hhmm, to: hhmm })
+    .refine((q) => q.from !== q.to, "from과 to가 같을 수 없다")
+    .optional(),
+  dailySummary: z
+    .strictObject({ enabled: z.boolean().default(true), at: hhmm.default("09:00") })
+    .default({ enabled: true, at: "09:00" }),
+  deadManPingUrl: z.url("URL이어야 한다").optional(),
   providers: z
     .record(z.string(), z.strictObject({ pollIntervalSeconds: z.number().int("정수여야 한다").min(60, "60초 이상이어야 한다").default(150) }))
     .default({}),

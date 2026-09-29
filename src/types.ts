@@ -5,6 +5,8 @@ export interface TransportRequest {
   /** POST 본문. form 인코딩된 문자열이다. */
   body?: string;
   timeoutMs: number;
+  /** manual이면 리다이렉트를 따라가지 않고 3xx 응답을 그대로 돌려준다. 없으면 따라간다. */
+  redirect?: "manual";
 }
 
 export interface TransportResponse {
@@ -12,6 +14,8 @@ export interface TransportResponse {
   body: string;
   /** Set-Cookie 헤더 값들. 한 줄에 쿠키 하나다. */
   setCookie?: string[];
+  /** 3xx 응답의 Location 헤더. */
+  location?: string;
 }
 
 /** 실제 네트워크 호출 경계. 테스트에서 바꿔 끼운다. */

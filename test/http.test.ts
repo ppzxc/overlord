@@ -172,3 +172,97 @@ describe("간격 큐 밖 요청", () => {
     expect(order).toEqual(["/queue", "/slow"]);
   });
 });
+
+describe("호스트별 쿠키", () => {
+  const respondBy = (byHost: Record<string, string[]>) =>
+    recording((req) => ({ status: 200, body: "", setCookie: req.url.endsWith("/set") ? byHost[new URL(req.url).hostname] : undefined }));
+
+  it("Domain 속성이 없는 쿠키는 받은 호스트에만 싣는다", async () => {
+    const { requests, transport } = respondBy({ "www.camp.kr": ["SID=www"] });
+    const http = client(transport);
+    await http.get("https://www.camp.kr/set");
+    await http.get("https://nf.camp.kr/a");
+    await http.get("https://www.camp.kr/b");
+    expect(requests[1]!.headers.Cookie).toBeUndefined();
+    expect(requests[2]!.headers.Cookie).toBe("SID=www");
+  });
+
+  it("Domain 속성이 있으면 그 도메인과 하위 호스트에 싣고, 맞지 않는 Domain은 버린다", async () => {
+    const { requests, transport } = respondBy({ "nf.camp.kr": ["NF=1; Domain=.camp.kr", "X=1; Domain=other.kr"] });
+    const http = client(transport);
+    await http.get("https://nf.camp.kr/set");
+    await http.get("https://www.camp.kr/a");
+    await http.get("https://camp.kr/b");
+    await http.get("https://other.kr/c");
+    expect(requests[1]!.headers.Cookie).toBe("NF=1");
+    expect(requests[2]!.headers.Cookie).toBe("NF=1");
+    expect(requests[3]!.headers.Cookie).toBeUndefined();
+  });
+
+  it("호스트가 다르면 같은 이름의 쿠키도 따로 둔다", async () => {
+    const { requests, transport } = respondBy({ "a.kr": ["SID=a"], "b.kr": ["SID=b"] });
+    const http = client(transport);
+    await http.get("https://a.kr/set");
+    await http.get("https://b.kr/set");
+    await http.get("https://a.kr/x");
+    expect(requests[2]!.headers.Cookie).toBe("SID=a");
+  });
+});
+
+describe("리다이렉트", () => {
+  const redirecting = (routes: Record<string, TransportResponse>) =>
+    recording((req) => routes[new URL(req.url).pathname] ?? { status: 200, body: "done" });
+
+  it("Transport에는 따라가지 말라고 하고, 클라이언트가 Location을 따라간다", async () => {
+    const { requests, transport } = redirecting({ "/a": { status: 302, body: "", location: "/b" } });
+    const res = await client(transport).get("https://example.com/a");
+    expect(res).toMatchObject({ status: 200, body: "done" });
+    expect(requests.map((r) => [r.url, r.redirect])).toEqual([
+      ["https://example.com/a", "manual"],
+      ["https://example.com/b", "manual"],
+    ]);
+  });
+
+  it("중간 응답의 쿠키를 담아 다음 홉에 싣는다", async () => {
+    const { requests, transport } = redirecting({ "/login": { status: 302, body: "", location: "/home", setCookie: ["SID=1"] } });
+    await client(transport).get("https://example.com/login");
+    expect(requests[1]!.headers.Cookie).toBe("SID=1");
+  });
+
+  it("302·303은 POST를 본문 없는 GET으로 바꾸고, 307은 그대로 다시 보낸다", async () => {
+    const { requests, transport } = redirecting({
+      "/p302": { status: 302, body: "", location: "/x" },
+      "/p307": { status: 307, body: "", location: "/y" },
+    });
+    const http = client(transport);
+    await http.post("https://example.com/p302", { a: "1" });
+    await http.post("https://example.com/p307", { a: "1" });
+    expect(requests[1]).toMatchObject({ method: "GET", body: undefined });
+    expect(requests[1]!.headers["Content-Type"]).toBeUndefined();
+    expect(requests[3]).toMatchObject({ method: "POST", body: "a=1" });
+  });
+
+  it("접근 금지 경로로 가는 리다이렉트는 따라가지 않는다", async () => {
+    const { requests, transport } = redirecting({ "/a": { status: 302, body: "", location: "https://example.com/bbs/x" } });
+    await expect(client(transport, { blockedPaths: ["/bbs/"] }).get("https://example.com/a")).rejects.toThrow(/접근 금지/);
+    expect(requests).toHaveLength(1);
+  });
+
+  it("리다이렉트가 끝없이 이어지면 멈춘다", async () => {
+    const { requests, transport } = redirecting({ "/loop": { status: 302, body: "", location: "/loop" } });
+    await expect(client(transport).get("https://example.com/loop")).rejects.toThrow(/리다이렉트/);
+    expect(requests.length).toBeLessThanOrEqual(6);
+  });
+
+  it("리다이렉트를 따라가는 동안은 간격 한 칸만 쓴다", async () => {
+    const clock = new FakeClock();
+    const times: number[] = [];
+    const transport: Transport = async (req) => {
+      times.push(clock.now().getTime());
+      return new URL(req.url).pathname === "/a" ? { status: 302, body: "", location: "/b" } : { status: 200, body: "" };
+    };
+    const http = client(transport, { pacing: { clock, random: () => 0.5, signal: new AbortController().signal } });
+    await http.get("https://example.com/a");
+    expect(times[1]).toBe(times[0]);
+  });
+});

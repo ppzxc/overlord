@@ -606,7 +606,7 @@ describe("동해시 오픈 경쟁 시간", () => {
   });
 
   it("설정의 openingRush로 구간을 바꿀 수 있다", async () => {
-    const custom = yaml().replace("watches:", "watches:").replace("providers:", "providers:\n  donghae: { openingRush: { from: \"09:00\", to: \"09:20\" } }");
+    const custom = yaml().replace("providers:", "providers:\n  donghae: { openingRush: { from: \"09:00\", to: \"09:20\" } }");
     const p = startPoller(() => ({ status: 404, body: "" }), { yaml: custom, server: donghaeServer({ counts: () => 3 }) });
     await settle();
     expect(p.allRequests).toHaveLength(0); // 시작 시각 09:00이 구간 안이다

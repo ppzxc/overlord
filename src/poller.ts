@@ -144,6 +144,7 @@ async function runProvider(
       if (!signal.aborted) await announceHealth();
       continue;
     }
+    // 시작 직후나 멈춘 예약처가 깨어난 시각이 구간 안일 수 있어 바퀴 앞에서도 확인한다.
     // 오픈 경쟁 시간에는 조회하지 않고 구간 끝까지 쉰다. 예약처 상태는 건드리지 않는다.
     const rushWait = msUntilRushEnd(clock.now(), rush);
     if (rushWait > 0) {

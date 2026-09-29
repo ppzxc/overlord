@@ -30,9 +30,8 @@ export async function runCatalog(command: Extract<Command, { kind: "catalog" }>,
   }
   deps.out(renderCatalog(adapter));
   if (!command.live) return 0;
-  const rushWait = msUntilRushEnd(deps.now(), adapter.describe().openingRush);
-  if (rushWait > 0) {
-    const rush = adapter.describe().openingRush!;
+  const rush = adapter.describe().openingRush;
+  if (rush && msUntilRushEnd(deps.now(), rush) > 0) {
     deps.err(`오픈 경쟁 시간(${rush.from}~${rush.to} KST)에는 --live를 실행하지 않는다. 그 뒤에 다시 실행하라\n`);
     return 1;
   }

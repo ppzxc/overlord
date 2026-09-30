@@ -1,6 +1,6 @@
 import type { PollerDeps } from "./poller.js";
 import type { Shared } from "./notify.js";
-import { addDays, isExpired, isQuiet, kstDate, kstHourKey, kstStamp, msUntilNext, msUntilNextHourMark } from "./schedule.js";
+import { addDays, isExpired, isQuiet, kstDate, kstHhmm, kstHourKey, msUntilNext, msUntilNextHourMark } from "./schedule.js";
 import { renderHourlySummary, renderSummary } from "./telegram.js";
 
 /** 일일 요약에서 "곧 만료"로 치는 남은 일수. */
@@ -68,13 +68,17 @@ export async function runHourlySummary(
   const { enabled, everyHours } = config.hourlySummary;
   if (!enabled) return;
   const notifierNames = [...new Set(config.watches.flatMap((w) => w.notify))];
+  let cursor = clock.now();
   while (!signal.aborted) {
-    await clock.sleep(msUntilNextHourMark(clock.now(), everyHours), signal);
+    const target = cursor.getTime() + msUntilNextHourMark(cursor, everyHours);
+    await clock.sleep(target - clock.now().getTime(), signal);
     if (signal.aborted) return;
-    const now = clock.now();
+    // 타이머가 정각보다 조금 일찍 깨도 정각으로 본다. 아니면 창이 한 시간 밀리고 같은 정각에 한 번 더 보낸다.
+    const now = new Date(Math.max(clock.now().getTime(), target));
+    cursor = now;
     if (isQuiet(now, config.quietHours)) continue;
     // 일일 요약과 같은 시각이면 예약처 상태가 이미 그쪽에 있다.
-    if (config.dailySummary.enabled && kstStamp(now).slice(6) === config.dailySummary.at) continue;
+    if (config.dailySummary.enabled && kstHhmm(now) === config.dailySummary.at) continue;
     const window = Array.from({ length: everyHours }, (_, i) => kstHourKey(new Date(now.getTime() - (i + 1) * 3600_000)));
     const summary = (chatId: string) =>
       renderHourlySummary({

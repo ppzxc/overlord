@@ -21,6 +21,11 @@ export function kstStamp(now: Date): string {
   return new Date(now.getTime() + KST_MS).toISOString().slice(5, 16).replace("T", " ");
 }
 
+/** 한국 시각 "HH:MM". */
+export function kstHhmm(now: Date): string {
+  return kstStamp(now).slice(6);
+}
+
 const HOUR_MS = 3600_000;
 
 /** 한국 시각 "YYYY-MM-DDTHH". 시간별 통계의 키다. */

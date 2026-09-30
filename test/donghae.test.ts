@@ -481,6 +481,26 @@ describe("동해시 대기열 키 재사용과 수명", () => {
       await p.stop();
     });
 
+    it("날짜 조회가 JSON message로 NOPASS를 알려도 로그인 요구(blocked)가 아니라 재진입한다", async () => {
+      let first = true;
+      const p = run(
+        donghaeServer({
+          counts: () => 3,
+          intercept: (req) => {
+            if (req.url.endsWith("ND_selectFcltyCalendarDetail.do") && first) {
+              first = false;
+              return { status: 200, body: JSON.stringify({ result: false, value: null, message: "NOPASS: 접속대기 인증에 실패하였습니다. 첫 화면으로 돌아가 주세요." }) };
+            }
+          },
+        }),
+      );
+      await settle();
+      expect(opcodes(p)).toEqual(["5101", "5101"]);
+      expect(failedKinds(p)).toEqual([]);
+      expect(p.sent).toHaveLength(1);
+      await p.stop();
+    });
+
     it("NOPASS가 재진입 뒤에도 반복되면 unrecognized이고 세션을 다시 만든다", async () => {
       const p = run(donghaeServer({ counts: () => 3, intercept: (req) => (req.url.endsWith("BD_reservationOrigin.do") ? { status: 200, body: "NOPASS:" } : undefined) }));
       await settle();

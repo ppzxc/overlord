@@ -19,6 +19,15 @@ const configSchema = z.strictObject({
   dailySummary: z
     .strictObject({ enabled: z.boolean().default(true), at: hhmm.default("09:00") })
     .default({ enabled: true, at: "09:00" }),
+  hourlySummary: z
+    .strictObject({
+      enabled: z.boolean().default(false),
+      everyHours: z
+        .int("정수여야 한다")
+        .refine((n) => n >= 1 && 24 % n === 0, "24의 약수여야 한다 (1, 2, 3, 4, 6, 8, 12, 24)")
+        .default(1),
+    })
+    .default({ enabled: false, everyHours: 1 }),
   deadManPingUrl: z.url("URL이어야 한다").optional(),
   healthz: z
     .strictObject({

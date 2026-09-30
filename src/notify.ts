@@ -1,3 +1,4 @@
+import type { Config } from "./config.js";
 import type { PollerDeps } from "./poller.js";
 import type { ProviderHealth } from "./health.js";
 import { isQuiet } from "./schedule.js";
@@ -19,7 +20,32 @@ export interface Shared {
   /** dead-man 서비스에 살아 있다고 알린다. deadManPingUrl이 없으면 아무것도 하지 않는다. */
   pingDeadMan(): Promise<void>;
   /** 예약처별 상태와 날짜(KST)별 바퀴 수·실패한 바퀴 수. 일일 요약이 읽는다. */
-  stats: Map<string, { health: ProviderHealth; days: Map<string, DayStats> }>;
+  stats: Map<string, ProviderStat>;
+  /** 프로세스 가동 시작 시각. 바퀴 수를 세기 시작한 기준이다. */
+  startedAt: Date;
+}
+
+export interface ProviderStat {
+  health: ProviderHealth;
+  days: Map<string, DayStats>;
+  /** KST 시(YYYY-MM-DDTHH)별 바퀴 수·실패한 바퀴 수. 시간별 요약이 읽는다. */
+  hours: Map<string, DayStats>;
+  /** 실패 없이 끝난 마지막 바퀴의 시각. 아직 없으면 undefined. */
+  lastSuccessAt?: Date | undefined;
+}
+
+/** map[key]의 바퀴 수를 하나 올린다. keep(key)가 거짓인 오래된 키는 버린다. */
+export function recordRound(map: Map<string, DayStats>, key: string, failed: boolean, keep: (key: string) => boolean): void {
+  const stat = map.get(key) ?? { rounds: 0, failures: 0 };
+  map.set(key, stat);
+  for (const k of map.keys()) if (!keep(k)) map.delete(k);
+  stat.rounds++;
+  if (failed) stat.failures++;
+}
+
+/** 감시 조건이 알림을 보내는 대상 이름들(중복 없이). */
+export function notifierNamesOf(config: Config): string[] {
+  return [...new Set(config.watches.flatMap((w) => w.notify))];
 }
 
 export function errMessage(err: unknown): string {
@@ -80,5 +106,5 @@ export function createShared(deps: PollerDeps, signal: AbortSignal): Shared {
     }
   };
 
-  return { send, channelOk: () => [...results.values()].every(Boolean), pingDeadMan, stats: new Map() };
+  return { send, channelOk: () => [...results.values()].every(Boolean), pingDeadMan, stats: new Map(), startedAt: clock.now() };
 }

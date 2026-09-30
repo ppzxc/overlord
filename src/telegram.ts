@@ -239,11 +239,18 @@ export function renderHealth(opts: {
   return { chatId: opts.chatId, text: lines.join("\n"), parse_mode: "HTML" };
 }
 
+/** 한국 시각 "MM-DD HH:mm". 요약 메시지에서 시각을 보여 줄 때 쓴다. */
+const kstStamp = (at: Date) => new Date(at.getTime() + 9 * 3600_000).toISOString().slice(5, 16).replace("T", " ");
+
 export interface SummaryProvider {
   id: string;
   status: HealthStatus;
-  /** 전날 기록. 없으면 알 수 없다. */
-  day?: { rounds: number; failures: number } | undefined;
+  /** 센 구간(일일 요약은 전날, 시간별 요약은 지난 간격)의 바퀴 수와 실패한 바퀴 수. 없으면 알 수 없다. */
+  counts?: { rounds: number; failures: number } | undefined;
+  /** 마지막으로 바퀴가 성공한 시각. 아직 없으면 알 수 없다. */
+  lastSuccessAt?: Date | undefined;
+  /** 지금 상태가 시작된 시각. */
+  statusSince?: Date | undefined;
 }
 
 const STATUS_LABELS: Record<HealthStatus, string> = {
@@ -253,6 +260,26 @@ const STATUS_LABELS: Record<HealthStatus, string> = {
   stopped: "멈춤",
 };
 
+const statusText = (p: SummaryProvider, withSince: boolean) =>
+  `${STATUS_LABELS[p.status]}${withSince && p.status !== "ok" && p.statusSince ? ` (${kstStamp(p.statusSince)}부터)` : ""}`;
+const lastSuccessText = (p: SummaryProvider) => `마지막 성공 ${p.lastSuccessAt ? kstStamp(p.lastSuccessAt) : "없음"}`;
+
+export function renderHourlySummary(opts: {
+  chatId: string;
+  /** 바퀴 수와 실패 수를 센 간격(시간) */
+  everyHours: number;
+  providers: SummaryProvider[];
+  /** 프로세스 가동 시작 시각. 재시작 직후의 0회와 진짜 0회를 구분하는 기준이다. */
+  startedAt: Date;
+}): TelegramMessage {
+  const lines = ["🕐 시간별 요약", `가동 시작 ${kstStamp(opts.startedAt)}`];
+  for (const p of opts.providers) {
+    const counts = p.counts ? `지난 ${opts.everyHours}시간 바퀴 ${p.counts.rounds}회, 실패한 바퀴 ${p.counts.failures}회` : "기록 없음";
+    lines.push(`예약처 <b>${escapeHtml(p.id)}</b>: ${statusText(p, false)} · ${counts} · ${lastSuccessText(p)}`);
+  }
+  return { chatId: opts.chatId, text: lines.join("\n"), parse_mode: "HTML", disable_notification: true };
+}
+
 export function renderSummary(opts: {
   chatId: string;
   /** 바퀴 수와 실패 수를 센 날짜(전날) */
@@ -260,10 +287,12 @@ export function renderSummary(opts: {
   providers: SummaryProvider[];
   activeWatches: number;
   expiring: { name: string; lastCheckIn: string }[];
+  /** 프로세스 가동 시작 시각. 바퀴 수를 세기 시작한 기준이다. */
+  startedAt: Date;
 }): TelegramMessage {
-  const lines = ["📋 일일 요약", `활성 감시 조건: ${opts.activeWatches}건`];
+  const lines = ["📋 일일 요약", `활성 감시 조건: ${opts.activeWatches}건`, `가동 시작 ${kstStamp(opts.startedAt)}`];
   for (const p of opts.providers) {
-    lines.push(`예약처 <b>${escapeHtml(p.id)}</b>: ${STATUS_LABELS[p.status]} · ${opts.date} ${p.day ? `바퀴 ${p.day.rounds}회, 실패한 바퀴 ${p.day.failures}회` : "기록 없음"}`);
+    lines.push(`예약처 <b>${escapeHtml(p.id)}</b>: ${statusText(p, true)} · ${opts.date} ${p.counts ? `바퀴 ${p.counts.rounds}회, 실패한 바퀴 ${p.counts.failures}회` : "기록 없음"} · ${lastSuccessText(p)}`);
   }
   if (opts.expiring.length > 0) {
     lines.push("곧 만료:");

@@ -2,10 +2,10 @@ import type { Config } from "./config.js";
 import { ProviderHealth, worstFailure, type Failure } from "./health.js";
 import { LOOP_TURN, type Liveness } from "./liveness.js";
 import { createHttpClient } from "./http.js";
-import { createShared, errMessage, type DayStats, type Shared } from "./notify.js";
-import { addDays, expandWatch, isExpired, isQuiet, kstDate, msUntilRushEnd, unitKey } from "./schedule.js";
+import { createShared, errMessage, type DayStats, type ProviderStat, type Shared } from "./notify.js";
+import { addDays, expandWatch, isExpired, isQuiet, kstDate, kstHourKey, msUntilRushEnd, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
-import { runDailySummary } from "./summary.js";
+import { runDailySummary, runHourlySummary } from "./summary.js";
 import {
   renderHealth,
   renderOpenings,
@@ -74,6 +74,7 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
       await runProvider(deps, id, random, signal, shared);
     }),
     runDailySummary(deps, providers, shared, signal),
+    runHourlySummary(deps, providers, shared, signal),
   ]);
 }
 
@@ -112,7 +113,7 @@ async function runProvider(
   const expiredSent = new Set<string>();
   let firstCycle = true;
   const health = new ProviderHealth();
-  const stat = { health, days: new Map<string, DayStats>() };
+  const stat: ProviderStat = { health, days: new Map<string, DayStats>(), hours: new Map<string, DayStats>() };
   shared.stats.set(providerId, stat);
   const healthNotifiers = [...new Set(watches.flatMap((w) => w.notify))];
 
@@ -258,7 +259,9 @@ async function runProvider(
     }
     if (!signal.aborted && queries.size > 0) {
       const at = clock.now();
+      const before = health.status;
       health.record(worstFailure(failures), at.getTime());
+      if (health.status !== before) stat.statusSince = at;
       const today = kstDate(at);
       const day: DayStats = stat.days.get(today) ?? { rounds: 0, failures: 0 };
       stat.days.set(today, day);
@@ -266,6 +269,15 @@ async function runProvider(
       for (const d of stat.days.keys()) if (d < addDays(today, -1)) stat.days.delete(d);
       day.rounds++;
       if (failures.length > 0) day.failures++;
+      else stat.lastSuccessAt = at;
+      const hourKey = kstHourKey(at);
+      const hour: DayStats = stat.hours.get(hourKey) ?? { rounds: 0, failures: 0 };
+      stat.hours.set(hourKey, hour);
+      // 시간별 요약이 읽는 것은 지난 24시간 안이라 그보다 오래된 기록은 버린다.
+      const oldest = kstHourKey(new Date(at.getTime() - 24 * 3600_000));
+      for (const k of stat.hours.keys()) if (k < oldest) stat.hours.delete(k);
+      hour.rounds++;
+      if (failures.length > 0) hour.failures++;
       await announceHealth();
     }
     if (health.stopped) continue;

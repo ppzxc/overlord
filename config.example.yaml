@@ -3,6 +3,9 @@
 userAgentSuffix: ""
 quietHours: { from: "23:00", to: "07:00" }
 dailySummary: { enabled: true, at: "09:00" }
+# hourlySummary는 KST 정각마다 예약처 상태를 무음으로 보낸다(기본 꺼짐). everyHours는 24의 약수(1, 2, 3, 4, 6, 8, 12, 24).
+# quietHours 동안과 일일 요약과 같은 시각에는 보내지 않는다.
+hourlySummary: { enabled: false, everyHours: 1 }
 # deadManPingUrl에 URL을 넣으면 dead-man ping을 보낸다. 환경 변수는 주석 안에서도 치환되니 쓰지 않는 값은 아예 지운다.
 healthz: { bind: "127.0.0.1:8080" }
 providers:

@@ -994,6 +994,48 @@ describe("quietHours, 일일 요약, dead-man ping", () => {
     await p.stop();
   });
 
+  it("일일 요약은 예약처의 마지막 성공 시각과 프로세스 가동 시작 시각을 적는다", async () => {
+    let fail = true;
+    const p = startPoller(() => (fail ? { status: 503, body: "" } : soldOut()), {
+      yaml: withTop('dailySummary: { at: "09:00" }').replace("to: 2026-09-29", "to: 2026-10-03"),
+    });
+    await settle();
+    fail = false; // 09:00 첫 바퀴는 실패, 5분 뒤 09:05 두 번째 바퀴가 성공한다.
+    await p.clock.advance(POLL_MS * 2);
+    await p.clock.advance(24 * 3600_000);
+    const s = p.sent.find((m) => m.text.includes("일일 요약"))!;
+    expect(s.text).toContain("가동 시작 09-29 09:00");
+    expect(s.text).toMatch(/마지막 성공 09-29 09:0[5-9]/);
+    await p.stop();
+  });
+
+  it("일일 요약은 점검 중인 예약처의 상태가 시작된 시각을 적고, 정상이면 적지 않는다", async () => {
+    let down = true;
+    const adapter = {
+      ...goraebulAdapter,
+      queryAvailabilityBatch: undefined,
+      queryAvailability: async () => {
+        if (down) throw new AdapterError("unavailable", "점검 중");
+        return [];
+      },
+    } as ProviderAdapter;
+    const p = startPoller(open, {
+      adapters: { goraebul: adapter },
+      yaml: withTop('dailySummary: { at: "09:00" }').replace("to: 2026-09-29", "to: 2026-10-03"),
+    });
+    await settle();
+    await p.clock.advance(24 * 3600_000);
+    const first = p.sent.filter((m) => m.text.includes("일일 요약")).at(-1)!;
+    expect(first.text).toContain("점검 중 (09-29 09:00부터)");
+    down = false;
+    await p.clock.advance(31 * 60_000); // 점검 중 확인 간격(30분) 뒤 바퀴가 성공한다.
+    await p.clock.advance(24 * 3600_000);
+    const later = p.sent.filter((m) => m.text.includes("일일 요약")).at(-1)!;
+    expect(later.text).toContain("정상");
+    expect(later.text).not.toContain("부터)");
+    await p.stop();
+  });
+
   it("dailySummary.enabled를 끄면 요약을 보내지 않는다", async () => {
     const p = startPoller(soldOut, { yaml: withTop("dailySummary: { enabled: false }") });
     await settle();
@@ -1069,6 +1111,88 @@ describe("quietHours, 일일 요약, dead-man ping", () => {
     await p.clock.advance(POLL_MS);
     // 바퀴는 예약처마다 3번 안팎이지만 ping은 150초 간격당 한 번이다.
     expect(pings(p).length).toBeLessThanOrEqual(4);
+    await p.stop();
+  });
+
+  it("hourlySummary는 기본이 꺼짐이고 1시간 간격이며, 24의 약수가 아닌 간격은 거부한다", () => {
+    expect(loadConfig(CONFIG_YAML, ENV).hourlySummary).toEqual({ enabled: false, everyHours: 1 });
+    expect(loadConfig(withTop("hourlySummary: { enabled: true, everyHours: 6 }"), ENV).hourlySummary).toEqual({ enabled: true, everyHours: 6 });
+    for (const bad of ["0", "5", "25", "1.5"]) {
+      expect(() => loadConfig(withTop(`hourlySummary: { enabled: true, everyHours: ${bad} }`), ENV)).toThrow(/hourlySummary/);
+    }
+  });
+
+  const HOURLY = "hourlySummary: { enabled: true, everyHours: 1 }";
+  const hourlies = (p: { sent: { text: string }[] }) => p.sent.filter((m) => m.text.includes("시간별 요약"));
+
+  it("시간별 요약은 정각에 무음으로 한 건 나가고 예약처마다 상태와 바퀴 수와 마지막 성공을 담는다", async () => {
+    const p = startPoller(soldOut, { yaml: withTop(HOURLY) });
+    await settle();
+    for (let i = 0; i < 24; i++) await p.clock.advance(POLL_MS); // 09:00에서 10:00까지
+    const sent = hourlies(p);
+    expect(sent).toHaveLength(1);
+    const m = sent[0] as { text: string; disable_notification?: boolean };
+    expect(m.disable_notification).toBe(true);
+    expect(m.text).toContain("goraebul");
+    expect(m.text).toContain("정상");
+    expect(m.text).toMatch(/지난 1시간 바퀴 [1-9]\d*회, 실패한 바퀴 0회/);
+    expect(m.text).toMatch(/마지막 성공 09-29 (09:[3-5]\d|10:00)/);
+    await p.stop();
+  });
+
+  it("hourlySummary를 켜지 않으면 시간별 요약을 보내지 않는다", async () => {
+    const p = startPoller(soldOut);
+    await settle();
+    await p.clock.advance(3 * 3600_000);
+    expect(hourlies(p)).toHaveLength(0);
+    await p.stop();
+  });
+
+  it("quietHours 동안에는 시간별 요약을 건너뛰고 끝나면 다시 보낸다", async () => {
+    const p = startPoller(soldOut, { yaml: withTop(HOURLY).replace("providers:", 'quietHours: { from: "09:00", to: "11:00" }\nproviders:') });
+    await settle();
+    await p.clock.advance(90 * 60_000); // 10:30, 조용한 시간 안이다.
+    expect(hourlies(p)).toHaveLength(0);
+    await p.clock.advance(90 * 60_000); // 12:00, 조용한 시간이 끝났다.
+    expect(hourlies(p)).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("일일 요약과 같은 시각이면 시간별 요약은 건너뛴다", async () => {
+    const p = startPoller(soldOut, { yaml: withTop(HOURLY).replace("dailySummary: { enabled: false }\n", "").replace("providers:", 'dailySummary: { at: "10:00" }\nproviders:') });
+    await settle();
+    await p.clock.advance(3600_000); // 10:00
+    expect(p.sent.filter((m) => m.text.includes("일일 요약"))).toHaveLength(1);
+    expect(hourlies(p)).toHaveLength(0);
+    await p.clock.advance(3600_000); // 11:00
+    expect(hourlies(p)).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("everyHours가 3이면 3시간 간격 정각에만 보내고 지난 3시간을 센다", async () => {
+    const p = startPoller(soldOut, { yaml: withTop("hourlySummary: { enabled: true, everyHours: 3 }") });
+    await settle();
+    await p.clock.advance(2 * 3600_000); // 11:00, 3의 배수 시각이 아니다.
+    expect(hourlies(p)).toHaveLength(0);
+    await p.clock.advance(3600_000); // 12:00
+    expect(hourlies(p)).toHaveLength(1);
+    expect(hourlies(p)[0]!.text).toContain("지난 3시간");
+    await p.stop();
+  });
+
+  it("점검 중인 예약처는 시간별 요약에 상태가 시작된 시각과 함께 적는다", async () => {
+    const adapter = {
+      ...goraebulAdapter,
+      queryAvailabilityBatch: undefined,
+      queryAvailability: async () => {
+        throw new AdapterError("unavailable", "점검 중");
+      },
+    } as ProviderAdapter;
+    const p = startPoller(open, { adapters: { goraebul: adapter }, yaml: withTop(HOURLY) });
+    await settle();
+    await p.clock.advance(3600_000);
+    expect(hourlies(p)[0]!.text).toContain("점검 중 (09-29 09:00부터)");
+    expect(hourlies(p)[0]!.text).toContain("마지막 성공 없음");
     await p.stop();
   });
 

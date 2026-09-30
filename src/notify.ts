@@ -19,7 +19,20 @@ export interface Shared {
   /** dead-man 서비스에 살아 있다고 알린다. deadManPingUrl이 없으면 아무것도 하지 않는다. */
   pingDeadMan(): Promise<void>;
   /** 예약처별 상태와 날짜(KST)별 바퀴 수·실패한 바퀴 수. 일일 요약이 읽는다. */
-  stats: Map<string, { health: ProviderHealth; days: Map<string, DayStats> }>;
+  stats: Map<string, ProviderStat>;
+  /** 프로세스 가동 시작 시각. 바퀴 수를 세기 시작한 기준이다. */
+  startedAt: Date;
+}
+
+export interface ProviderStat {
+  health: ProviderHealth;
+  days: Map<string, DayStats>;
+  /** KST 시(YYYY-MM-DDTHH)별 바퀴 수·실패한 바퀴 수. 시간별 요약이 읽는다. */
+  hours: Map<string, DayStats>;
+  /** 실패 없이 끝난 마지막 바퀴의 시각. 아직 없으면 undefined. */
+  lastSuccessAt?: Date | undefined;
+  /** 지금 상태가 시작된 시각. 상태가 한 번도 바뀌지 않았으면 undefined. */
+  statusSince?: Date | undefined;
 }
 
 export function errMessage(err: unknown): string {
@@ -80,5 +93,5 @@ export function createShared(deps: PollerDeps, signal: AbortSignal): Shared {
     }
   };
 
-  return { send, channelOk: () => [...results.values()].every(Boolean), pingDeadMan, stats: new Map() };
+  return { send, channelOk: () => [...results.values()].every(Boolean), pingDeadMan, stats: new Map(), startedAt: clock.now() };
 }

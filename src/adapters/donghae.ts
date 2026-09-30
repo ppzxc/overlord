@@ -315,6 +315,8 @@ function splitNight(body: string): { name: string; value: string }[] {
   }
   if (json.result !== true) {
     const message = String(json.message ?? "");
+    // 날짜 조회는 NOPASS를 본문 앞머리가 아니라 JSON message로 알린다(실측). 메시지에 "인증"이 들어 있어도 로그인 요구가 아니라 키 거절이다.
+    if (message.startsWith("NOPASS:")) throw new NoPassError("날짜 조회");
     if (AUTH_MARKER.test(message)) throw new AdapterError("blocked", `로그인·인증을 요구한다: ${message}`);
     throw new AdapterError("unrecognized", `날짜 조회가 실패했다: ${message}`);
   }

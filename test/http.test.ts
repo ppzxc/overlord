@@ -59,7 +59,7 @@ describe("쿠키 세션", () => {
   const withCookies = () =>
     recording((req) =>
       new URL(req.url).pathname === "/enter"
-        ? { status: 200, body: "", setCookie: ["DHCMP_JSESSIONID=abc; Path=/; HttpOnly", "NetFunnel_ID=k%3D1; Expires=Wed, 30 Sep 2026 00:00:00 GMT"] }
+        ? { status: 200, body: "", setCookie: ["DHCMP_JSESSIONID=abc; Path=/; HttpOnly", "NetFunnel_ID=k%3D1; Expires=Fri, 01 Jan 2100 00:00:00 GMT"] }
         : { status: 200, body: "" },
     );
 

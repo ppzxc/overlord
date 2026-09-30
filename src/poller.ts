@@ -2,8 +2,8 @@ import type { Config } from "./config.js";
 import { ProviderHealth, worstFailure, type Failure } from "./health.js";
 import { LOOP_TURN, type Liveness } from "./liveness.js";
 import { createHttpClient } from "./http.js";
-import { createShared, errMessage, type DayStats, type ProviderStat, type Shared } from "./notify.js";
-import { addDays, expandWatch, isExpired, isQuiet, kstDate, kstHourKey, msUntilRushEnd, unitKey } from "./schedule.js";
+import { createShared, errMessage, recordRound, type DayStats, type ProviderStat, type Shared } from "./notify.js";
+import { addDays, expandWatch, HOUR_MS, isExpired, isQuiet, kstDate, kstHourKey, msUntilRushEnd, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
 import { runDailySummary, runHourlySummary } from "./summary.js";
 import {
@@ -259,25 +259,15 @@ async function runProvider(
     }
     if (!signal.aborted && queries.size > 0) {
       const at = clock.now();
-      const before = health.status;
       health.record(worstFailure(failures), at.getTime());
-      if (health.status !== before) stat.statusSince = at;
+      const failed = failures.length > 0;
       const today = kstDate(at);
-      const day: DayStats = stat.days.get(today) ?? { rounds: 0, failures: 0 };
-      stat.days.set(today, day);
       // 요약이 읽는 것은 전날뿐이라 그 전 기록은 버린다.
-      for (const d of stat.days.keys()) if (d < addDays(today, -1)) stat.days.delete(d);
-      day.rounds++;
-      if (failures.length > 0) day.failures++;
-      else stat.lastSuccessAt = at;
-      const hourKey = kstHourKey(at);
-      const hour: DayStats = stat.hours.get(hourKey) ?? { rounds: 0, failures: 0 };
-      stat.hours.set(hourKey, hour);
+      recordRound(stat.days, today, failed, (d) => d >= addDays(today, -1));
+      if (!failed) stat.lastSuccessAt = at;
       // 시간별 요약이 읽는 것은 지난 24시간 안이라 그보다 오래된 기록은 버린다.
-      const oldest = kstHourKey(new Date(at.getTime() - 24 * 3600_000));
-      for (const k of stat.hours.keys()) if (k < oldest) stat.hours.delete(k);
-      hour.rounds++;
-      if (failures.length > 0) hour.failures++;
+      const oldestHour = kstHourKey(new Date(at.getTime() - 24 * HOUR_MS));
+      recordRound(stat.hours, kstHourKey(at), failed, (k) => k >= oldestHour);
       await announceHealth();
     }
     if (health.stopped) continue;

@@ -36,6 +36,8 @@ export function worstFailure(failures: Failure[]): Failure | undefined {
 /** 예약처 하나의 헬스 상태 머신. 바퀴 결과를 먹이면 다음 간격과 보낼 알림을 알려 준다. */
 export class ProviderHealth {
   status: HealthStatus = "ok";
+  /** 지금 상태가 시작된 시각(ms). 상태가 한 번도 바뀌지 않았으면 undefined. */
+  statusSince: number | undefined;
   private stopKind: "blocked" | "unrecognized" = "blocked";
   private transientStreak = 0;
   private transientSince = 0;
@@ -52,6 +54,12 @@ export class ProviderHealth {
 
   /** 바퀴 하나의 결과를 반영한다. failure가 없으면 성공이다. */
   record(failure: Failure | undefined, nowMs: number): void {
+    const before = this.status;
+    this.apply(failure, nowMs);
+    if (this.status !== before) this.statusSince = nowMs;
+  }
+
+  private apply(failure: Failure | undefined, nowMs: number): void {
     this.lastKind = failure?.kind;
     if (!failure) {
       this.transientStreak = 0;

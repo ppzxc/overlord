@@ -23,8 +23,8 @@ const configSchema = z.strictObject({
     .strictObject({
       enabled: z.boolean().default(false),
       everyHours: z
-        .number()
-        .refine((n) => [1, 2, 3, 4, 6, 8, 12, 24].includes(n), "24의 약수여야 한다 (1, 2, 3, 4, 6, 8, 12, 24)")
+        .int("정수여야 한다")
+        .refine((n) => n >= 1 && 24 % n === 0, "24의 약수여야 한다 (1, 2, 3, 4, 6, 8, 12, 24)")
         .default(1),
     })
     .default({ enabled: false, everyHours: 1 }),

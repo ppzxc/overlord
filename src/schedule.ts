@@ -16,17 +16,12 @@ function kstInstant(date: string, hhmm: string): number {
   return Date.parse(`${date}T${hhmm}:00+09:00`);
 }
 
-/** 한국 시각 "MM-DD HH:mm". 요약 메시지에서 시각을 보여 줄 때 쓴다. */
-export function kstStamp(now: Date): string {
-  return new Date(now.getTime() + KST_MS).toISOString().slice(5, 16).replace("T", " ");
-}
-
 /** 한국 시각 "HH:MM". */
 export function kstHhmm(now: Date): string {
-  return kstStamp(now).slice(6);
+  return new Date(now.getTime() + KST_MS).toISOString().slice(11, 16);
 }
 
-const HOUR_MS = 3600_000;
+export const HOUR_MS = 3600_000;
 
 /** 한국 시각 "YYYY-MM-DDTHH". 시간별 통계의 키다. */
 export function kstHourKey(now: Date): string {

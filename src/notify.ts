@@ -1,3 +1,4 @@
+import type { Config } from "./config.js";
 import type { PollerDeps } from "./poller.js";
 import type { ProviderHealth } from "./health.js";
 import { isQuiet } from "./schedule.js";
@@ -31,8 +32,20 @@ export interface ProviderStat {
   hours: Map<string, DayStats>;
   /** 실패 없이 끝난 마지막 바퀴의 시각. 아직 없으면 undefined. */
   lastSuccessAt?: Date | undefined;
-  /** 지금 상태가 시작된 시각. 상태가 한 번도 바뀌지 않았으면 undefined. */
-  statusSince?: Date | undefined;
+}
+
+/** map[key]의 바퀴 수를 하나 올린다. keep(key)가 거짓인 오래된 키는 버린다. */
+export function recordRound(map: Map<string, DayStats>, key: string, failed: boolean, keep: (key: string) => boolean): void {
+  const stat = map.get(key) ?? { rounds: 0, failures: 0 };
+  map.set(key, stat);
+  for (const k of map.keys()) if (!keep(k)) map.delete(k);
+  stat.rounds++;
+  if (failed) stat.failures++;
+}
+
+/** 감시 조건이 알림을 보내는 대상 이름들(중복 없이). */
+export function notifierNamesOf(config: Config): string[] {
+  return [...new Set(config.watches.flatMap((w) => w.notify))];
 }
 
 export function errMessage(err: unknown): string {

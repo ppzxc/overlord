@@ -1180,7 +1180,7 @@ describe("quietHours, 일일 요약, dead-man ping", () => {
     await p.stop();
   });
 
-  it("점검 중인 예약처는 시간별 요약에 상태가 시작된 시각과 함께 적는다", async () => {
+  it("점검 중인 예약처는 시간별 요약에 상태만 적고 시작 시각은 일일 요약에만 적는다. 가동 시작 시각은 적는다", async () => {
     const adapter = {
       ...goraebulAdapter,
       queryAvailabilityBatch: undefined,
@@ -1191,7 +1191,9 @@ describe("quietHours, 일일 요약, dead-man ping", () => {
     const p = startPoller(open, { adapters: { goraebul: adapter }, yaml: withTop(HOURLY) });
     await settle();
     await p.clock.advance(3600_000);
-    expect(hourlies(p)[0]!.text).toContain("점검 중 (09-29 09:00부터)");
+    expect(hourlies(p)[0]!.text).toContain("점검 중 ·");
+    expect(hourlies(p)[0]!.text).not.toContain("부터)");
+    expect(hourlies(p)[0]!.text).toContain("가동 시작 09-29 09:00");
     expect(hourlies(p)[0]!.text).toContain("마지막 성공 없음");
     await p.stop();
   });

@@ -13,6 +13,23 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## Title prefixes
+
+Every issue title starts with one of these prefixes. `NN` is the parent's issue number, and `N` counts from 1 in the order the children were created under that parent.
+
+| Kind | Prefix | Example |
+|---|---|---|
+| Wayfinder map | `[Map]` | `[Map] 전국 지자체 운영 캠핑장 모니터링 확장` |
+| Map decision ticket (research, grilling, prototype, task) | `[Map #NN / Decision-N]` | `[Map #49 / Decision-3] 후보 예약처별 접근 조건` |
+| Spec produced by a map | `[Map #NN / Spec]` | `[Map #49 / Spec] 국립공원공단 예약처 어댑터` |
+| Ticket under a spec (`ready-for-agent` slice) | `[Spec #NN / Ticket-N]` | `[Spec #62 / Ticket-1] 국립공원 워킹 스켈레톤` |
+
+When you create a child, find the next `N` by counting the parent's existing sub-issues. Don't add a kind word ("Ticket:", "Spec:") after the prefix. Refer to issues by their full title in prose.
+
+## Research documents
+
+Research findings live on `main` as `research/<name>.md`, not on throwaway `research/<name>` branches. This overrides the wayfinder skill's branch default. A research subagent commits its document on a short-lived branch and merges it into `main` through a squash-merged PR. The resolution comment links to the file on `main` (`https://github.com/ppzxc/overlord/blob/main/research/<name>.md`). Raw responses that contain session values, tokens or API keys never go into the repo.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_

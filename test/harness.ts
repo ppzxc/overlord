@@ -331,6 +331,8 @@ export function knpsServer(
     script?: string;
     /** selectCampLottery.do 응답. 기본은 기록한 화면의 발췌(6차, 야영장 0 개소)다. */
     lottery?: () => TransportResponse;
+    /** searchSimpleCampReservation.do(예약 화면) 응답. 기본은 기록한 화면이다. */
+    page?: () => TransportResponse;
   } = {},
 ) {
   const calls = { keys: 0, queue: new Map<string, number>() };
@@ -348,6 +350,7 @@ export function knpsServer(
     }
     if (url.hostname !== "reservation.knps.or.kr") return { status: 404, body: "" };
     if (url.pathname === "/reservation/searchSimpleCampReservation.do") {
+      if (opts.page) return opts.page();
       return { status: 200, body: fixture("knps-searchSimpleCampReservation.htm"), setCookie: ["JSESSIONID=sess1; Path=/; HttpOnly"] };
     }
     if (url.pathname === "/reservation/selectCampLottery.do") {

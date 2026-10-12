@@ -166,6 +166,55 @@ describe("국립공원 신호 분류", () => {
     await p.stop();
   });
 
+  it("관심 자리가 응답에서 사라지면 두 바퀴 연속일 때 unrecognized로 멈춘다", async () => {
+    const p = run("2026-10-15", { extra: "\n    seats: [A04]", server: knpsServer({ list: () => listOf().replaceAll("A04", "A14") }) });
+    await settle();
+    expect(failedKinds(p)).toEqual(["unrecognized"]);
+    await p.clock.advance(400_000);
+    await settle();
+    expect(stopped(p)).toBe(true);
+    await p.stop();
+  });
+
+  it("관심 없는 자리의 차이는 경고만 남기고 세션당 한 번만 남기며 실패는 없다", async () => {
+    const p = run("2026-10-15", { extra: "\n    seats: [A01]", server: knpsServer({ list: () => listOf().replaceAll("A04", "A14") }) });
+    await settle();
+    await p.clock.advance(400_000);
+    await settle();
+    const drift = p.logs.filter((l) => l.msg === "knps seat drift").map((l) => `${l.fields?.change}:${l.fields?.seat}`);
+    expect(drift.filter((d) => d === "new:A14")).toHaveLength(1);
+    expect(drift.filter((d) => d === "gone:A04")).toHaveLength(1);
+    expect(new Set(drift).size).toBe(drift.length);
+    expect(failedKinds(p)).toEqual([]);
+    expect(p.sent[0]!.text).toContain("A01");
+    await p.stop();
+  });
+
+  it("예약 화면 응답이 로그인 화면이면 blocked로 멈추고 대기열·조회는 나가지 않는다", async () => {
+    const p = run("2026-10-15", { server: knpsServer({ page: () => ({ status: 200, body: "<script>alert('로그인이 필요합니다.'); location.href='/reservation/auth.do';</script>" }) }) });
+    await settle();
+    expect(p.sent.some((m) => /차단/.test(m.text))).toBe(true);
+    expect(p.allRequests.some((r) => r.url.includes("netfunnel") || r.url.endsWith("campsiteList.do"))).toBe(false);
+    await p.stop();
+  });
+
+  it("추첨 화면 응답이 로그인 화면이면 경고가 아니라 blocked로 멈춘다", async () => {
+    const p = run("2026-10-15", { server: knpsServer({ lottery: () => ({ status: 200, body: "<form action='/reservation/auth.do' method='post'></form>" }) }) });
+    await settle();
+    expect(p.sent.some((m) => /차단/.test(m.text))).toBe(true);
+    expect(p.logs.some((l) => l.msg === "knps lottery schedule unreadable")).toBe(false);
+    expect(p.allRequests.some((r) => r.url.endsWith("campsiteList.do"))).toBe(false);
+    await p.stop();
+  });
+
+  it("본문에 로그인 링크가 있어도 로그인 화면이 아니면 차단하지 않는다", async () => {
+    const p = run("2026-10-15", { server: knpsServer({ list: () => `${listOf()}<a href='/reservation/auth.do'>로그인</a>` }) });
+    await settle();
+    expect(p.sent.some((m) => /차단/.test(m.text))).toBe(false);
+    expect(p.sent).toHaveLength(1);
+    await p.stop();
+  });
+
   it("칸이 하나도 없으면 첫 바퀴는 알림 없이 넘기고 두 바퀴 연속이면 unrecognized로 멈춘다", async () => {
     const p = run("2026-10-15", { server: knpsServer({ list: () => listOf().replace(/<i title="[^"]*"\s+class="[^"]*"/g, "<i") }) });
     await settle();
@@ -263,7 +312,8 @@ describe("국립공원 신호 분류", () => {
     const p = run("2026-10-15");
     await settle();
     expect(p.allRequests.some((r) => r.url.endsWith("/assets/js/lib/netfunnel.js"))).toBe(true);
-    expect(p.logs.filter((l) => /changed|drift/.test(l.msg))).toEqual([]);
+    // 축소본 응답은 카탈로그 자리 11개 중 3개만 담아 자리 차이 경고(knps seat drift)는 나온다.
+    expect(p.logs.filter((l) => /changed|zone drift/.test(l.msg))).toEqual([]);
     await p.stop();
   });
 });

@@ -176,7 +176,13 @@ async function runProvider(
     const plans = active.map((watch) => ({ watch, units: expandWatch({ ...watch, facility: resolveFacility(info, watch.facility).code }, info.openingRule, now) }));
     const results = new Map<string, AvailableSite[] | null>(); // null: 이번 바퀴에 조회 실패
     const queries = new Map<string, AvailabilityQuery>();
-    for (const { units } of plans) for (const q of units) queries.set(unitKey(q), q);
+    for (const { watch, units } of plans) {
+      for (const q of units) {
+        const key = unitKey(q);
+        const seats = [...new Set([...(queries.get(key)?.seats ?? []), ...(watch.seats ?? [])])];
+        queries.set(key, seats.length > 0 ? { ...q, seats } : q);
+      }
+    }
     const failures: Failure[] = [];
     const fail = (key: string, err: unknown) => {
       results.set(key, null);

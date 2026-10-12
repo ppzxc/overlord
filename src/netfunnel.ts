@@ -17,8 +17,11 @@ export interface NetFunnelQueue {
 export interface QueuePass {
   key: string;
   waitedMs: number;
-  /** 대기열 서버가 준 결과 문자열(`5002:200:key=…&nwait=0…`). `enterQueue`가 채운다. 페이지는 이 문자열 전체를 `NetFunnel_ID` 쿠키에 싣는다. */
-  result?: string;
+}
+
+/** `enterQueue`가 돌려주는 값. 대기열 서버가 준 결과 문자열(`5002:200:key=…&nwait=0…`)을 함께 든다. 페이지는 이 문자열 전체를 `NetFunnel_ID` 쿠키에 싣는다. */
+export interface EnteredPass extends QueuePass {
+  result: string;
 }
 
 /** 5002 재확인을 서버가 준 간격대로 반복하되, 이만큼 넘게 기다리면 그 바퀴를 포기한다. */
@@ -39,7 +42,7 @@ const nfUrl = (q: NetFunnelQueue, opcode: number, now: number, key?: string) =>
  * 대기열에 참여해 키와 기다린 시간(ms)을 받는다. 301/302는 곧바로 `blocked`이고 가상 대기에 참여하지 않는다.
  * 연결 실패·키 미수신·상한 초과는 `transient`다.
  */
-export async function enterQueue(ctx: AdapterContext, queue: NetFunnelQueue): Promise<QueuePass> {
+export async function enterQueue(ctx: AdapterContext, queue: NetFunnelQueue): Promise<EnteredPass> {
   const started = ctx.clock.now().getTime();
   let opcode = 5101;
   let key: string | undefined;
@@ -67,13 +70,6 @@ export async function enterQueue(ctx: AdapterContext, queue: NetFunnelQueue): Pr
     opcode = 5002;
     await ctx.clock.sleep(ttlMs, ctx.signal);
   }
-}
-
-/** 한 바퀴 안에서 여러 액션을 차례로 지난다(국립공원 `landingCamp` → `reservation2`). 앞 단계가 실패하면 다음 단계는 보내지 않는다. */
-export async function enterQueues(ctx: AdapterContext, queue: Omit<NetFunnelQueue, "aid">, aids: string[]): Promise<QueuePass[]> {
-  const passes: QueuePass[] = [];
-  for (const aid of aids) passes.push(await enterQueue(ctx, { ...queue, aid }));
-  return passes;
 }
 
 /** 페이지처럼 setComplete(5004)를 보낸다. 응답과 실패는 조회에 영향을 주지 않는다. */

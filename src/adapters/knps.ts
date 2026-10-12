@@ -7,9 +7,11 @@ import {
   type AvailableSite,
   type ProviderAdapter,
   type ProviderInfo,
+  type ZoneInfo,
 } from "../types.js";
 import { facilities } from "../catalogs/knps.js";
 import { resolveFacility } from "../facility.js";
+import { filterSeats } from "../seats.js";
 import { isLotteryHeld, parseLottery, type LotterySchedule } from "../knps-lottery.js";
 import { kstDate } from "../schedule.js";
 import { completeQueue, enterQueue, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
@@ -69,8 +71,24 @@ interface ParsedList {
 const CELL_CLASS = /(?:^|\s)(\d{4})(\d{2})(\d{2})_(\w+)(?:\s|$)/;
 /** 상태 접미: 예약가능, 대기가능, 예약만료, 예약불가. 이 밖은 구조 변경이다. */
 const KNOWN_SUFFIXES = new Set(["N", "W", "C", "R"]);
-/** 로그인 화면을 가리는 문구. 실제로 본 적이 없어 보수적으로 잡았다. 기록한 응답에는 없다. */
-const AUTH_MARKER = /로그인/;
+/**
+ * 로그인 화면 신호. 실제 로그인 화면은 한 번도 기록하지 못했다. 스펙의 "로그인 요구 문구, auth.do로 보냄"을 근거로 잡았다.
+ * 2~10MB 본문 어딘가에 "로그인" 링크나 `auth.do` 문자열이 있어도 걸리지 않게 신호를 구체적으로 본다.
+ * (1) `auth.do`로 가는 폼, (2) `auth.do`로 보내는 `location` 대입이나 meta refresh, (3) "로그인이 필요" 같은 요구 문구.
+ */
+const AUTH_MARKER =
+  /<form\b[^>]*\baction\s*=\s*["']?[^"'\s>]*auth\.do|location(?:\.href|\.replace)?\s*(?:=|\()\s*["'][^"']*auth\.do|http-equiv\s*=\s*["']?refresh[^>]*auth\.do|로그인\s*(?:이|을|후에?)?\s*(?:필요|해\s*주|하여\s*주|하신\s*후)/i;
+
+/** 응답이 로그인 화면이면 `blocked`다. */
+function assertNotLogin(body: string, where: string): void {
+  if (AUTH_MARKER.test(body)) throw new AdapterError("blocked", `${where}가 로그인 화면을 돌려줬다`);
+}
+
+/** 예약처 HTTP 상태를 판정한다. 5xx는 `transient`, 200이 아닌 그 밖은 `unrecognized`다. */
+function assertOk(status: number, where: string): void {
+  if (status >= 500) throw new AdapterError("transient", `${where}: HTTP ${status}`);
+  if (status !== 200) throw new AdapterError("unrecognized", `${where}: 예상 밖 HTTP ${status}`);
+}
 
 const NETFUNNEL_JS = `${ORIGIN}/assets/js/lib/netfunnel.js`;
 // 2026-10-12에 기록으로 확인한 값. 달라지면 경고만 남긴다.
@@ -79,7 +97,7 @@ const NETFUNNEL_TS_HOST = "netfunnel.knps.or.kr";
 
 /** `netfunnel.js` 경고 확인을 이미 한 세션. */
 const scriptChecked = new WeakSet<HttpClient>();
-/** 세션마다 이미 경고한 구역 차이. 같은 차이는 한 번만 남긴다. */
+/** 세션마다 이미 경고한 구역·자리 차이. 같은 차이는 한 번만 남긴다. */
 const warnedDrift = new WeakMap<HttpClient, Set<string>>();
 
 /** `netfunnel.js`의 버전과 `TS_HOST`가 기록한 값과 다르면 경고만 남긴다. 첫 조회가 끝난 뒤 세션당 한 번 받고, 받지 못해도 감시는 그대로다. */
@@ -98,9 +116,9 @@ async function warnNetfunnelDrift(ctx: AdapterContext): Promise<void> {
   }
 }
 
-/** 카탈로그와 다른 구역은 경고만 남긴다. 감시 조건이 쓰는 구역이 사라진 것은 조회 단위 판정이 실패로 처리한다. */
-function warnZoneDrift(facility: string, grid: Grid, ctx: AdapterContext): void {
-  const known = new Set(resolveFacility(INFO, facility).zones.map((z) => z.name));
+/** 카탈로그와 다른 구역·자리는 경고만 남긴다. 감시 조건이 쓰는 구역이나 자리가 사라진 것은 조회 단위 판정이 실패로 처리한다. */
+function warnDrift(facility: string, zones: ZoneInfo[], grid: Grid, ctx: AdapterContext): void {
+  const known = new Set(zones.map((z) => z.name));
   const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
   warnedDrift.set(ctx.http, warned);
   const drift = [
@@ -111,6 +129,20 @@ function warnZoneDrift(facility: string, grid: Grid, ctx: AdapterContext): void 
     if (warned.has(`${facility}:${change}:${zone}`)) continue;
     warned.add(`${facility}:${change}:${zone}`);
     ctx.log?.("knps zone drift", { facility, change, zone });
+  }
+  for (const z of zones) {
+    const seats = grid.get(z.name);
+    if (!seats || !z.seats) continue;
+    const catalog = new Set(z.seats);
+    const seatDrift = [
+      ...[...seats.keys()].filter((n) => !catalog.has(n)).map((n) => ["new", n] as const),
+      ...z.seats.filter((n) => !seats.has(n)).map((n) => ["gone", n] as const),
+    ];
+    for (const [change, seat] of seatDrift) {
+      if (warned.has(`${facility}:${z.name}:${change}:${seat}`)) continue;
+      warned.add(`${facility}:${z.name}:${change}:${seat}`);
+      ctx.log?.("knps seat drift", { facility, zone: z.name, change, seat });
+    }
   }
 }
 
@@ -165,27 +197,30 @@ async function readFacility(facility: string, ctx: AdapterContext): Promise<Pars
   const { ref } = resolveFacility(INFO, facility);
   if (typeof ref !== "object" || !ref.dept_id) throw new Error(`knps 시설 ${facility}에 dept_id가 없다`);
   const pass = await enterQueue(ctx, RESERVATION2);
-  setNetFunnelCookie(ctx.http, HOST, pass.result ?? pass.key);
+  setNetFunnelCookie(ctx.http, HOST, pass.result);
   const res = await ctx.http.post(
     LIST,
     { dept_id: ref.dept_id, dept_name: ref.dept_name ?? "", parent_dept_name: ref.parent_dept_name ?? "", prd_ctg_id: "", isGreenpoint: "N" },
     { headers: PAGE_HEADERS },
   );
-  if (res.status >= 500) throw new AdapterError("transient", `campsiteList.do: HTTP ${res.status}`);
-  if (res.status !== 200) throw new AdapterError("unrecognized", `campsiteList.do: 예상 밖 HTTP ${res.status}`);
-  if (AUTH_MARKER.test(res.body)) throw new AdapterError("blocked", "campsiteList.do가 로그인 화면을 돌려줬다");
+  assertOk(res.status, "campsiteList.do");
+  assertNotLogin(res.body, "campsiteList.do");
   const parsed = parseGrid(res.body);
   await completeQueue(ctx, RESERVATION2, pass.key);
   return parsed;
 }
 
-/** 예약 화면을 열고 페이지 `load`가 보내는 `landingCamp` 5101까지 한다. 페이지는 이 키의 5004를 보내지 않는다. */
+/**
+ * 예약 화면을 열고 페이지 `load`가 보내는 `landingCamp` 5101까지 한다. 페이지는 이 키의 5004를 보내지 않는다.
+ * `landingCamp`와 `reservation2`는 바퀴마다 새로 들어간다(페이지 동작, 티켓 #63 "바퀴마다 새로 진입").
+ * 키를 세션에 두고 다시 쓰는 ADR 0001의 선호에 대한 의도적 예외다. 두 키는 서로 다른 액션이라 `acquireKey` 하나로 묶이지도 않는다.
+ */
 async function openPage(ctx: AdapterContext): Promise<void> {
   const page = await ctx.http.get(PAGE);
-  if (page.status >= 500) throw new AdapterError("transient", `예약 화면: HTTP ${page.status}`);
-  if (page.status !== 200) throw new AdapterError("unrecognized", `예약 화면: 예상 밖 HTTP ${page.status}`);
+  assertOk(page.status, "예약 화면");
+  assertNotLogin(page.body, "예약 화면");
   const landing = await enterQueue(ctx, LANDING);
-  setNetFunnelCookie(ctx.http, HOST, landing.result ?? landing.key);
+  setNetFunnelCookie(ctx.http, HOST, landing.result);
 }
 
 /** 입실일부터 `nights`박 모든 밤이 예약가능(`_N`)인지 본다. 다음날 칸이 없거나 닫혀 있으면 아니다. */
@@ -209,11 +244,13 @@ async function lotteryFor(ctx: AdapterContext): Promise<LotterySchedule | undefi
   let schedule: LotterySchedule | undefined;
   try {
     const res = await ctx.http.get(LOTTERY);
-    if (res.status !== 200) throw new AdapterError("unrecognized", `selectCampLottery.do: HTTP ${res.status}`);
+    assertOk(res.status, "selectCampLottery.do");
+    assertNotLogin(res.body, "selectCampLottery.do");
     schedule = parseLottery(res.body);
     ctx.log?.("knps lottery schedule", { from: schedule.from, to: schedule.to, openAt: new Date(schedule.openAt).toISOString(), campCount: schedule.campCount });
   } catch (err) {
-    if (ctx.signal?.aborted) throw err;
+    // 차단은 경고로 삼키지 않는다. 읽지 못하거나 모양이 바뀐 것만 경고다.
+    if (ctx.signal?.aborted || (err instanceof AdapterError && err.kind === "blocked")) throw err;
     ctx.log?.("knps lottery schedule unreadable", { message: err instanceof Error ? err.message : String(err) });
   }
   lotteryState.set(ctx.http, { day, schedule });
@@ -241,6 +278,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
   await openPage(ctx);
   let failure: AdapterError | undefined;
   for (const [facility, queries] of byFacility) {
+    const { zones } = resolveFacility(INFO, facility);
     let grid: Grid | undefined;
     if (!failure) {
       try {
@@ -253,14 +291,19 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       for (const q of queries) results.set(q, failure!);
       continue;
     }
-    warnZoneDrift(facility, grid, ctx);
+    warnDrift(facility, zones, grid, ctx);
     await warnNetfunnelDrift(ctx);
-    const zones = resolveFacility(INFO, facility).zones;
     for (const q of queries) {
       const zone = zones.find((z) => z.code === q.zone);
       const seats = zone && grid.get(zone.name);
       if (!seats) {
         results.set(q, new AdapterError("unrecognized", `응답에서 구역 ${q.zone}이(가) 사라졌다`));
+        continue;
+      }
+      // 감시 조건이 `seats:`로 고른 자리가 응답에서 사라졌으면 구조 변경이다. 자리 이름은 카탈로그 자리 가운데 필터에 맞는 것이다.
+      const gone = q.seats && filterSeats((zone.seats ?? []).map((id) => ({ id, name: id })), q.seats).filter((s) => !seats.has(s.id));
+      if (gone && gone.length > 0) {
+        results.set(q, new AdapterError("unrecognized", `응답에서 자리 ${gone.map((s) => s.id).join(", ")}이(가) 사라졌다`));
         continue;
       }
       // 응답 범위 밖의 입실일은 어느 자리에도 칸이 없어 빈자리 없음이 된다.

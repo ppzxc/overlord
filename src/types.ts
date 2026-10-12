@@ -115,6 +115,8 @@ export interface AvailabilityQuery {
   zone: string;
   checkIn: string; // YYYY-MM-DD
   nights: number;
+  /** 이 조회 단위를 쓰는 감시 조건들이 `seats:`로 고른 자리 필터(토큰) 합집합. 어댑터가 관심 자리가 응답에서 사라졌는지 알아보는 데만 쓴다. 필터가 없으면 생략한다. */
+  seats?: string[];
 }
 
 export interface AvailableSite {

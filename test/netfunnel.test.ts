@@ -4,7 +4,6 @@ import {
   acquireKey,
   completeQueue,
   enterQueue,
-  enterQueues,
   jsEscape,
   releaseKey,
   setNetFunnelCookie,
@@ -82,21 +81,6 @@ describe("NetFunnel 대기열 진입", () => {
     await expect(enterQueue(server([{ status: 503, body: "" }]).ctx, QUEUE)).rejects.toMatchObject({ kind: "transient" });
     await expect(enterQueue(server([result(200, "nwait=0")]).ctx, QUEUE)).rejects.toMatchObject({ kind: "transient" });
     await expect(enterQueue(server([{ status: 200, body: "<html>" }]).ctx, QUEUE)).rejects.toBeInstanceOf(AdapterError);
-  });
-});
-
-describe("여러 단계 액션 흐름", () => {
-  it("액션 id를 차례로 지나며 단계마다 키를 돌려준다", async () => {
-    const s = server([result(200, "key=A1"), result(200, "key=A2")]);
-    const passes = await enterQueues(s.ctx, QUEUE, ["landingCamp", "reservation2"]);
-    expect(passes.map((p) => p.key)).toEqual(["A1", "A2"]);
-    expect(s.calls.map((c) => query(c.url).aid)).toEqual(["landingCamp", "reservation2"]);
-  });
-
-  it("앞 단계가 막히면 다음 단계는 보내지 않는다", async () => {
-    const s = server([result(302, "key=A1"), result(200, "key=A2")]);
-    await expect(enterQueues(s.ctx, QUEUE, ["landingCamp", "reservation2"])).rejects.toMatchObject({ kind: "blocked" });
-    expect(s.calls).toHaveLength(1);
   });
 });
 

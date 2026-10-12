@@ -38,7 +38,7 @@ const INFO: ProviderInfo = {
   ],
   // 쿠키 없이 응답한다(기록).
   cookieSession: false,
-  // 시설이 넷으로 늘 예약처다. 지금은 하나여도 facility를 골라야 한다.
+  // 시설이 넷이고 FACILITY_ID가 시설 사이에 공유되므로 facility를 꼭 골라야 한다.
   facilityRequired: true,
 };
 

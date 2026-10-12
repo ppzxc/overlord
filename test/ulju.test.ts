@@ -344,6 +344,15 @@ describe("ulju 신호 분류", () => {
     await p.stop();
   });
 
+  it("200 응답이 로그인 화면이면 blocked로 멈추고 알린다", async () => {
+    const p = run({ from: "2026-10-16" }, { server: uljuServer({ day: () => ({ status: 200, body: '<html><a href="/ujcamping/memberIntro/login">로그인</a></html>' }) }) });
+    await settle();
+    expect(failedKinds(p)).toEqual(["blocked"]);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toMatch(/차단|blocked/);
+    await p.stop();
+  });
+
   it("첫 바퀴에만 구조가 달라 보이고 다음 바퀴가 정상이면 멈추지 않는다", async () => {
     let calls = 0;
     const server = uljuServer({ day: (date, classes) => (++calls === 1 ? { status: 200, body: JSON.stringify({ result: "maintenance" }) } : ok(uljuRowsFor(date, uljuRows(classes)))) });
@@ -443,13 +452,18 @@ ${lines}
   });
 
   it("facility 없는 감시 조건은 위치와 쓸 수 있는 시설 코드와 함께 거부된다", () => {
-    expect(problems(block("    zones: [F0000004]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: jakcheon-byeolbit/);
+    expect(problems(block("    zones: [F0000004]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: jakcheon-byeolbit, deungeok, jakcheon-dalbit, daeunsan$/);
   });
 
   it("없는 구역은 위치와 쓸 수 있는 구역 코드와 함께 거부된다", () => {
     expect(problems(block("    facility: jakcheon-byeolbit\n    zones: [F9999999]"))).toMatch(
       /\d+번째 줄 watches\.0\.zones: 없는 구역 "F9999999"다\. 쓸 수 있는 값: F0000001, F0000002, F0000003, F0000004, F0000016, F0000017, F0000005/,
     );
+  });
+
+  it("다른 시설의 구역은 위치와 그 시설의 구역 코드와 함께 거부된다", () => {
+    expect(problems(block("    facility: deungeok\n    zones: [F0000004]"))).toMatch(/\d+번째 줄 watches\.0\.zones: 없는 구역 "F0000004"다\. 쓸 수 있는 값: F0000001, F0000006, F0000007/);
+    expect(problems(block("    facility: deungeok\n    zones: [F0000006, F0000001]\n    nights: 2"))).toBe("");
   });
 
   it("2박은 받고 3박은 최대 박수와 함께 위치를 짚어 거부한다", () => {

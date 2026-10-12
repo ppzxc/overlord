@@ -7,13 +7,11 @@ import {
   type ProviderAdapter,
   type ProviderInfo,
 } from "../types.js";
-import { facilities } from "../catalogs/goraebul.js";
+import { facilities, seatPrefix } from "../catalogs/goraebul.js";
 
 const BASE = "https://stay.yd.go.kr/pages";
 const NAV_CODE = "gor1501675800";
 
-/** 자리 id의 접두어. 숲속야영장(DKA)은 A02처럼 끝 글자만, 나머지는 CAA11처럼 구역 코드를 쓴다. */
-const seatPrefix = (zone: string) => (zone.startsWith("DK") ? zone.slice(-1) : zone);
 const seatNumber = (prefix: string, n: number) => `${prefix}${String(n).padStart(2, "0")}`;
 
 const INFO: ProviderInfo = {

@@ -11,12 +11,18 @@ import {
 } from "../types.js";
 
 import { facilities } from "../catalogs/donghae.js";
+import { resolveFacility } from "../facility.js";
 
 const WWW = "https://www.campingkorea.or.kr";
 const RESERVATION = `${WWW}/user/reservation`;
 const NF_URL = "https://nf.campingkorea.or.kr/ts.wseq";
-// 동해시 예약처의 관광지 코드는 카탈로그가 시설 ref로 갖고 있다.
-const TRRSRT_CODE = (facilities[0]!.ref as { trrsrtCode: string }).trrsrtCode;
+
+/** 동해시 예약처의 관광지 코드는 카탈로그가 시설 ref로 갖고 있다. 카탈로그에 없는 시설은 요청 전에 던진다. */
+function trrsrtCodeOf(facility: string): string {
+  const { ref } = resolveFacility(INFO, facility);
+  if (typeof ref === "object" && ref.trrsrtCode) return ref.trrsrtCode;
+  throw new Error(`donghae 시설 ${facility}에 trrsrtCode가 없다`);
+}
 
 /** 5002 재확인을 서버가 준 간격대로 반복하되, 이만큼 넘게 기다리면 그 바퀴를 포기한다. */
 const MAX_WAIT_MS = 120_000;
@@ -372,11 +378,11 @@ async function readEach<K, V>(
 }
 
 /** 월 달력 하나를 BD_reservationOrigin으로 읽는다. 진입 응답에는 달력이 없다(기록 확인). */
-async function readCalendar(month: string, ctx: AdapterContext, pass: QueuePass): Promise<Map<string, CalendarDay>> {
+async function readCalendar(trrsrtCode: string, month: string, ctx: AdapterContext, pass: QueuePass): Promise<Map<string, CalendarDay>> {
   const [year, mm] = month.split("-");
   const body = await fetchOk(
     ctx.http.post(`${RESERVATION}/BD_reservationOrigin.do`, {
-      trrsrtCode: TRRSRT_CODE,
+      trrsrtCode,
       q_year: year!,
       q_month: mm!,
       netfunnel_key: pass.key,
@@ -389,11 +395,11 @@ async function readCalendar(month: string, ctx: AdapterContext, pass: QueuePass)
 }
 
 /** 하룻밤 조회 응답 본문. 바퀴와 catalog --live가 같은 요청을 보낸다. */
-function fetchNight(date: string, ctx: AdapterContext, pass: QueuePass): Promise<string> {
+function fetchNight(trrsrtCode: string, date: string, ctx: AdapterContext, pass: QueuePass): Promise<string> {
   const [year, month, day] = date.split("-");
   return fetchOk(
     ctx.http.post(`${RESERVATION}/ND_selectFcltyCalendarDetail.do`, {
-      trrsrtCode: TRRSRT_CODE,
+      trrsrtCode,
       q_year: year!,
       q_month: month!,
       qDay: String(Number(day)),
@@ -411,12 +417,17 @@ async function runBatch(
   ctx: AdapterContext,
 ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>> {
   const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
+  // 한 바퀴는 한 시설만 읽는다. 시설이 하나뿐이라 호출자도 한 시설만 보낸다.
+  const trrsrtCodes = new Set(units.map((q) => trrsrtCodeOf(q.facility)));
+  if (trrsrtCodes.size > 1) throw new Error("한 번에 시설 하나만 조회할 수 있다");
+  const [trrsrtCode] = trrsrtCodes;
+  if (trrsrtCode === undefined) return results;
   const { state, pass } = await acquireSession(ctx);
   const reduced = state.reduced;
 
   const allDates = [...new Set(units.flatMap(nightsOf))].sort();
   const months = new Set(allDates.map((d) => d.slice(0, 7)));
-  const calendars = await readEach(months, ctx, (month) => readCalendar(month, ctx, pass));
+  const calendars = await readEach(months, ctx, (month) => readCalendar(trrsrtCode, month, ctx, pass));
   const calendar = { days: new Map([...calendars.read.values()].flatMap((m) => [...m])), failure: calendars.failure };
   // 필요한 밤 하나라도 예약마감이면 날짜 조회 없이 빈 결과다.
   const closed = (q: AvailabilityQuery) => nightsOf(q).some((d) => calendar.days.get(d) === "closed");
@@ -426,7 +437,7 @@ async function runBatch(
   // 달력에서 실패했으면 그게 바퀴의 첫 실패이므로 날짜 조회는 보내지 않는다.
   const liveDates = calendar.failure ? [] : [...new Set(live.flatMap(nightsOf))].sort();
   const { read: nights, failure: nightFailure } = await readEach(liveDates, ctx, async (date) =>
-    parseNight(await fetchNight(date, ctx, pass), reduced, ctx),
+    parseNight(await fetchNight(trrsrtCode, date, ctx, pass), reduced, ctx),
   );
   const failure = calendar.failure ?? nightFailure;
   await warnNetfunnelDrift(ctx);
@@ -487,8 +498,9 @@ export const donghaeAdapter: ProviderAdapter = {
   /** 내일(query의 입실일) 하룻밤만 읽어 구역 이름 집합과 모르는 값을 돌려준다. 달력은 읽지 않는다. */
   async listZones(q, ctx): Promise<ZoneObservation> {
     return withNoPassRetry(ctx, async () => {
+      const trrsrtCode = trrsrtCodeOf(q.facility);
       const { pass } = await acquireSession(ctx);
-      const items = splitNight(await fetchNight(q.checkIn, ctx, pass));
+      const items = splitNight(await fetchNight(trrsrtCode, q.checkIn, ctx, pass));
       return {
         zones: items.map((i) => i.name),
         unknown: items.filter((i) => countOf(i.value) === undefined).map((i) => ({ zone: i.name, value: i.value })),

@@ -71,6 +71,15 @@ describe("catalog <예약처> <시설>", () => {
     expect(s.err.join("")).toContain("alpha, beta");
   });
 
+  it("고래불도 시설 인자를 줘도 생략한 것과 표가 같다", async () => {
+    const a = setup();
+    const b = setup();
+    expect(await a.run("goraebul", undefined)).toBe(0);
+    expect(await b.run("goraebul", "goraebul")).toBe(0);
+    expect(a.out.join("")).not.toBe("");
+    expect(b.out.join("")).toBe(a.out.join(""));
+  });
+
   it("시설이 하나인 예약처의 표는 시설 인자 유무와 상관없이 같다", async () => {
     const a = setup();
     await a.run("donghae", undefined);

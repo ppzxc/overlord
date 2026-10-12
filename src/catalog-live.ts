@@ -1,4 +1,5 @@
 import { compact } from "./catalog.js";
+import { resolveFacility } from "./facility.js";
 import { createHttpClient } from "./http.js";
 import { addDays, kstDate } from "./schedule.js";
 import { AdapterError, type AdapterContext, type Clock, type ProviderAdapter, type Transport, type FacilityInfo, type ZoneObservation } from "./types.js";
@@ -38,7 +39,7 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
     }),
   };
   try {
-    return await compareLive(adapter, info.facilities.find((f) => f.code === opts.facility) ?? info.facilities[0]!, addDays(kstDate(opts.now), 1), ctx);
+    return await compareLive(adapter, resolveFacility(info, opts.facility), addDays(kstDate(opts.now), 1), ctx);
   } finally {
     // 대기열에 들어갔던 예약처는 종료할 때 마무리 신호를 보낸다.
     await adapter.close?.(ctx);

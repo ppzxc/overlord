@@ -1,4 +1,5 @@
 import type { Config } from "./config.js";
+import { resolveFacility } from "./facility.js";
 import { ProviderHealth, worstFailure, type Failure } from "./health.js";
 import { LOOP_TURN, type Liveness } from "./liveness.js";
 import { createHttpClient } from "./http.js";
@@ -172,7 +173,7 @@ async function runProvider(
     }
 
     // 같은 조회 단위는 감시 조건이 몇 개든 한 번만 조회한다.
-    const plans = active.map((watch) => ({ watch, units: expandWatch({ ...watch, facility: watch.facility ?? info.facilities[0]!.code }, info.openingRule, now) }));
+    const plans = active.map((watch) => ({ watch, units: expandWatch({ ...watch, facility: resolveFacility(info, watch.facility).code }, info.openingRule, now) }));
     const results = new Map<string, AvailableSite[] | null>(); // null: 이번 바퀴에 조회 실패
     const queries = new Map<string, AvailabilityQuery>();
     for (const { units } of plans) for (const q of units) queries.set(unitKey(q), q);

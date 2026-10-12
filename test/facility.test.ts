@@ -75,4 +75,16 @@ describe("시설이 둘인 예약처의 폴러", () => {
     expect(calls).toHaveLength(1);
     await p.stop();
   });
+
+  it("일일 요약이 시설 둘짜리 ProviderInfo로도 예약처 상태를 담아 간다", async () => {
+    const { adapter } = twoFacilityAdapter();
+    const yaml = configWith(watch("가", "facility: alpha, zones: [SH]")).replace("dailySummary: { enabled: false }", 'dailySummary: { at: "09:00" }');
+    const p = startPoller(() => ({ status: 200, body: "" }), { yaml, adapters: { goraebul: goraebulAdapter, multi: adapter } });
+    await settle();
+    await p.clock.advance(2 * 24 * 3600_000);
+    const summary = p.sent.filter((m) => m.text.includes("일일 요약")).map((m) => m.text);
+    expect(summary.length).toBeGreaterThan(0);
+    expect(summary[0]).toContain("multi");
+    await p.stop();
+  });
 });

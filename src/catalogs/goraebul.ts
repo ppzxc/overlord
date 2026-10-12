@@ -4,7 +4,7 @@
 import type { FacilityInfo, ZoneInfo } from "../types.js";
 
 /** 자리 id의 접두어. 숲속야영장(DKA)은 A02처럼 끝 글자만, 나머지는 CAA11처럼 구역 코드를 쓴다. */
-const seatPrefix = (zone: string) => (zone.startsWith("DK") ? zone.slice(-1) : zone);
+export const seatPrefix = (zone: string) => (zone.startsWith("DK") ? zone.slice(-1) : zone);
 /** 구역 코드와 번호로 자리 id 목록을 만든다. 예: ("DKA", [1, 2]) → A01, A02 */
 const seatIds = (zone: string, numbers: number[]) => numbers.map((n) => `${seatPrefix(zone)}${String(n).padStart(2, "0")}`);
 const sequence = (count: number) => Array.from({ length: count }, (_, i) => i + 1);

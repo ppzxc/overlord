@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { donghaeAdapter } from "../src/adapters/donghae.js";
+import { bukguAdapter } from "../src/adapters/bukgu.js";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
 import { jungguAdapter } from "../src/adapters/junggu.js";
 import { knpsAdapter } from "../src/adapters/knps.js";
@@ -147,7 +148,7 @@ export function startPoller(
   const done = runPoller(
     {
       config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV, opts.adapters),
-      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter, xticket: xticketAdapter, ulju: uljuAdapter, junggu: jungguAdapter },
+      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter, xticket: xticketAdapter, ulju: uljuAdapter, junggu: jungguAdapter, bukgu: bukguAdapter },
       transport,
       clock,
       sink,
@@ -622,6 +623,48 @@ export function jungguServer(
       }
     }
     return { status: 404, body: "" };
+  };
+  return Object.assign(respond, { forms });
+}
+
+/** 기록한 북구 응답(research/raw/bukgu, 2026-10-13 00시 전후)을 읽는다. 변형은 읽은 HTML을 고쳐 만든다. */
+const bukguRaw = (name: string) => readFileSync(new URL(`../research/raw/bukgu/${name}`, import.meta.url), "utf8");
+
+/**
+ * 기록한 `reservationCntAjax.do` 응답(강동 `siteKindCode=010100`, `priceCode` 빈 값). 25자리 전체 표다.
+ * 기록한 날짜: 10/14(예약가능 18), 10/17·10/31(모두 예약종료), 10/18(11), 10/20(22), 10/22(21), 10/25(15), 11/01(25, 추첨 접수 기간).
+ */
+export const bukguTable = (date: string): string => bukguRaw(`reservationCntAjax.do_010100_${date}.html`);
+
+/**
+ * 가짜 북구 서버. `reservationCntAjax.do`만 흉내 낸다. 쿠키 없이도 답하고(기록), 기록하지 않은 날짜나 그 밖의 요청은 404라서
+ * 어댑터가 예약 화면이나 다른 경로를 부르면 드러난다.
+ */
+export function bukguServer(
+  opts: {
+    /** 응답을 바꾼다. 기본은 기록한 표다. */
+    table?: (form: { resDate: string; siteKindCode: string; priceCode: string }) => TransportResponse | undefined;
+    /** 모든 요청에 앞서 응답을 가로챈다. */
+    intercept?: (req: TransportRequest) => TransportResponse | undefined;
+  } = {},
+) {
+  const forms: { resDate: string; siteKindCode: string; priceCode: string }[] = [];
+  const respond = (req: TransportRequest): TransportResponse => {
+    const hijacked = opts.intercept?.(req);
+    if (hijacked) return hijacked;
+    const url = new URL(req.url);
+    if (url.hostname !== "camping.ubimc.or.kr") return { status: 404, body: "" };
+    if (req.method !== "POST" || url.pathname !== "/ajax/reservationCntAjax.do") return { status: 404, body: "" };
+    const raw = Object.fromEntries(new URLSearchParams(req.body ?? ""));
+    const form = { resDate: raw.resDate ?? "", siteKindCode: raw.siteKindCode ?? "", priceCode: raw.priceCode ?? "" };
+    forms.push(form);
+    const custom = opts.table?.(form);
+    if (custom) return custom;
+    try {
+      return { status: 200, body: bukguTable(form.resDate), setCookie: ["JSESSIONID=sess1; Path=/; Secure; HttpOnly"] };
+    } catch {
+      return { status: 404, body: "" };
+    }
   };
   return Object.assign(respond, { forms });
 }

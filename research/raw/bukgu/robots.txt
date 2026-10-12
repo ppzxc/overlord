@@ -1,0 +1,16 @@
+# robots.txt - 불법 광고 구글 색인 차단 (2026.06.12)
+# 공공 웹사이트 불법 광고 노출 점검 및 조치 공문 대응
+
+User-agent: Googlebot
+
+# 일반 게시판 페이지 차단 (/BBS_*List.do, /BBS_*Article.do 등)
+Disallow: /BBS_
+
+# 캠핑 게시판 페이지 차단 (/camping/BBS_* 패턴)
+Disallow: /camping/BBS_
+
+# eGov 표준 게시판 경로 차단
+Disallow: /cop/bbs/
+
+User-agent: *
+Allow: /

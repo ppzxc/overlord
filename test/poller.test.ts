@@ -1223,3 +1223,60 @@ describe("동작 로그", () => {
     await p.stop();
   });
 });
+
+describe("예약처별 기본 폴링 간격", () => {
+  const watchYaml = `  - { name: 다른곳, provider: other, zones: [DKA], checkIn: { from: 2026-09-29, to: 2026-09-29 }, nights: 1, notify: [default] }`;
+  const fake = (defaultPollIntervalSeconds?: number): ProviderAdapter => ({
+    ...goraebulAdapter,
+    id: "other",
+    describe: () => ({ ...goraebulAdapter.describe(), id: "other", defaultPollIntervalSeconds }),
+    queryAvailabilityBatch: undefined,
+    queryAvailability: async (_q, ctx) => {
+      await ctx.http.get("https://other.example/x");
+      return [];
+    },
+  });
+  const run = (adapter: ProviderAdapter, providersYaml: string) =>
+    startPoller(() => ({ status: 200, body: "" }), {
+      yaml: configWith(watchYaml).replace("providers:\n  goraebul: { pollIntervalSeconds: 150 }\n", providersYaml),
+      adapters: { other: adapter },
+    });
+
+  it("기본값을 선언하지 않은 예약처는 설정에 값이 없으면 150초 간격으로 돈다", async () => {
+    const p = run(fake(), "providers:\n  other: {}\n");
+    await settle();
+    expect(p.requests).toHaveLength(1);
+    await p.clock.advance(149_000);
+    expect(p.requests).toHaveLength(1);
+    await p.clock.advance(1_000);
+    expect(p.requests).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("providers 항목 자체가 없어도 150초 간격으로 돈다", async () => {
+    const p = run(fake(), "providers: {}\n");
+    await settle();
+    await p.clock.advance(150_000);
+    expect(p.requests).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("기본값을 선언한 예약처는 설정에 값이 없으면 그 값으로 돈다", async () => {
+    const p = run(fake(300), "providers:\n  other: {}\n");
+    await settle();
+    expect(p.requests).toHaveLength(1);
+    await p.clock.advance(299_000);
+    expect(p.requests).toHaveLength(1);
+    await p.clock.advance(1_000);
+    expect(p.requests).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("설정의 pollIntervalSeconds가 예약처 기본값을 덮어쓴다", async () => {
+    const p = run(fake(300), "providers:\n  other: { pollIntervalSeconds: 90 }\n");
+    await settle();
+    await p.clock.advance(90_000);
+    expect(p.requests).toHaveLength(2);
+    await p.stop();
+  });
+});

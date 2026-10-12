@@ -2,7 +2,7 @@ import type { Config } from "./config.js";
 import { ProviderHealth, worstFailure, type Failure } from "./health.js";
 import { LOOP_TURN, type Liveness } from "./liveness.js";
 import { createHttpClient } from "./http.js";
-import { createShared, errMessage, recordRound, type DayStats, type ProviderStat, type Shared } from "./notify.js";
+import { createShared, errMessage, pollIntervalMs, recordRound, type DayStats, type ProviderStat, type Shared } from "./notify.js";
 import { addDays, expandWatch, HOUR_MS, isExpired, isQuiet, kstDate, kstHourKey, msUntilRushEnd, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
 import { runDailySummary, runHourlySummary } from "./summary.js";
@@ -90,7 +90,7 @@ async function runProvider(
   const adapter = deps.adapters[providerId]!;
   const info = adapter.describe();
   const watches = config.watches.filter((w) => w.provider === providerId);
-  const intervalMs = (config.providers[providerId]?.pollIntervalSeconds ?? 150) * 1000;
+  const intervalMs = pollIntervalMs(config, providerId, info);
 
   const rush = config.providers[providerId]?.openingRush ?? info.openingRush;
 

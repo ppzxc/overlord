@@ -435,3 +435,10 @@ describe("catalog donghae --live 구역 대조", () => {
     expect(result.failed).toBe(true);
   });
 });
+
+describe("pollIntervalSeconds 기본값", () => {
+  it("설정에 없으면 미리 채우지 않고 비워 둔다", () => {
+    const yaml = configWith(watch("")).replace("goraebul: { pollIntervalSeconds: 150 }", "goraebul: {}");
+    expect(loadConfig(yaml, ENV).providers.goraebul?.pollIntervalSeconds).toBeUndefined();
+  });
+});

@@ -3,6 +3,16 @@ import type { PollerDeps } from "./poller.js";
 import type { ProviderHealth } from "./health.js";
 import { isQuiet } from "./schedule.js";
 import { sendWithRetry, type TelegramMessage } from "./telegram.js";
+import type { ProviderInfo } from "./types.js";
+
+export const DEFAULT_POLL_INTERVAL_SECONDS = 150;
+
+/** 바퀴 간격(ms). 설정 → 예약처 정보의 기본값 → 150초 순이다. */
+export function pollIntervalMs(config: Config, providerId: string, info: ProviderInfo | undefined): number {
+  const seconds =
+    config.providers[providerId]?.pollIntervalSeconds ?? info?.defaultPollIntervalSeconds ?? DEFAULT_POLL_INTERVAL_SECONDS;
+  return seconds * 1000;
+}
 
 export interface DayStats {
   rounds: number;
@@ -87,7 +97,7 @@ export function createShared(deps: PollerDeps, signal: AbortSignal): Shared {
 
   // 예약처가 여럿이어도 ping은 가장 짧은 바퀴 간격의 절반에 한 번만 나간다.
   const minIntervalMs = Math.min(
-    ...config.watches.map((w) => (config.providers[w.provider]?.pollIntervalSeconds ?? 150) * 1000),
+    ...config.watches.map((w) => pollIntervalMs(config, w.provider, deps.adapters[w.provider]?.describe())),
   );
   let lastPingAt = -Infinity;
   const pingDeadMan = async () => {

@@ -1,7 +1,7 @@
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist/**", "coverage/**", "node_modules/**"] },
+  { ignores: ["dist/**", "coverage/**", "node_modules/**", "research/raw/**"] },
   ...tseslint.configs.recommended,
   {
     // 어댑터는 ctx.http로만 요청한다. 전역 fetch를 쓰면 UA, 간격, 차단 감지 규칙을 건너뛴다.

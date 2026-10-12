@@ -1,0 +1,1 @@
+NetFunnel.gRtype=5101;NetFunnel.gControl.result='5002:200:key=MASKED&nwait=0&nnext=0&tps=0.000000&ttl=0&ip=netfunnel.knps.or.kr&port=443'; NetFunnel.gControl._showResult();

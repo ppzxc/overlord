@@ -44,7 +44,7 @@ describe("NetFunnel 대기열 진입", () => {
   it("5101로 들어가 200이면 키를 받고, 요청은 예약처가 고른 주소·sid·aid로 간격 큐 밖에서 나간다", async () => {
     const s = server([result(200, "key=ABC&nwait=0&ttl=0")]);
     const pass = await enterQueue(s.ctx, QUEUE);
-    expect(pass).toEqual({ key: "ABC", waitedMs: 0 });
+    expect(pass).toEqual({ key: "ABC", waitedMs: 0, result: "5101:200:key=ABC&nwait=0&ttl=0" });
     expect(s.calls).toHaveLength(1);
     expect(s.calls[0]!.url.startsWith("https://nf.example.kr/ts.wseq?")).toBe(true);
     expect(query(s.calls[0]!.url)).toMatchObject({ opcode: "5101", nfid: "0", sid: "service_1", aid: "reserve", js: "yes" });
@@ -55,7 +55,7 @@ describe("NetFunnel 대기열 진입", () => {
   it("201이면 서버가 준 ttl만큼 쉬고 같은 키로 5002를 반복해 200에 통과하며 기다린 시간을 잰다", async () => {
     const s = server([result(201, "key=K1&nwait=5&ttl=3"), result(201, "key=K1&nwait=2&ttl=2"), result(200, "key=K1&nwait=0&ttl=0")]);
     const pass = await enterQueue(s.ctx, QUEUE);
-    expect(pass).toEqual({ key: "K1", waitedMs: 5_000 });
+    expect(pass).toMatchObject({ key: "K1", waitedMs: 5_000 });
     expect(s.calls.map((c) => query(c.url).opcode)).toEqual(["5101", "5002", "5002"]);
     expect(s.calls.map((c) => c.at - s.calls[0]!.at)).toEqual([0, 3_000, 5_000]);
     expect(query(s.calls[1]!.url).key).toBe("K1");

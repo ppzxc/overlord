@@ -1,0 +1,4032 @@
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width">
+	<meta http-equiv="Expires" content="-1" />
+	<meta http-equiv="Pragma" content="no-cache" />
+	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+	
+	<title>국립공원공단 예약시스템</title>
+
+	<link rel="stylesheet" href="/assets/style/common.css?ver3">
+
+	<script src="/assets/js/lib/jquery-3.7.1.min.js"></script>
+	<script src="/assets/js/lib/jquery-migrate-3.5.2.min.js"></script>
+	<script src="/assets/js/lib/swiper.js"></script>
+	<script src="/assets/js/lib/datepicker.min.js"></script>
+	<script src="/assets/js/lib/jquery.fs.zoomer.min.js"></script>
+	<script src="/assets/js/lib/jquery.rwdImageMaps.min.js"></script>
+	<script src="/assets/js/lib/toastr.min.js"></script>
+	<script src="/assets/js/scripts.js"></script>
+	<script src="/assets/js/common.js?ver4"></script>
+</head>
+<body>
+	<div id="wrap" class="sub">
+			
+
+
+
+
+
+<header id="header">
+    <h1>
+        <a href="/" class="logo">국립공원 예약시스템</a>
+    </h1>
+    <nav>
+        <ul class="gnb">
+            
+                <li>
+                    <a href="javascript:void(0);" class="depth1">이용안내</a>
+                    <ul class="depth2">
+                        
+                            <li><a href="/contents/C/serviceGuideIntro.do">야영장</a></li>
+                        
+                            <li><a href="/contents/S/serviceGuideIntro.do">대피소</a></li>
+                        
+                            <li><a href="/contents/E/serviceGuideIntro.do">생태탐방원</a></li>
+                        
+                            <li><a href="/contents/R/serviceGuideIntro.do">민박촌</a></li>
+                        
+                            <li><a href="/contents/T/serviceGuideIntro.do">탐방로예약제</a></li>
+                        
+                            <li><a href="/contents/G/serviceGuideIntro.do">탐방프로그램</a></li>
+                        
+                    </ul>
+                </li>
+            
+                <li>
+                    <a href="javascript:void(0);" class="depth1">예약하기</a>
+                    <ul class="depth2">
+                        
+                            <li><a href="/reservation/searchSimpleCampReservation.do">야영장</a></li>
+                        
+                            <li><a href="/reservation/shelter/searchSimpleShelterReservation.do">대피소</a></li>
+                        
+                            <li><a href="/eco/searchEcoReservation.do">생태탐방원</a></li>
+                        
+                            <li><a href="/reservation/searchSimpleResidenceReservation.do">민박촌</a></li>
+                        
+                            <li><a href="/trail/searchTrailReservation.do">탐방로예약제</a></li>
+                        
+                            <li><a href="/trprogram/searchTrailProgram.do">탐방프로그램</a></li>
+                        
+                            <li><a href="/reservation/selectCampLottery.do">추첨제</a></li>
+                        
+                    </ul>
+                </li>
+            
+                <li>
+                    <a href="javascript:void(0);" class="depth1">알림마당</a>
+                    <ul class="depth2">
+                        
+                            <li><a href="/community/board/notice/boardList.do">공지사항</a></li>
+                        
+                            <li><a href="/community/board/faq/boardList.do">자주하는 질문</a></li>
+                        
+                            <li><a href="/community/board/qna/boardList.do">묻고 답하기</a></li>
+                        
+                            <li><a href="/contents/rsvtRefundPolicy.do">예약·환불정책</a></li>
+                        
+                            <li><a href="/contents/usagePolicy.do">이용정책</a></li>
+                        
+                            <li><a href="/contents/withPet.do">반려견 동행</a></li>
+                        
+                    </ul>
+                </li>
+            
+                <li>
+                    <a href="javascript:void(0);" class="depth1">마이페이지</a>
+                    <ul class="depth2">
+                        
+                            <li><a href="/mypage/dashBoard.do">나의 예약목록</a></li>
+                        
+                            <li><a href="/mypage/couponList.do">나의 쿠폰목록</a></li>
+                        
+                            <li><a href="/talk/searchTalkTransmissionHistory.do">알림메시지</a></li>
+                        
+                            <li><a href="/favorites/selectFavoritesList.do">즐겨찾기</a></li>
+                        
+                    </ul>
+                </li>
+            
+                <li>
+                    <a href="javascript:void(0);" class="depth1">그린포인트</a>
+                    <ul class="depth2">
+                        
+                            <li><a href="/reservation/greenpoint/searchGreenpoint.do" onclick="fn_greenUrlChk();">야영장</a></li>
+                        
+                            <li><a href="/reservation/greenpoint/searchGreenpoint.do?prdDvcd=S" onclick="fn_greenUrlChk();">대피소</a></li>
+                        
+                    </ul>
+                </li>
+            
+        </ul>
+    </nav>
+    <div class="util-area" data-device-mode="pc">
+    	<!--  [2026.09.18] 
+        <a href="/srchrefund/searchRefund.do" class="btn-refund-inquiry">
+            <i class="icon-refund-inquiry"></i>
+            <span>미환불금조회</span>
+        </a>
+    	-->
+        
+            <!-- 비 로그인 상태 -->
+            <a href="/mmb/mmbLogin.do" class="btn-login">
+                <i class="icon-user-check"></i>
+                <span>로그인</span>
+            </a>
+            <a href="https://www.knps.or.kr/portal/member/join01.do?menuNo=7020113" class="btn-join" target="_blank" rel="noopener noreferrer">
+                <i class="icon-user-plus"></i>
+                <span>회원가입</span>
+            </a>
+        
+        
+        <div class="lang-area">
+            <button class="btn btn-toggle" data-popup="layer-language">
+                <i class="icon-globe"></i>
+                <span>KR</span>
+            </button>
+            <div class="layer-language" id="layer-language">
+                <button class="btn is-active">KR</button>
+                <button class="btn" onclick="location.href='/foreigner/main.do'">EN</button>
+            </div>
+        </div>
+    </div>
+    <div class="util-area" data-device-mode="mobile">
+        <button class="btn-menu" title="전체 메뉴 보기">
+            <i class="icon-list"></i>
+        </button>
+        <div class="all-menu">
+            <div class="head">
+            	<!-- [2026.09.18] 
+                <a href="/srchrefund/searchRefund.do" class="btn-refund-inquiry">
+                    <i class="icon-refund-inquiry"></i>
+                    <span>미환불금조회</span>
+                </a>
+            	-->
+                
+                    <!-- 비 로그인 상태 -->
+                    <a href="/mmb/mmbLogin.do" class="btn-login">로그인이<br>필요합니다.</a>
+                    <a href="https://www.knps.or.kr/portal/member/join01.do?menuNo=7020113" class="btn-join" target="_blank" rel="noopener noreferrer">
+                        <i class="icon-user-plus"></i>
+                        <span>회원가입</span>
+                    </a>
+                    <div class="lang-area">
+                        <button class="btn btn-toggle" data-popup="layer-language">
+                            <i class="icon-globe"></i>
+                            <span>KR</span>
+                        </button>
+                        <div class="layer-language" id="layer-language2">
+                            <button class="btn is-active">KR</button>
+                            <button class="btn" onclick="location.href='/foreigner/main.do'">EN</button>
+                        </div>
+                    </div>
+                
+                
+                <button class="btn-close" title="전체 메뉴 닫기">
+                    <i class="icon-close"></i>
+                </button>
+            </div>
+            <ul class="gnb">
+                
+                    <li>
+                        <a href="javascript:void(0);" class="depth1">이용안내</a>
+                        <ul class="depth2">
+                            
+                                <li><a href="/contents/C/serviceGuideIntro.do"
+                                		
+                                		
+                                       >야영장</a></li>
+                            
+                                <li><a href="/contents/S/serviceGuideIntro.do"
+                                		
+                                		
+                                       >대피소</a></li>
+                            
+                                <li><a href="/contents/E/serviceGuideIntro.do"
+                                		
+                                		
+                                       >생태탐방원</a></li>
+                            
+                                <li><a href="/contents/R/serviceGuideIntro.do"
+                                		
+                                		
+                                       >민박촌</a></li>
+                            
+                                <li><a href="/contents/T/serviceGuideIntro.do"
+                                		
+                                		
+                                       >탐방로예약제</a></li>
+                            
+                                <li><a href="/contents/G/serviceGuideIntro.do"
+                                		
+                                		
+                                       >탐방프로그램</a></li>
+                            
+                        </ul>
+                    </li>
+                
+                    <li>
+                        <a href="javascript:void(0);" class="depth1">예약하기</a>
+                        <ul class="depth2">
+                            
+                                <li><a href="/reservation/searchSimpleCampReservation.do"
+                                		
+                                		
+                                       >야영장</a></li>
+                            
+                                <li><a href="/reservation/shelter/searchSimpleShelterReservation.do"
+                                		
+                                		
+                                       >대피소</a></li>
+                            
+                                <li><a href="/eco/searchEcoReservation.do"
+                                		
+                                		
+                                       >생태탐방원</a></li>
+                            
+                                <li><a href="/reservation/searchSimpleResidenceReservation.do"
+                                		
+                                		
+                                       >민박촌</a></li>
+                            
+                                <li><a href="/trail/searchTrailReservation.do"
+                                		
+                                		
+                                       >탐방로예약제</a></li>
+                            
+                                <li><a href="/trprogram/searchTrailProgram.do"
+                                		
+                                		
+                                       >탐방프로그램</a></li>
+                            
+                                <li><a href="/reservation/selectCampLottery.do"
+                                		
+                                		
+                                       >추첨제</a></li>
+                            
+                        </ul>
+                    </li>
+                
+                    <li>
+                        <a href="javascript:void(0);" class="depth1">알림마당</a>
+                        <ul class="depth2">
+                            
+                                <li><a href="/community/board/notice/boardList.do"
+                                		
+                                		
+                                       >공지사항</a></li>
+                            
+                                <li><a href="/community/board/faq/boardList.do"
+                                		
+                                		
+                                       >자주하는 질문</a></li>
+                            
+                                <li><a href="/community/board/qna/boardList.do"
+                                		
+                                		
+                                       >묻고 답하기</a></li>
+                            
+                                <li><a href="/contents/rsvtRefundPolicy.do"
+                                		
+                                		
+                                       >예약·환불정책</a></li>
+                            
+                                <li><a href="/contents/usagePolicy.do"
+                                		
+                                		
+                                       >이용정책</a></li>
+                            
+                                <li><a href="/contents/withPet.do"
+                                		
+                                		
+                                       >반려견 동행</a></li>
+                            
+                        </ul>
+                    </li>
+                
+                    <li>
+                        <a href="javascript:void(0);" class="depth1">마이페이지</a>
+                        <ul class="depth2">
+                            
+                                <li><a href="/mypage/dashBoard.do"
+                                		
+                                		
+                                       >나의 예약목록</a></li>
+                            
+                                <li><a href="/mypage/couponList.do"
+                                		
+                                		
+                                       >나의 쿠폰목록</a></li>
+                            
+                                <li><a href="/talk/searchTalkTransmissionHistory.do"
+                                		
+                                		
+                                       >알림메시지</a></li>
+                            
+                                <li><a href="/favorites/selectFavoritesList.do"
+                                		
+                                		
+                                       >즐겨찾기</a></li>
+                            
+                        </ul>
+                    </li>
+                
+                    <li>
+                        <a href="javascript:void(0);" class="depth1">그린포인트</a>
+                        <ul class="depth2">
+                            
+                                <li><a href="/reservation/greenpoint/searchGreenpoint.do"
+                                		 onclick="fn_greenUrlChk();"
+                                		
+                                       >야영장</a></li>
+                            
+                                <li><a href="/reservation/greenpoint/searchGreenpoint.do?prdDvcd=S"
+                                		
+                                		 onclick="fn_greenUrlChk();"
+                                       >대피소</a></li>
+                            
+                        </ul>
+                    </li>
+                
+            </ul>
+        </div>
+    </div>
+</header>
+			<div id="container">
+				
+
+    
+  
+<style>
+@media screen and (min-width: 1024px) {
+	.modal-popup .zoomable {
+	    width: 100% !important;
+	    height: 600px !important;
+	}
+	
+	.modal-popup.large .popup-wrap, .modal-popup.large .popup-container {
+	    width: 1024px;
+	}
+}
+.btn-download {
+    position: absolute;
+    top: 0;
+    left: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 124px;
+    height: 40px;
+    margin-right: 10px;
+    font-weight: 600;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    color: var(--color-default);
+    line-height: 40px;
+    background-image: url(/assets/img/icon-downloadOn.png);
+    background-repeat: no-repeat;
+    background-size: 16px;
+    background-position: left 15px center;
+    font-size: 16px;
+    text-indent: 20px;
+    cursor: pointer;
+}
+.btn-capcha-refresh {
+    align-items: center;
+    justify-content: center;
+    width: 85px;
+    height: 40px;
+    font-weight: 600;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    line-height: 40px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.pet-info {text-align: right; padding:25px 0 10px 0; font-size:20px;}
+.pet-info > strong {font-size:20px;}
+
+/* -------------------------------------------------- */
+
+.table-thin .tbody th {
+    padding: 5px 10px !important;
+}
+.table-thin .tbody td {
+    padding: 5px 10px !important;
+}
+
+.modal-popup .popup-container {
+    padding: 15px 15px 0 !important;
+}
+.modal-popup .popup-container .title-2 {
+    margin-bottom: 10px;
+    font-size: 19px;
+    font-weight: 500;
+}
+.modal-popup .popup-container .box-content-pia {
+    margin: 0px !important;
+    padding: 7px !important;
+    line-height: 22px !important;
+}
+.modal-popup .title-2 {
+    margin-top: 15px !important;
+    margin-bottom: 7px !important;
+}
+.pia-view-title-area {
+	float:left;
+	height: 50px;
+}
+.pia-view-btn-area {
+	float:left; 
+	height: 50px;
+	padding-top: 10px;
+	padding-left: 10px;
+}
+.pia-view-btn {
+	border: 1px solid;
+    padding: 4px;
+}
+.pia-btn-area {
+	padding: 5px 10px !important;
+}
+.reservation .radio-area {
+    border: 1px solid #fff !important;
+    padding: 0 0 !important;
+    color:#0000ff !important;
+    font-weight: bold !important;
+    text-align:center;
+}
+.captcha-area {
+	padding: 5px 10px !important;
+	margin: 5px 0px !important;
+}
+
+/*
+.btn-area {
+	padding: 5px 10px !important;
+}*/
+
+.box-guide {
+	margin-bottom: 5px !important;
+	padding: 10px !important;
+}
+
+</style>
+
+
+    
+    
+<script src="/assets/js/lib/handlebars.min.js"></script>
+<script src="/assets/js/lib/netfunnel.js"></script>
+<script src="/assets/js/lib/knps_netfunnel.js"></script>
+<script>
+window.addEventListener("load", function (event) {
+	//Netfunnel 자원 사용 요청
+	NetFunnel_Action({action_id:'landingCamp',use_mobile_ui:"true", skin_id:"knps_skin"},{
+		success:function(ev,ret){
+			
+		},
+		block:function(ev,ret){
+			NetFunnel.PopupSetup("alert", ret, "blockSkin");
+			location.href='/index.do';
+			return false;
+		},
+		ipblock:function(ev,ret){
+			NetFunnel.PopupSetup("alert", ret, "ipBlockSkin");
+			location.href='/index.do';
+			return false;
+		},
+		stop:function(ev,ret){
+			location.href='/index.do';
+			return false;
+		},
+	});
+	
+	$("#pia-radio1-1").attr("disabled", true);
+	$("#pia-radio1-2").attr("disabled", true);
+	
+	$("#pia-radio2-1").attr("disabled", true);
+	$("#pia-radio2-2").attr("disabled", true);
+	
+	$('input[id="pia-radio1-1"]').prop('checked', true);
+	$('input[id="pia-radio1-2"]').prop('checked', false);
+	
+	$('input[id="pia-radio2-1"]').prop('checked', true);
+	$('input[id="pia-radio2-2"]').prop('checked', false);
+});
+
+window.isGreenpoint = window.isGreenpoint || 'N';
+
+var commn = {};
+commn.nvl = function(a, b){
+	
+	function isNull(value){
+		var _chkStr = value + '';
+		if(_chkStr == '' || _chkStr == null || _chkStr == 'null' ){
+			return true;
+		}
+		return false;
+	}
+	
+	function isUndefined(value){
+		if(typeof(value) == undefined || typeof(value) == 'undefined' || value == 'undefined' || value == undefined){return true;}
+		return false;
+	}
+	
+	if(isNull(b) || isUndefined(b)){
+		b = '';
+	}
+	
+	if(isNull(a) || isUndefined(a)){
+		return b;
+	}else{
+		return a;
+	}
+};
+
+commn.callAjax = function(props){
+	
+	var settings = {};
+	props.isShowLoading = props.isShowLoading || 'Y';
+	settings.dataType = 'json';
+	settings.method = 'post';
+	settings.url = props.url;
+	settings.data = props.data;
+
+	if(props.headers){
+		settings.headers = props.headers;
+	}
+	if(props.isShowLoading == 'Y'){
+		settings.beforeSend = showLoading;
+		settings.complete = maskBackgroundOff;
+	}
+	if(props.method){
+		settings.method = props.method;
+	}
+	if(props.dataType){
+		settings.dataType = props.dataType;
+	}
+	
+	return $.ajax(settings);
+};
+
+commn.toNumber = function(str){
+	
+	return Number(commn.nvl(str, '0'));
+};
+
+commn.date_add = function(sDate, nDays) {
+	
+	if(!sDate){
+		
+		function getToday(){
+		    var date = new Date();
+		    var year = date.getFullYear();
+		    var month = ("0" + (1 + date.getMonth())).slice(-2);
+		    var day = ("0" + date.getDate()).slice(-2);
+
+		    return year + "-" + month + "-" + day;
+		}
+		sDate = getToday();
+	}
+    var yy = parseInt(sDate.substr(0, 4), 10);
+    var mm = parseInt(sDate.substr(5, 2), 10);
+    var dd = parseInt(sDate.substr(8), 10);
+ 
+    d = new Date(yy, mm - 1, dd + nDays);
+ 
+    yy = d.getFullYear();
+    mm = d.getMonth() + 1; mm = (mm < 10) ? '0' + mm : mm;
+    dd = d.getDate(); dd = (dd < 10) ? '0' + dd : dd;
+ 
+    return '' + yy + '-' +  mm  + '-' + dd;
+};
+
+function imgDownload() {
+	// 다운로드에 필요한 정보는 campsiteList 에서 셋팅됨
+	$("#imgForm").attr("action", "/contents/mapImageDown.do");
+	$("#imgForm").attr("target", "_blank");
+	$("#imgForm").submit();
+}
+
+function recalWithExemption(){	
+}
+
+function fnInitCouponArea() {
+}
+
+function fnViewPia1() {
+	openPopup('pia-information1');
+}
+function fnOkPia1() {
+	$("#pia-radio1-1").attr("disabled", false);
+	$("#pia-radio1-2").attr("disabled", false);
+	
+	closePopup('pia-information1');
+}
+
+function fnViewPia2() {
+	openPopup('pia-information2');
+}
+function fnOkPia2() {
+	$("#pia-radio2-1").attr("disabled", false);
+	$("#pia-radio2-2").attr("disabled", false);
+	
+	closePopup('pia-information2');
+}
+
+function fnCapchaRefresh() {
+	$(".captcha").html("<img alt='자동예약 방지숫자'/>").find("img:last").attr("src", "/reserCaptcha.do?dummy=" + (new Date()).getTime());
+	$("#captchaInput").val("");
+	return false;
+}
+
+</script>
+
+	<!-- END. 개시일 랜딩시간 체크 -->
+    
+
+
+<script src="/assets/js/reservation/campsite.js?ver2026002"></script>
+
+	<div class="page-location">
+         <span>홈</span>
+         <span>예약하기</span>
+         <span>야영장</span>
+    </div>
+    <div class="reservation" data-device-mode="pc">
+		<h3 class="title">야영장 예약</h3>
+		<input type="hidden" id="reserFlag" name="reserFlag" value="N" />
+		
+		<!-- 미 적용시 빈 div 하나 필요 -->
+		<!-- <div>&nbsp;</div> -->
+		<!-- -->
+		
+			<div class="box-guide">
+	       		<div class="monthly-check">
+	      			<p class="title">
+	      				<a href="/reservation/searchCampRemainSite.do;jsessionid=MASKED" class="btn btn-monthly">잔여 현황 보기</a>
+	      				&nbsp;&nbsp;
+	      				야영장 전체 잔여현황 확인이 가능 합니다.
+	      			</p>
+	       		</div>
+	       	</div>
+       	
+		
+        <div class="collapse-wrap" data-reservation-wrap="campsite">
+			
+         	
+         		
+         			<ul class="menu-tabs">
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">가야산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('가야산','백운동','B131002', ''); return false;">백운동 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('가야산','삼정','B131001', ''); return false;">삼정 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('가야산','치인','B131003', ''); return false;">치인 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">계룡산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('계룡산','갑사','B161004', ''); return false;">갑사 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('계룡산','동학사','B161001', ''); return false;">동학사 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">내장산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('내장산','가인','B041001', ''); return false;">가인 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('내장산','내장','B042001', ''); return false;">내장 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('내장산','내장호','B042004', ''); return false;">내장호 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">다도해해상</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('다도해해상','구계등','B091004', ''); return false;">구계등 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('다도해해상','시목','B092003', ''); return false;">시목 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('다도해해상','염포','B091003', ''); return false;">염포 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('다도해해상','팔영산','B091001', ''); return false;">팔영산 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+         			</ul>
+         		 
+             
+         		
+         			<ul class="menu-tabs">
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">덕유산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('덕유산','덕유대1','B051002', ''); return false;">덕유대1 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('덕유산','덕유대2','B051007', ''); return false;">덕유대2 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('덕유산','덕유대3','B051006', ''); return false;">덕유대3 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">무등산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('무등산','도원','B172002', ''); return false;">도원 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">변산반도</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('변산반도','고사포1','B181002', ''); return false;">고사포1 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('변산반도','고사포2','B181004', ''); return false;">고사포2 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('변산반도','직소천','B181005', ''); return false;">직소천 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">북한산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('북한산','사기막','B141003', ''); return false;">사기막 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+         			</ul>
+         		 
+             
+         		
+         			<ul class="menu-tabs">
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">설악산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('설악산','설악동','B031005', ''); return false;">설악동 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">소백산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('소백산','남천','B122001', ''); return false;">남천 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('소백산','삼가','B121001', ''); return false;">삼가 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">오대산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('오대산','소금강산','B061001', ''); return false;">소금강산 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">월악산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('월악산','닷돈재1','B111003', ''); return false;">닷돈재1 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('월악산','닷돈재2','B111001', ''); return false;">닷돈재2 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('월악산','덕주','B111007', ''); return false;">덕주 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('월악산','송계','B111002', ''); return false;">송계 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('월악산','용하','B111004', ''); return false;">용하 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('월악산','하선암','B111008', ''); return false;">하선암 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+         			</ul>
+         		 
+             
+         		
+         			<ul class="menu-tabs">
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">월출산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('월출산','천황','B201001', ''); return false;">천황 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">주왕산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('주왕산','상의','B071001', ''); return false;">상의 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">지리산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('지리산','내원','B011005', ''); return false;">내원 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('지리산','달궁1','B012005', ''); return false;">달궁1 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('지리산','달궁2','B012002', ''); return false;">달궁2 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('지리산','덕동','B012003', ''); return false;">덕동 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('지리산','백무동','B011007', ''); return false;">백무동 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('지리산','소막골','B011006', ''); return false;">소막골 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('지리산','학천','B012010', ''); return false;">학천 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">치악산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('치악산','구룡','B101001', ''); return false;">구룡 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('치악산','금대','B101002', ''); return false;">금대 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+         			</ul>
+         		 
+             
+         		
+         			<ul class="menu-tabs">
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">태백산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('태백산','소도','B221004', ''); return false;">소도 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">태안해안</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('태안해안','몽산포','B081002', ''); return false;">몽산포 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('태안해안','학암포','B081001', ''); return false;">학암포 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">팔공산</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('팔공산','갓바위','B252001', ''); return false;">갓바위 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('팔공산','도학','B251001', ''); return false;">도학 </a></li>
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+             
+         		
+					<li>
+	                     <a href="javascript:void(0);" class="btn collapse  ">한려해상</a>
+	                     <div class="a"  >
+	                         <ul class="nav-tabs tab-menu">
+	                         	
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('한려해상','덕신','B022003', ''); return false;">덕신 </a></li>
+	                         		
+	                             
+	                         		
+	                         			<li class=""><a href="javascript:void(0);" onclick="javascript:goCampProductDetail('한려해상','학동','B021001', ''); return false;">학동 </a></li>
+	                         		
+	                             
+	                         </ul>
+	                     </div>
+	                 </li>                 
+                 
+         			</ul>
+         		 
+             
+		</div>          
+        
+        <div class="pet-info">
+         	※ <strong>반려견 동반 예약</strong>은 계룡산 동학사 야영장 일부 영지만 가능합니다. 
+        </div>
+        <div class="nodata" id="select-site-msg">
+             <i class="icon-alert-circle"></i>
+             <span>선택된 야영장이 없습니다. 야영장을 선택해주세요.</span>
+        </div>
+         
+        <!-- 예약안내 레이어팝업 -->
+        <div class="modal-popup small" id="automatic-character">
+	        <div class="popup-wrap">
+	            <div class="popup-head">
+	                <strong class="popup-title">자동방지 입력문자</strong>
+	                <button type="button" class="btn-close" title="닫기">
+	                    <i class="icon-close"></i>
+	                </button>
+	            </div>
+	            <div class="popup-container">
+	                <table class="table">
+	                    <caption>자동방지 입력문자</caption>
+	                    <colgroup>
+	                        <col style="width: 140px;">
+	                        <col>
+	                    </colgroup>
+	                    <tbody class="tbody" data-area-name="popup-container-tbody">
+	                        <tr>
+			                    <th scope="row">예약상품</th>
+			                    <td></td>
+			                </tr>
+			                <tr>
+			                    <th scope="row">사용기간</th>
+			                    <td></td>
+			                </tr>
+			                <!-- <tr>
+			                    <th scope="row">입실날짜</th>
+			                    <td></td>
+			                </tr>
+			                <tr>
+			                    <th scope="row">퇴실날짜</th>
+			                    <td></td>
+			                </tr> -->
+			                <tr>
+			                    <th scope="row">옵션추가</th>
+			                    <td></td>
+			                </tr>
+			                <tr>
+			                    <th scope="row">결제(예정)금액</th>
+			                    <td></td>
+			                </tr>
+			            </tbody>
+	                </table>
+	                <div data-area-name="brfeTerYn" id="pia-agree-content" style="display:none;">
+		                <div style="height: 50px;">
+		                	<div class="pia-view-title-area"><strong class="title-2">※ 민감정보 수집 및 이용동의</strong></div>
+		                	<div class="pia-view-btn-area">
+		                		<button type="button" class="btn  pia-view-btn" onclick="fnViewPia1();">내용보기</button>
+		                		
+		                		<input type="radio" id="pia-radio1-1" name="piaDiv5Yn" value="N"><label for="pia-radio1-1">동의하지 않음</label>
+				                <input type="radio" id="pia-radio1-2" name="piaDiv5Yn" value="Y"><label for="pia-radio1-2">동의함</label> 
+		                	</div>
+		                </div>
+			            <div style="height: 50px;">
+		                	<div class="pia-view-title-area"><strong class="title-2">※ 행정정보 공동이용 사전동의서</strong></div>
+		                	<div class="pia-view-btn-area">
+		                		<button type="button" class="btn  pia-view-btn" onclick="fnViewPia2();">내용보기</button>
+		                		
+		                		<input type="radio" id="pia-radio2-1" name="piaDiv6Yn" value="N"><label for="pia-radio2-1">동의하지 않음</label>
+				                <input type="radio" id="pia-radio2-2" name="piaDiv6Yn" value="Y"><label for="pia-radio2-2">동의함</label> 
+		                	</div>
+		                </div>
+		                <div style="height: 30px;">
+				            <div class="radio-area" id="radio-area-pia2">
+				            	내용 확인 후 동의/미동의 가능합니다
+				            </div>
+				        </div>
+	                </div>
+	                
+	                <table class="table table-thin ">
+						<caption>자격인증</caption>
+	                    <colgroup>
+	                        <col style="width: 150px;">
+	                        <col>
+	                    </colgroup>
+	                    <tbody class="tbody" data-area-name="popup-container-tbody">
+			                <tr data-area-name="brfeTerYn" style="display:none;">
+						        <th scope="row">자격구분 <span class="text-info">*</span></th>
+						        <td class="form">
+						            <ul class="checkbox-1">
+						                <li>
+						                    <span class="radio-1">
+						                        <input type="radio" id="brfe-radio1" name="rsvtDvcdDs" value="14"> <label for="brfe-radio1">장애인(중증, 1~3급)</label>
+						                        &nbsp;&nbsp;
+						                        <input type="radio" id="brfe-radio2" name="rsvtDvcdDs" value="11"> <label for="brfe-radio2">장애인(경증, 4~6급)</label>
+						                    </span>
+						                </li>
+						            </ul>
+						        </td>
+						    </tr>
+						    <tr data-area-name="brfeTerYn" style="display:none;">
+						        <th scope="row">복지카드발급일자 <span class="text-info">*</span></th>
+						        <td class="form">
+						            <ul>
+						                <li>
+											<label for="dstpRegNo" class="hidden-text">장애인등록번호</label>
+											<input type="text" class="input-text" name="dstpRegNo" id="dstpRegNo" maxlength="8" title="장애인등록번호" placeholder="복지카드발급일자" style="width:150px;"> (숫자8자리)
+										</li>
+						            </ul>
+						        </td>
+						    </tr>
+						    <tr data-area-name="brfeTerYn" style="display:none;">
+						        <th scope="row">온라인 자격검증</th>
+						        <td class="form">
+						            <p class="copy">※ 온라인 자격검증을 하지 않을 경우 현장에서 증빙서류(장애인등록증)를 확인하며, 미 지참시 입장이 제한됩니다.</p>
+						            <span class="btn-input">
+						                <button class="btn btn-layer" data-popup="exemption-auth">자격검증</button>
+										<label for="exemptionAuthText" class="hidden-text">자격검증</label>
+						                <input type="text" class="input-text" placeholder="자격검증 버튼을 눌러주세요." title="자격검증" id="exemptionAuthText" readonly>
+						            </span>
+						        </td>
+						    </tr>
+	                    </tbody>
+	                </table>
+	                <div class="captcha-area">
+	                    <span class="label">자동예약 방지숫자</span>
+	                    <span class="captcha"></span>
+						<label for="captchaInput" class="hidden-text">자동예약 방지숫자</label>
+	                    <input type="text" class="input-text" name="captcha" id="captchaInput" placeholder="자동예약 방지숫자를 입력해 주세요." title="자동예약 방지숫자" maxlength="4" style="width:80px;">
+	                    
+	                    &nbsp;<button class="btn-capcha-refresh" onclick="fnCapchaRefresh();">새로고침</button>
+	                </div>
+	                <p class="copy-notice">※ "마이페이지 → 나의예약목록"에서 결제까지 완료하셔야 예약이 확정됩니다.</p>
+	                <div class="btn-area">
+	                    <button class="btn btn-cancel">취소</button>
+	                    <button class="btn btn-confirm is-active" data-button-name="reservation" onclick="javacript:reservation();">확인</button>
+	                </div>
+	            </div>
+	        </div>
+	    </div>
+    </div>
+    
+    <!-- 예약하기 -->
+    <a href="javascript:void(0);" style="display:none" class="btn btn-register is-active btn-layer" data-popup="automatic-character" >예약하기</a>
+    
+    <!-- 예약안내 -->
+    <button type="button" style="display:none" class="btn btn-layer" data-popup="reservation-information1">예약안내</button>
+    
+    <!-- 예약시 주의사항 -->
+	<div class="modal-popup small" id="campNoticePopup">
+		<div class="popup-wrap" style="width: 500px;">
+			<div class="popup-head">
+				<strong class="popup-title" id="alertTitle">주의사항</strong>
+				<button type="button" class="btn-close" title="닫기" onclick="closePopup('campNoticePopup');">
+					<i class="icon-close"></i>
+				</button>
+			</div>
+			<div class="popup-container" style="width: 500px;">
+				<div class="center">
+					<i class="icon-error"></i>
+					<strong class="title-1">예약시 주의사항</strong>
+					<p class="copy-sm" id="noticeContent"></p>
+				</div>
+				<div class="btn-area">
+					<button class="btn btn-cancel" onclick="closePopup('campNoticePopup');">취소</button>
+					<button class="btn btn-confirm is-active" onclick="reservationStep2()">확인</button>
+				</div>
+			</div>
+		</div>
+	</div>
+    <!-- 예약완료안내 -->
+    <div class="modal-popup small" id="reservation-information1">
+        <div class="popup-wrap">
+            <div class="popup-head">
+                <strong class="popup-title">예약완료안내</strong>
+                <button type="button" class="btn-close" title="닫기" onclick="javascript:lastPopClose();">
+                    <i class="icon-close"></i>
+                </button>
+            </div>
+            <div class="popup-container">
+                <div class="center" data-area-name="reservation-popup-container">
+                    <i class="icon-check"></i>
+                    <strong class="title-1">예약이 완료되었습니다.</strong>
+                    <p class="copy-mid">결제 만기일시는 <em data-popup-information-campsite="sttlmMtDtm"><!-- 2020년 02월 17일 16:00 --></em> 까지 입니다.<br>미 결제시 자동 취소되니 유의 하시기 바랍니다.</p>
+                    <p class="copy-sm">마이페이지 나의예약목록 에서 확인 후 결제를 계속 진행해주세요.</p>
+                </div>
+                
+                <div class="center" data-area-name="reservation-popup-container-w">
+	                <i class="icon-check"></i>
+	                <strong class="title-1">대기신청이 완료되었습니다.</strong>
+	                <p class="copy-mid">
+	                	대기자에서 예약자로 전환되면 예약 결제 안내 문자가 발송됩니다.<br>
+						단, 잘못된 연락처 및 통신사 환경 등에 따라 전송이 실패할 수도 있습니다.<br>
+						이에 따른 피해에 대해서는 국립공원공단에서 보상하지 않습니다.<br>
+						반드시 '나의 예약 목록'에서 예약상태를 확인하여 주시기 바랍니다.
+					</p>
+	                <!-- <p class="copy-sm">마이페이지 나의예약목록 에서 확인 후 결제를 계속 진행해주세요.</p> -->
+	            </div>
+                
+                <div class="btn-area">
+                    <a href="/mypage/dashBoard.do?prdDvcd=C" class="btn btn-link">나의 예약 목록</a>
+                    <a href="#" class="btn btn-payment" id="btnMypage" style="margin-left:10px; display:none;">결제하기</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    <!-- 배치도 -->
+    <button type="button" class="btn btn-layer" data-popup="blockplan" style="display:none">배치도</button>
+    <div class="modal-popup large" id="blockplan">	<!-- medium -->
+        <div class="popup-wrap">
+            <div class="popup-head">
+                <strong class="popup-title">배치도</strong>
+                <button type="button" class="btn-close btn-img-close" title="닫기" >
+                    <i class="icon-close"></i>
+                </button>
+            </div>
+            <div class="popup-container">
+                <div class="zoom-container">
+                    <div class="zoomable">
+                        <img src="../assets/img/@img-deployment.png" alt="배치도" />
+                    </div>
+                    <button class="btn-move">이미지 이동</button>
+                    <button class="btn-download" onclick="imgDownload()">다운로드</button>
+                </div>
+                <div class="btn-area">
+                    <button class="btn btn-confirm is-active btn-img-confirm">확인</button>
+                </div>
+            </div>
+        </div>
+        <form id="imgForm" action="">
+	    	<input type="hidden" name="imgFilePath" id="imgFilePath" />
+	    	<input type="hidden" name="imgFileName" id="imgFileName" />
+	    	<input type="hidden" name="imgFileExt"  id="imgFileExt" />
+	    	<input type="hidden" name="campName"    id="campName" />
+	    </form>
+    </div>
+
+	<!-- 민감정보 수집 및 이용동의 -->
+    <div class="modal-popup small" id="pia-information1">
+        <div class="popup-wrap"  style="width: 500px;">
+        	<div class="popup-head">
+				<strong class="popup-title" id="alertTitle">민감정보 수집 및 이용동의</strong>
+				<button type="button" class="btn-close" title="닫기" onclick="closePopup('pia-information1');">
+					<i class="icon-close"></i>
+				</button>
+			</div>
+			<div class="popup-container" style="width: 500px; height:300px;">
+				<div style="height:200px;">
+					<span>※ 민감정보</span>
+					<div style="margin: 5px 0 5px 0;">
+						<ul>
+							<li>- 민감정보 수집 목적 : 자연공원법 제37조의1(입장료 및 사용료 징수)에 따른 공원시설 할인혜택 제공</li>
+							<li>- 민감정보 항목      : 장애인(유무, 장애등급), 국가보훈 대상자(유무, 대상자 등급 등), 5.18 민주 유공자(유무)</li>
+							<li>- 민감정보 보유기간  : 5년</li>
+						</ul>
+					</div>
+					
+					<span>※ 동의거부 권리</span>
+					<div style="margin: 0 0 0 0;">
+						귀하께서는 “국립공원예약시스템”의 민감정보 수집 및 이용에 대한 동의 거부권이 있으며 동의 거부 시에는 장애인 우선예약 및 공원시설 할인 혜택을 받으실 수 없습니다.
+					</div>
+				</div>
+				<div class="btn-area pia-btn-area">
+					<button class="btn btn-cancel" onclick="closePopup('pia-information1');">취소</button>
+					<button class="btn btn-confirm is-active" onclick="fnOkPia1()">확인</button>
+				</div>
+			</div>
+		</div>
+    </div>
+    
+    <!-- 행정정보 공동이용 사전동의서 -->
+    <div class="modal-popup small" id="pia-information2">
+        <div class="popup-wrap"  style="width: 500px;">
+        	<div class="popup-head">
+				<strong class="popup-title" id="alertTitle">행정정보 공동이용 사전동의서</strong>
+				<button type="button" class="btn-close" title="닫기" onclick="closePopup('pia-information2');">
+					<i class="icon-close"></i>
+				</button>
+			</div>
+			<div class="popup-container" style="width: 500px; height:320px;">
+				<div style="margin: 5px 0 5px 0;">
+					1. 이용기관 명칭 : 국립공원공단<br/>
+					2. 이용사무(이용목적) : 자연공원법 제37조의1(입장료 및 사용료 징수)에 따른 공원시설 할인혜택 제공<br/>
+					3. 공동이용 행정정보<br/>
+					&nbsp;&nbsp; 가. 장애인(유무, 장애등급)<br/>
+					&nbsp;&nbsp; 나. 국가보훈 대상자(유무, 대상자 등급 등), 5.18 민주 유공자(유무)<br/>
+					4. 정보주체(본인) 동의사항<br/>
+					&nbsp;&nbsp; ○ 본인은 위 사무의 처리를 위하여 「전자정부법」제36조에 따른 행정정보 공동이용을 통해 이용기관의 업무처리담당자가 전자적으로 본인의 구비서류(공동이용 행정정보)를 확인하는 것에 동의합니다.<br/> 
+					&nbsp;&nbsp; ※ 만일, 본인이 위 행정정보 이용에 대해 동의를 하지 아니할 경우에도 불이익은 없습니다. 다만, 동의하지 아니한 경우에는 본인이 해당 구비서류를 제출하여야 합니다.<br/>
+				</div>
+				<div class="btn-area pia-btn-area">
+					<button class="btn btn-cancel" onclick="closePopup('pia-information2');">취소</button>
+					<button class="btn btn-confirm is-active" onclick="fnOkPia2()">확인</button>
+				</div>
+			</div>
+		</div>
+    </div>
+    
+
+    
+
+
+
+
+
+<style>
+/* 
+ * 야영장/대피소 결제 > 감면자격검증 
+ */
+@media screen and (min-width: 1024px) {
+    .modal-popup .popup-container {
+        background-color: #fff;
+        padding: 15px 19px 0;
+        border-radius: 0 0 20px 20px;
+    }
+	.modal-popup .personal-identification .auth-box {
+	    height: 247px;
+	    margin: 0 10px;
+	    padding: 10px 10px;
+	}
+	.modal-popup .popup-container .box-content {
+	    margin: 0 0 10px;
+	    padding: 8px;
+	}
+    .input-text-h30px {
+        height: 30px !important;
+    }
+    .table .tbody td {
+        line-height: 34px !important;
+    }
+
+    .modal-popup .radio-area + .title-2 {
+        margin-top: 14px !important;
+    }
+}
+
+
+</style>
+
+<script>
+$(document).ready(function(){
+	
+	//다음
+	$('.selfAuthModal').click(function(){
+		
+		var rsvtId   = $("#exemption-auth-form #rsvtId").val();
+		var prodDvcd = $("#exemption-auth-form #prodDvcd").val();
+	
+		// 개인정보 제공 동의
+		var policyVal = $('input[name="policy"]:checked').val();
+		if(policyVal  == '') {
+			toastrMsg('개인정보 제공 동의를 해주세요.');
+			return false;
+		}
+		
+		// 민감정보 제공 동의(개인정보와 함께 동의 처리 됨)
+		var piaDiv5Yn = "Y";
+		
+		// 행정정보 동의
+		var piaDiv6Yn = $('input[name="piaDiv6Yn"]:checked').val();
+		if(piaDiv6Yn  == 'N') {
+			toastrMsg('행정정보 공동이용 사전동의를 해주세요.');
+			return false;
+		}
+		
+		if($('#usNmId').text() == '') {
+			toastrMsg('본인인증을 진행해주세요.');
+			return false;
+		}
+
+		if($('#usNm').val() == '') {
+			toastrMsg('주민등록번호 뒷자리를 입력해주세요.');
+			return false;
+		}
+		else {
+			// 주민번호 뒷자리에 다른 정보를 입력하는 경우가 방지.
+			var check = /^[0-9]+$/; 
+			if (!check.test($('#usNm').val())) {
+				toastrMsg("숫자만 입력 가능합니다.");
+				return false;
+			}
+		}
+		
+		var trNm  = $('#usNmId').text();
+		var trNum = $('#usNumId').text()+ "" +$('#usNm').val();
+		
+		ajaxCall({
+			url : "/common/authGpkiForPay.do",
+            data : {
+                "tgtrNm"    : trNm,
+                "trtrNum"   : trNum,
+                "authType"  : $('#authTypeId').val(),
+                "rsvtId"    : rsvtId,
+                "prodDvcd"  : prodDvcd,
+                "piaDiv5Yn" : piaDiv5Yn,
+                "piaDiv6Yn" : piaDiv6Yn
+            },
+            success : function(dat){
+                if( $('#authTypeId').val() == 'A'){ //장애인여부확인
+                    reductionDisabledDc(dat);
+                }
+                else{
+                    naManMeritDc(dat);
+                    
+                    // 2023-03-02 : 세션을 이용하지 않고 국가유공자 코드를 서버에서 세팅하기
+                    let chagneForm_disabledCode = document.getElementById("chagneForm_disabledCode");
+                    if (chagneForm_disabledCode != null) {
+                    	chagneForm_disabledCode.value = dat.disabledCode;
+                    }
+                    
+                    let chagneForm_wondClassCd = document.getElementById("chagneForm_wondClassCd");
+                    if (chagneForm_wondClassCd != null) {
+                    	chagneForm_wondClassCd.value = dat.wondClassCd;
+                    }
+                    
+                    let chagneForm_subjKbnCd = document.getElementById("chagneForm_subjKbnCd");
+                    if (chagneForm_subjKbnCd != null) {
+                    	chagneForm_subjKbnCd.value = dat.subjKbnCd;
+                    }
+                }
+            },
+            error : function(){
+				// toastrMsg('감면 인증 중 오류가 발생하였습니다. <br/>관리자에게 문의하여 주세요.');
+            	toastrMsg('귀하는 감면대상자가 아닙니다. 이의가 있을 경우 증빙서류를 지참하여 현장관리자에게 방문 바랍니다.');
+            }
+        })
+	});
+
+	//취소 감면인증정보 확인 모달 제거
+	$('.selfAuthModalCancel').click(function(){
+		$('#radio1-1').prop('checked',true);
+        closePopup('exemption-auth');
+	});
+	
+});
+
+function reductionDisabledDc(dat){
+    var qufyYn = dat.qufyYn;
+    var disabledCode = dat.disabledCode;
+    let subTitle = '';
+    let content = '';
+    let type = '';
+
+    if ($('#usNmId').text() == '') {
+
+        if(qufyYn == 'M'){
+
+            subTitle = $('#usNmId').text() + '님은 대상자가 아닙니다.';
+            content = '기존 대상자였지만 현재 비대상자로 전환 되었습니다.<br/>확인 후 다시 시도해주세요.';
+            type = 'error';
+            $('#radio1-1').prop('checked', true);
+
+            // 할인정보 선택 radio
+            fnInitDiscountRadio(true);
+        }
+        else if(qufyYn == 'Y') {
+
+            if (disabledCode == '00' || disabledCode == '98' || disabledCode == '99') {
+
+                var strMsg = '';
+                if (disabledCode == '00') {
+                    strMsg = '장애 미해당';
+                } else if (disabledCode == '98') {
+                    strMsg = '결정보류';
+                } else if (disabledCode == '99') {
+                    strMsg = '확인불가';
+                }
+
+                $('#exemptionAuthText').val('대상자가 아닙니다');
+                subTitle = $('#usNmId').text() + '님은 대상자가 아닙니다.';
+                content = '현재 '+strMsg+' 상태입니다.<br/>확인 후 다시 시도해주세요.';
+                type = 'error';
+                $('#radio1-1').prop('checked', true);
+
+             	// 할인정보 선택 radio
+                fnInitDiscountRadio(true);
+            } 
+            else {
+
+                if ('10' == disabledCode) {
+                    $('#radio1-2').prop('checked', true);
+                    $('#certTextId').val('장애인(중증, 1~3급)');
+                    
+                    // 예약화면에서 장애인전용상품인 경우
+                    $('#exemptionAuthText').val('장애인(중증, 1~3급)');
+                } else if ('20' == disabledCode) {
+                    $('#radio1-3').prop('checked', true);
+                    $('#certTextId').val('장애인(경증, 4~6급)');
+                    
+                	 // 예약화면에서 장애인전용상품인 경우
+                    $('#exemptionAuthText').val('장애인(경증, 4~6급)');
+                }else{
+                    $('#radio1-3').prop('checked', true);
+                    $('#certTextId').val('장애인 대상자');
+                    
+                	 // 예약화면에서 장애인전용상품인 경우
+                    $('#exemptionAuthText').val('장애인 대상자');
+                }
+
+                subTitle = $('#usNmId').text() + '님은 감면 대상자입니다.';
+                content = '';
+                type = '';
+
+                //결제금액 재계산
+                recalWithExemption();
+                
+             	// 할인정보 선택 radio
+                fnInitDiscountRadio(false);
+            }
+        } 
+        else {
+            subTitle = $('#usNmId').text() + '님은 대상자가 아닙니다.';
+            content = '확인 후 다시 시도해주세요.';
+            type = 'error';
+            $('#radio1-1').prop('checked', true);
+            
+         	// 할인정보 선택 radio
+            fnInitDiscountRadio(true);
+        }
+    } 
+    else {
+        subTitle = '예약자 본인이 아니므로 <br>자격확인을 할 수 없습니다.';
+        content = '현장 방문 시 증빙을 지참하시고 할인 받으시기 바랍니다.';
+        type = 'error';
+        $('#radio1-1').prop('checked', true);
+     	
+        // 할인정보 선택 radio
+        fnInitDiscountRadio(true);
+    }
+
+    alertPopup({
+        title: '알림',
+        subTitle: subTitle,
+        content: content,
+        type: type
+    });
+    
+    try {
+    	// 예약화면에서 장애인전용상품인 경우
+    	closePopup('exemption-auth');
+    } catch (e) {
+    	console.log(e);
+    }
+
+}
+
+function naManMeritDc(dat){
+    let cnt = dat.cnt;
+    let dcTargetYn = dat.dcTargetYn;
+    let relCd = dat.relCd;
+    let authoriPsnYn = dat.authoriPsnYn;
+    let wondClassCd = dat.wondClassCd;
+    let subjKbnCd = dat.subjKbnCd;
+    let inquRsltCd = dat.inquRsltCd;
+
+    let subTitle = '';
+    let content = '';
+    let type = '';
+
+    if ($('#usNmId').text() == '') {
+        //조회결과가 있을때
+        if (cnt > 0) {
+            //감면대상일때
+            if(dcTargetYn == 'Y') {
+            	/* Ver1.
+                if ('00011' == wondClassCd || '00012' == wondClassCd
+                    || '00013' == wondClassCd || '00020' == wondClassCd
+                    || '00030' == wondClassCd || '00G01' == wondClassCd
+                    || '00G02' == wondClassCd || '00G03' == wondClassCd) { //1~3급
+
+                    $('#radio1-4').prop('checked', true);
+                    $('#certTextId').val('국가유공자(1~3급)');
+                } 
+                else if ('00017' == subjKbnCd || '00018' == subjKbnCd || '00019' == subjKbnCd) { //518 민주화운동자.
+                    $('#radio1-5').prop('checked', true);
+                    $('#certTextId').val('5.18 민주운동자');
+                } 
+                else { //그 외
+                    $('#radio1-6').prop('checked', true);
+                    $('#certTextId').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+                }
+            	*/
+            	
+            	/*
+            		결제를 위한 결제금액 계산 부분과 동일하게. : dcAmt()
+            		
+            		국가유공자 전체 코드 감면대상으로 적용
+            	 	국가유공자(subjKbnCd) 등급값(wondClassCd)이 있으면 등급에 따라
+            	 	없으면 등급외로.
+            	 */
+            	var bChk = false;
+                if(subjKbnCd != "") {
+                	// 5.18 유공자 별도 분리
+	            	if ('00017' == subjKbnCd || '00018' == subjKbnCd || '00019' == subjKbnCd) {
+	            		$('#radio1-6').prop('checked', true);
+	                    $('#certTextId').val('5.18 민주유공자');
+	            		
+	                    bChk = true;
+	            	}
+                	// 나머지는 등급에 따라(등급이 없으면 등급외로)
+	            	else {
+	            		if("00011" == wondClassCd || "00012" == wondClassCd || "00013" == wondClassCd ||		//1급 1항~3항
+	                       "00020" == wondClassCd || "00030" == wondClassCd ||                                  //2급 3급
+	                       "00G01" == wondClassCd || "00G02" == wondClassCd || "00G03" == wondClassCd) {   		//장해 1급~3급
+	            			
+	            			$('#radio1-4').prop('checked', true);
+	                    	$('#certTextId').val('국가유공자(1~3급)');
+	            			
+	                    	bChk = true;
+	            		}
+	            		else if("00040" == wondClassCd || "00050" == wondClassCd ||                             //4~5급
+	                            "00061" == wondClassCd || "00062" == wondClassCd || "00063" == wondClassCd ||  	//6급1항~3항,
+	                            "00070" == wondClassCd || "00G04" == wondClassCd || "00G05" == wondClassCd || "00G06" == wondClassCd || "00G07" == wondClassCd){	//7급, 장해 4~7급
+	
+	            			$('#radio1-5').prop('checked', true);
+	                    	$('#certTextId').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+	            			
+	                    	bChk = true;
+	                    }
+	            		else if("00081" == wondClassCd || "00082" == wondClassCd || "00083" == wondClassCd ||  	//고도, 중증도, 경도
+	                            "00510" == wondClassCd || "00511" == wondClassCd || "00512" == wondClassCd || "00513" == wondClassCd || "00514" == wondClassCd || "00580" == wondClassCd || "00590" == wondClassCd || //10~14급, 8급, 9급
+	                            "00G08" == wondClassCd || "00G09" == wondClassCd || "00G10" == wondClassCd || "00G11" == wondClassCd || "00G12" == wondClassCd || "00G13" == wondClassCd || "00G14" == wondClassCd || "90001" == wondClassCd) { // 장해 8~13급 , 등외
+	            			
+	            			$('#radio1-5').prop('checked', true);
+	                    	$('#certTextId').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+	                    
+	            			bChk = true;
+	                    }
+	            		else {
+	            			// 대상자이긴하나 등급값이 없는 경우
+	            			$('#radio1-5').prop('checked', true);
+	                    	$('#certTextId').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+	                    
+	            			bChk = true;
+	            		}
+	            	}
+                }
+                else {
+                	// subjKbnCd 값없이 등급만 오는 경우
+                	// 등급값도 없으면 대상 외로.
+                	if("00011" == wondClassCd || "00012" == wondClassCd || "00013" == wondClassCd ||		//1급 1항~3항
+                       "00020" == wondClassCd || "00030" == wondClassCd ||                                  //2급 3급
+                       "00G01" == wondClassCd || "00G02" == wondClassCd || "00G03" == wondClassCd) {   		//장해 1급~3급
+            			
+            			$('#radio1-4').prop('checked', true);
+                    	$('#certTextId').val('국가유공자(1~3급)');
+            			
+                    	bChk = true;
+            		}
+            		else if("00040" == wondClassCd || "00050" == wondClassCd ||                             //4~5급
+                            "00061" == wondClassCd || "00062" == wondClassCd || "00063" == wondClassCd ||  	//6급1항~3항,
+                            "00070" == wondClassCd || "00G04" == wondClassCd || "00G05" == wondClassCd || "00G06" == wondClassCd || "00G07" == wondClassCd){	//7급, 장해 4~7급
+
+            			$('#radio1-5').prop('checked', true);
+                    	$('#certTextId').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+            			
+                    	bChk = true;
+                    }
+            		else if("00081" == wondClassCd || "00082" == wondClassCd || "00083" == wondClassCd ||  	//고도, 중증도, 경도
+                            "00510" == wondClassCd || "00511" == wondClassCd || "00512" == wondClassCd || "00513" == wondClassCd || "00514" == wondClassCd || "00580" == wondClassCd || "00590" == wondClassCd || //10~14급, 8급, 9급
+                            "00G08" == wondClassCd || "00G09" == wondClassCd || "00G10" == wondClassCd || "00G11" == wondClassCd || "00G12" == wondClassCd || "00G13" == wondClassCd || "00G14" == wondClassCd || "90001" == wondClassCd) { // 장해 8~13급 , 등외
+            			
+            			$('#radio1-5').prop('checked', true);
+                    	$('#certTextId').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+                    
+            			bChk = true;
+                    }
+            		else {
+	                	// 대상아님.
+        				bChk = false;
+            		}
+                }
+
+            	if(bChk) {
+	                //할인금액 재계산
+	                recalWithExemption();
+	
+	                subTitle = $('#usNmId').text() + '님은 감면 대상자입니다.';
+	                content = '';
+	                type = '';
+	                
+	             	// 할인정보 선택 radio
+	                fnInitDiscountRadio(false);
+            	}
+            	else {
+            		subTitle = $('#usNmId').text() + '님은 대상자가 아닙니다.';
+                    content = '확인 후 다시 시도해주세요.';
+                    type = 'error';
+                    $('#radio1-1').prop('checked', true);
+                    
+                 	// 할인정보 선택 radio
+                    fnInitDiscountRadio(true);
+            	}
+            } 
+            else {
+                //조회 결과 (S:성공 이 아닐때 )
+                if(inquRsltCd != 'S') {
+                    subTitle = $('#usNmId').text() + '님은 대상자가 아닙니다.';
+                    content = '조회 결과가 없습니다.<br/>확인 후 다시 시도해주세요.';
+                    type = 'error';
+                    $('#radio1-1').prop('checked', true);
+                    
+                 	// 할인정보 선택 radio
+                    fnInitDiscountRadio(true);
+                } 
+                else {
+                    //수권자인지 체크
+                    if(authoriPsnYn != 'Y') {
+                        subTitle = $('#usNmId').text() + '님은 대상자가 아닙니다.';
+                        content = '확인 후 다시 시도해주세요.';
+                        type = 'error';
+                        $('#radio1-1').prop('checked', true);
+                        
+                     	// 할인정보 선택 radio
+                        fnInitDiscountRadio(true);
+                    } 
+                    else {
+                        //조회결과가 있고, 수권자인데 본인이 아닌경우
+                        if(relCd != 'A') {
+                            subTitle = '본인인 경우에만 선할인 가능합니다.';
+                            content = '수권자 본인만 할인 가능합니다.<br/>가족 및 배우자이신 경우 증빙을 지참하시고 현장할인 받으시기 바랍니다.';
+                            type = 'error';
+                            $('#radio1-1').prop('checked', true);
+                            
+                         	// 할인정보 선택 radio
+                            fnInitDiscountRadio(true);
+                        } 
+                        else {
+                            //이경우는 없긴한데 일단 처리
+                            subTitle = $('#usNmId').text() + '님은 대상자가 아닙니다.';
+                            content = '확인 후 다시 시도해주세요.';
+                            type = 'error';
+                            $('#radio1-1').prop('checked', true);
+                            
+                         	// 할인정보 선택 radio
+                            fnInitDiscountRadio(true);
+                        }
+                    }//수권자 END
+
+                }//조회결과 END
+
+            }//감면대상 END
+        } 
+        else {
+            //조회결과가 없을때
+            subTitle = $('#usNmId').text() + '님은 대상자가 아닙니다.';
+            content = '확인 후 다시 시도해주세요.';
+            type = 'error';
+            $('#radio1-1').prop('checked', true);
+            
+         	// 할인정보 선택 radio
+            fnInitDiscountRadio(true);
+        }//조회결과 0개 END
+
+    } 
+    else {
+        subTitle = '예약자 본인이 아니므로 <br>자격확인을 할 수 없습니다.';
+        content = '현장 방문 시 증빙을 지참하시고 할인 받으시기 바랍니다.';
+        type = 'error';
+        $('#radio1-1').prop('checked', true);
+        
+     	// 할인정보 선택 radio
+        fnInitDiscountRadio(true);
+    }
+
+    alertPopup({
+        title: '알림',
+        subTitle: subTitle,
+        content: content,
+        type: type
+    });
+    
+    // 간혹 메인창이 닫히는 듯.
+    // self.close();
+    closePopup('exemption-auth');
+
+}
+//국가유공자 등급확인
+
+//휴대폰 인증
+function goAuth(){
+	
+	$.ajax({
+		url:"/pay/checkPlusForPay.do",  
+		type: "POST", 
+		dataType: "json",
+		async : false ,
+		data: {},
+		success: function(dat) {
+			
+			//인증요청 암호화 데이터가 없을 경우 오류발생
+            if(dat.result.sEncData == ''){
+                toastrMsg(dat.result.sRtnMsg);
+            }
+            else{
+                $("#EncodeData").val(dat.result.sEncData);
+                window.open('', 'popupChk', 'width=500, height=550, top=100, left=100, fullscreen=no, menubar=no, status=no, toolbar=no, titlebar=yes, location=no, scrollbar=no');
+                document.form_chk.target = "popupChk";
+                document.form_chk.action = "https://nice.checkplus.co.kr/CheckPlusSafeModel/checkplus.cb;jsessionid=MASKED";
+                document.form_chk.submit();
+            }
+		},
+		error: function(e1,e2,e3) {
+			
+		}
+	});
+	
+}
+
+
+//아이핀 인증
+function goAuthiPin(){
+
+	$.ajax({
+		url:"/pay/iPinForPay.do",  
+		type: "POST", 
+		dataType: "json",
+		async : false ,
+		data: {},
+		success: function(dat) {
+			
+			//인증요청 암호화 데이터가 없을 경우 오류발생
+            if(dat.result.sEncData == ''){
+                toastrMsg(dat.result.sRtnMsg);
+            }
+            else{
+           	      $("#enc_data").val(dat.result.sEncData);
+                  window.open('', 'popupIPIN2', 'width=450, height=550, top=100, left=100, fullscreen=no, menubar=no, status=no, toolbar=no, titlebar=yes, location=no, scrollbar=no');
+                  document.form_ipin.target = "popupIPIN2";
+                  document.form_ipin.action = "https://cert.vno.co.kr/ipin.cb";
+                  document.form_ipin.submit();
+            }
+		},
+		error: function(e1,e2,e3) {
+			
+		}
+	});
+	
+}
+
+// 할인구분 초기화
+function fnInitDiscountRadio(flag) {
+	/*
+		name	discount
+		id		radio2_1  	선택안함
+				radio2_2	그린카드
+				radio2_3	쿠폰
+	*/
+	if(flag) {		// 할인정보 선택 가능
+		$("input:radio[name='discount']").attr("disabled", false);
+	}
+	else {			// 할인정보 선택 불가능 => 감면인증된 경우
+		$("input:radio[name='discount']").attr("disabled", true);
+	}
+	$("input:radio[name='discount']").prop("checked", false);
+	
+	// [2025.12.23] 할인 선택이 가능한 경우만 초기화 되도록
+	if(!flag) {
+		//선택안함 체크되도록
+		$('#radio2_1').prop("checked", true);
+		
+		// 아래 호출시 감면정보가 초기화된다.
+		//$('#radio2_1').trigger('click');
+		
+		// 쿠폰영역만 보이지 않게 처리
+		fnInitCouponArea();
+	}
+}
+
+</script>
+
+<div class="modal-popup small" id="exemption-auth">
+	
+		<input type="hidden" id="authTypeId" value=""/>
+		
+        <div class="popup-wrap" style="top: 40px; bottom: 40px;">
+            <div class="popup-head">
+                <strong class="popup-title">감면자격 인증</strong>
+                <button type="button" class="btn-close" title="닫기">
+                    <i class="icon-close"></i>
+                </button>
+            </div>
+            <div class="popup-container">
+                <strong class="title-2">개인정보 제공 동의</strong>
+                <div class="box-content" style="height: 80px">
+                    ※ 본 포털은 본인확인 및 공공시설 이용요금 감면서비스 대상여부 확인, 자연공원법 제37조의1(입장료 및 사용료 징수)에 따른 공원시설 할인혜택 제공, 감면자 자격 정보 저장 만료일 안내를 목적으로 개인정보를 수집합니다.<br/>
+                    - 수집항목 : 이름, 주민번호, 휴대전화 번호, 장애인(유무, 장애등급), 국가보훈 대상자(유무, 대상자 등급 등), 5.18 민주 유공자(유무)<br/>
+                    - 보유기간 : 5년<br/>
+                    <br/>
+                    
+                    귀하께서는 “국립공원예약시스템”의 개인정보 및 민감정보 수집 이용에 동의를 거부할 권리가 있습니다.<br/>
+                    개인정보 수집 동의 거부 시 공공시설 이용요금 감면서비스 대상 여부 확인이 제한 될 수 있으며, 장애인 우선예약 및 공원시설 할인 혜택을 받으실 수 없습니다.<br/>
+                    수집된 정보는 공공시설 이용요금 감면서비스 대상 여부 확인 후 즉시 파기됩니다.<br/>
+                </div>
+                <div class="radio-area">
+                    <label for="radio2-1">위 내용에 동의하십니까?</label>
+                    <span class="radio-1">
+                        <input type="radio" id="radio1-1" name="policy" checked="" value="">
+                        <label for="radio1-1">동의하지 않음</label>
+                    </span>
+                    <span class="radio-1">
+                        <input type="radio" id="radio2-1" name="policy"  value="T">
+                        <label for="radio2-1">동의함</label>
+                    </span>
+                </div>
+                
+                <strong class="title-2">행정정보 공동이용 사전동의서</strong>
+                <div class="box-content" style="height: 80px">
+                    1. 이용기관 명칭 : 국립공원공단<br/>
+					2. 이용사무(이용목적) : 자연공원법 제37조의1(입장료 및 사용료 징수)에 따른 공원시설 할인혜택 제공<br/>
+					3. 공동이용 행정정보<br/>
+					&nbsp;&nbsp; 가. 장애인(유무, 장애등급)<br/>
+					&nbsp;&nbsp; 나. 국가보훈 대상자(유무, 대상자 등급 등), 5.18 민주 유공자(유무)<br/>
+					4. 정보주체(본인) 동의사항<br/>
+					&nbsp;&nbsp; ○ 본인은 위 사무의 처리를 위하여 「전자정부법」제36조에 따른 행정정보 공동이용을 통해 이용기관의 업무처리담당자가 전자적으로 본인의 구비서류(공동이용 행정정보)를 확인하는 것에 동의합니다.<br/> 
+					&nbsp;&nbsp; ※ 만일, 본인이 위 행정정보 이용에 대해 동의를 하지 아니할 경우에도 불이익은 없습니다. 다만, 동의하지 아니한 경우에는 본인이 해당 구비서류를 제출하여야 합니다.<br/>
+                </div>
+                <div class="radio-area">
+                    <label for="pia-radio1-2">위 내용에 동의하십니까?</label>
+                    <span class="radio-1">
+                        <input type="radio" id="pia-radio1-1" name="piaDiv6Yn" value="N" checked><label for="pia-radio1-1">동의하지 않음</label>
+                    </span>
+                    <span class="radio-1">
+                        <input type="radio" id="pia-radio1-2" name="piaDiv6Yn" value="Y"><label for="pia-radio1-2">동의함</label>
+                    </span>
+                </div>
+                
+                <div class="personal-identification mb-20 mt-20">
+                    <div class="auth-box phone">
+                        <strong>휴대폰 인증</strong>
+                        <p>본인 명의 휴대폰으로 인증 후 감면혜택을 받을 수 있습니다.</p>
+                        <button class="btn" onclick="goAuth();">휴대폰 인증</button>
+                    </div>
+                    <div class="auth-box ipin">
+                        <strong>아이핀(I-PIN) 인증</strong>
+                        <p>본인 명의 아이핀 으로 인증 후 감면혜택을 받을 수 있습니다.</p>
+                        <button class="btn" onclick="goAuthiPin();">아이핀 인증</button>
+                    </div>
+                </div>
+                
+                <strong class="title-2">개인정보 입력</strong>
+                <table class="table">
+                    <caption>개인정보 입력</caption>
+                    <colgroup>
+                        <col style="width: 140px;">
+                        <col>
+                    </colgroup>
+                    <tbody class="tbody">
+                        <tr>
+                            <th scope="row">이름</th>
+                            <td id="usNmId">&nbsp;</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="usNm" class="hidden-text">주민번호</label></th>
+                            <td class="form flex">
+                                <span id="usNumId"></span> -
+                                <label for="usNm" class="hidden-text">주민번호 뒷자리</label>
+                                <input type="password" class="input-text input-text-h30px" id="usNm" placeholder="주민번호 뒷자리를 입력 해주세요." title="주민번호 뒷자리">
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="btn-area">
+                    <button class="btn btn-cancel selfAuthModalCancel">취소</button>
+                    <button class="btn btn-confirm is-active selfAuthModal">자격확인</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+			</div>
+			
+		<footer id="footer">
+            <ul class="content">
+                <li>
+                    <address>(국립공원공단) 강원도 원주시 혁신로 22 (우)26466</address>
+                </li>
+                <li>사업자등록번호: 211-82-06541</li>
+                <li>탐방·시설 예약안내: <a href="tel:1670-9201">1670-9201</a> (평일 09-18시, 점심시간 12-13시)</li>
+                <li>FAX: 033-769-9719</li>
+            <!--     <li>이메일: csnp&#64;knps.or.kr</li> -->
+            </ul>
+            <p class="copyright">Copyright@Korea National Park Service. All Rights Reserved.</p>
+            <div class="policy-area">
+                <a href="/contents/copyrightPolicy.do" class="btn">저작권정책</a>
+                <a href="http://www.knps.or.kr/portal/main/contents.do?menuNo=7020135" class="btn" target="_blank" rel="noopener noreferrer" style="font-weight: bold; color: #0033cc; background: #ffffff;">개인정보처리방침</a>
+            </div>
+        </footer>
+
+<!-- AceCounter Log Gathering Script V.8.0.AMZ2019080601 -->
+<!-- 2020-06-15 -->
+<script language='javascript'>
+	var _AceGID=(function(){var Inf=['gtp14.acecounter.com','8080','AH6A44218380733','AW','0','NaPm,Ncisy','ALL','0']; var _CI=(!_AceGID)?[]:_AceGID.val;var _N=0;var _T=new Image(0,0);if(_CI.join('.').indexOf(Inf[3])<0){ _T.src ="https://"+ Inf[0] +'/?cookie'; _CI.push(Inf);  _N=_CI.length; } return {o: _N,val:_CI}; })();
+	var _AceCounter=(function(){var G=_AceGID;var _sc=document.createElement('script');var _sm=document.getElementsByTagName('script')[0];if(G.o!=0){var _A=G.val[G.o-1];var _G=(_A[0]).substr(0,_A[0].indexOf('.'));var _C=(_A[7]!='0')?(_A[2]):_A[3];var _U=(_A[5]).replace(/\,/g,'_');_sc.src='https:'+'//cr.acecounter.com/Web/AceCounter_'+_C+'.js?gc='+_A[2]+'&py='+_A[4]+'&gd='+_G+'&gp='+_A[1]+'&up='+_U+'&rd='+(new Date().getTime());_sm.parentNode.insertBefore(_sc,_sm);return _sc.src;}})();
+</script>
+<noscript><img src='https://gtp14.acecounter.com:8080/?uid=AH6A44218380733&je=n&' border='0' width='0' height='0' alt=''></noscript>	
+<!-- AceCounter Log Gathering Script End -->
+
+
+<div class="modal-popup small" id="confirmPop">
+    <div class="popup-wrap">
+        <div class="popup-head">
+            <strong class="popup-title" id="confirmTitle"></strong>
+            <button type="button" class="btn-close" title="닫기" onclick="closePopup('confirmPop');">
+                <i class="icon-close"></i>
+            </button>
+        </div>
+        <div class="popup-container">
+            <div class="center">
+                <i class="icon-error"></i>
+                <strong class="title-1" id="confirmSubTitle"></strong>
+                <p class="copy-mid" id="confirmContent"></p>
+                <p class="copy-sm" id="confirmSubContent"></p>
+            </div>
+            <div class="btn-area">
+                <button class="btn btn-cancel forMypageClass" onclick="closePopup('confirmPop');">취소</button>
+                <button class="btn btn-confirm is-active" id="btn-confirm">확인</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal-popup small" id="alertPop">
+    <div class="popup-wrap">
+        <div class="popup-head">
+            <strong class="popup-title" id="alertTitle">로그인</strong>
+            <button type="button" class="btn-close" title="닫기" onclick="closePopup('alertPop');">
+                <i class="icon-close"></i>
+            </button>
+        </div>
+        <div class="popup-container">
+            <div class="center">
+                <i class="icon-error"></i>
+                <strong class="title-1" id="alertSubTitle"></strong>
+                <p class="copy-mid" id="alertContent"></p>
+                <p class="copy-sm" id="alertSubContent"></p>
+            </div>
+            <div class="btn-area">
+                <button class="btn btn-confirm is-active" onclick="closePopup('alertPop');">확인</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-popup small" id="loginPopup">
+    <div class="popup-wrap">
+        <div class="popup-head">
+            <strong class="popup-title" id="loginTitle">로그인</strong>
+            <button type="button" class="btn-close" title="닫기" onclick="closePopup('loginPopup');">
+                <i class="icon-close"></i>
+            </button>
+        </div>
+        <div class="popup-container" id="loginPopupDiv">
+        </div>
+    </div>
+</div>
+<!-- 아이핀 가상주민번호 서비스 팝업 호출 form -->
+<form name="form_ipin" id="form_ipin" method="post">
+    <!-- 요청모드 (필수 데이터) -->
+    <input type="hidden" name="m" value="pubmain">
+    <!-- 인증요청 암호화 데이터 -->
+    <input type="hidden" name="enc_data" id="enc_data" value="">
+</form>
+<!-- 본인인증 서비스 팝업을 호출하기 위해서는 다음과 같은 form이 필요합니다. -->
+<form name="form_chk" id="form_chk" method="post">
+    <!-- 필수 데이타로, 누락하시면 안됩니다. -->
+    <input type="hidden" name="m" value="checkplusService">
+    <!-- 인증요청 암호화 데이터 -->
+    <input type="hidden" name="EncodeData" id="EncodeData" value="">
+</form>
+	</div>
+	<img id="loadingImage" src="/assets/img/preloader.gif" alt="로딩이미지" style="position: absolute; left: 924.5px; top: 539.5px; z-index: 100000; display: none;">
+<script>
+	$(function(){
+		let responseMessage = "";
+		if(responseMessage != ""){
+			toastrMsg(responseMessage);
+		}
+		let retChk = "";
+		if(retChk == "Y"){
+			alert(responseMessage);
+			history.back();
+		}
+	})
+</script>
+</body>
+</html>

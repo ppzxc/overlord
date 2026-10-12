@@ -17,16 +17,18 @@ export interface NetFunnelQueue {
 export interface QueuePass {
   key: string;
   waitedMs: number;
+  /** 대기열 서버가 준 결과 문자열(`5002:200:key=…&nwait=0…`). `enterQueue`가 채운다. 페이지는 이 문자열 전체를 `NetFunnel_ID` 쿠키에 싣는다. */
+  result?: string;
 }
 
 /** 5002 재확인을 서버가 준 간격대로 반복하되, 이만큼 넘게 기다리면 그 바퀴를 포기한다. */
 const MAX_WAIT_MS = 120_000;
 
 /** `NetFunnel.gControl.result='5002:200:key=…&nwait=0&ttl=0…'`에서 코드와 필드를 읽는다. */
-function parseNf(body: string): { code: number; fields: URLSearchParams } {
+function parseNf(body: string): { code: number; fields: URLSearchParams; result: string } {
   const m = /NetFunnel\.gControl\.result='(\d+):(\d+):([^']*)'/.exec(body);
   if (!m) throw new AdapterError("transient", "대기열 응답을 읽지 못했다");
-  return { code: Number(m[2]), fields: new URLSearchParams(m[3]) };
+  return { code: Number(m[2]), fields: new URLSearchParams(m[3]), result: `${m[1]}:${m[2]}:${m[3]}` };
 }
 
 // 5101은 기록으로 확인했다. 5002의 URL 형태는 기록에 없어 표준 NetFunnel 형식을 따른 것이며 미검증이다.
@@ -51,12 +53,12 @@ export async function enterQueue(ctx: AdapterContext, queue: NetFunnelQueue): Pr
       if (e instanceof AdapterError) throw e;
       throw new AdapterError("transient", `대기열 서버에 연결하지 못했다: ${(e as Error).message}`);
     }
-    const { code, fields } = parseNf(body);
+    const { code, fields, result } = parseNf(body);
     if (code === 301 || code === 302) throw new AdapterError("blocked", `대기열이 차단 신호(${code})를 줬다`);
     key = fields.get("key") ?? key;
     if (code === 200) {
       if (!key) throw new AdapterError("transient", "대기열이 키를 주지 않았다");
-      return { key, waitedMs: ctx.clock.now().getTime() - started };
+      return { key, waitedMs: ctx.clock.now().getTime() - started, result };
     }
     if (code !== 201 || !key) throw new AdapterError("transient", `대기열이 예상 밖 코드(${code})를 줬다`);
     const waited = ctx.clock.now().getTime() - started;
@@ -96,8 +98,8 @@ export function jsEscape(s: string): string {
 }
 
 /** 키를 `NetFunnel_ID` 쿠키로 싣는 예약처용. 5101 결과 문자열을 페이지 JS처럼 `escape()`해 경로 `/`로 심는다. */
-export function setNetFunnelCookie(http: HttpClient, host: string, key: string): void {
-  http.setCookie(host, "NetFunnel_ID", jsEscape(key));
+export function setNetFunnelCookie(http: HttpClient, host: string, result: string): void {
+  http.setCookie(host, "NetFunnel_ID", jsEscape(result));
 }
 
 /** 세션(HttpClient)이 들고 있는 대기열 키와 예약처가 진입 때 얻은 값. */

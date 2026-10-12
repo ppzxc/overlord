@@ -514,8 +514,11 @@ export function uljuServer(
   return Object.assign(respond, { bodies: body });
 }
 
-/** 기록한 중구 응답(research/raw/junggu, 2026-10-12)을 읽는다. 변형은 읽은 JSON을 고쳐 만든다. */
-const jungguRaw = (name: string) => readFileSync(new URL(`../research/raw/junggu/${name}`, import.meta.url), "utf8");
+/** `research/raw/<provider>`에 기록한 응답 원문을 읽는 함수. 변형은 읽은 원문을 고쳐 만든다. */
+const recordedRaw = (provider: string) => (name: string) => readFileSync(new URL(`../research/raw/${provider}/${name}`, import.meta.url), "utf8");
+
+/** 기록한 중구 응답(research/raw/junggu, 2026-10-12)을 읽는다. */
+const jungguRaw = recordedRaw("junggu");
 
 /** 중구 시설의 예약 화면 `menuNo`와 기록한 파일. 입화산 제2오토는 #78이 기록했고 황방산·태화연은 #79가 기록했다(research/raw/junggu). */
 const JUNGGU_PAGES: Record<string, string> = { "1010300": "pageCont.do_menuNo-1010300.html", "1020300": "pageCont.do_menuNo-1020300.html", "1030300": "pageCont.do_menuNo-1030300.html" };
@@ -627,8 +630,8 @@ export function jungguServer(
   return Object.assign(respond, { forms });
 }
 
-/** 기록한 북구 응답(research/raw/bukgu, 2026-10-13 00시 전후)을 읽는다. 변형은 읽은 HTML을 고쳐 만든다. */
-const bukguRaw = (name: string) => readFileSync(new URL(`../research/raw/bukgu/${name}`, import.meta.url), "utf8");
+/** 기록한 북구 응답(research/raw/bukgu, 2026-10-13 00시 전후)을 읽는다. */
+const bukguRaw = recordedRaw("bukgu");
 
 /**
  * 기록한 `reservationCntAjax.do` 응답(`priceCode` 빈 값, 시설 전체 표). 기본은 강동(`010100`).

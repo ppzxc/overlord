@@ -152,6 +152,10 @@ export interface FacilityObservation {
     codes: string[];
     seats: string[];
   }[];
+  /** 응답에서 읽었지만 구역을 가릴 수 없던 자리(예: 모르는 색 클래스). 구역 이름을 꾸며 내지 않고 이유와 함께 따로 보고한다. 비교에서는 차이로 친다. */
+  unattributed?: { reason: string; seats: string[] }[];
+  /** `catalog --live` 출력 끝에 덧붙일 설명 한 줄. 비교가 무엇을 보고 무엇을 보지 않는지 밝힐 때 쓴다. */
+  note?: string;
 }
 
 export class AdapterError extends Error {

@@ -1,4 +1,4 @@
-import { addDays, kstDate } from "../schedule.js";
+import { addDays, kstDate, nextMonthOf } from "../schedule.js";
 import {
   AdapterError,
   type AdapterContext,
@@ -61,8 +61,7 @@ function isQueryable(date: string, now: Date): boolean {
   const today = kstDate(now);
   const month = (d: string) => d.slice(0, 7);
   if (month(date) === month(today)) return true;
-  const next = month(addDays(`${month(today)}-28`, 4)); // 28일에 4일을 더하면 늘 다음 달이다.
-  if (month(date) !== next) return false;
+  if (month(date) !== nextMonthOf(today)) return false;
   return now.getTime() >= Date.parse(`${month(today)}-${String(FCFS_DAY).padStart(2, "0")}T${FCFS_TIME}:00+09:00`);
 }
 

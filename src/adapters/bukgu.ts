@@ -7,14 +7,13 @@ import {
   type FacilityObservation,
   type ProviderAdapter,
   type ProviderInfo,
-  type TransportResponse,
 } from "../types.js";
 import { facilities, rowClassZones } from "../catalogs/bukgu.js";
 import { resolveFacility } from "../facility.js";
-import { BlockedPathError } from "../http.js";
+import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
 import { warnDriftOnce } from "../netfunnel.js";
-import { addDays, kstDate, weekdayKey } from "../schedule.js";
-import { tlsRound } from "../tls-streak.js";
+import { addDays, kstDate, nextMonthOf, weekdayKey } from "../schedule.js";
+import { tlsStreakRound } from "../tls-streak.js";
 
 const ORIGIN = "https://camping.ubimc.or.kr";
 const PAGE_URL = `${ORIGIN}/Pmreservation.do`;
@@ -25,13 +24,15 @@ const INFO: ProviderInfo = {
   facilities,
   // 예약 하나가 한 밤이다(화면 폼이 날짜 하나와 자리 하나만 넘기고 어디에도 연박 규정이 없다. 카탈로그 머리 주석). 연박은 날짜를 따로 건다.
   maxNights: 1,
-  // 조례는 "사용일이 속한 월의 전월부터 예약"이라고 한다. 두 달 안(약 62일)으로 잡은 자리 채움이다. 다음 달 날짜가 열리는 때(선착순 월요일 10시, 달마다 다름)와 추첨 기간은 이 규칙으로 못 가리므로 예약 화면의 달력 상한과 결제 마감일로 `openForFirstCome`이 가린다.
-  // 당일 입실은 화면 JS가 18시에 닫는다(`nowHour < 18`).
+  // 오픈 경쟁 시간(`openingRush`)은 두지 않는다(스펙). 아래 세 값은 타입상 필수인 날짜 창이고 열리는 때를 주장하지 않는다.
+  // - openDaysBefore 62, openTime 00:00: 조례("사용일이 속한 월의 전월부터 예약")상 열릴 수 있는 가장 먼 날짜는 오늘로부터 61일(이달 1일 → 다음 달 말일)이다. 62는 그보다 느슨한 걸러내기이고 개시 시각이 아니다.
+  //   이보다 먼 날짜는 요청 없이 건너뛰어 예약 화면 요청도 아낀다. 다음 달 날짜가 실제로 열리는 때(선착순 월요일 10시, 달마다 다름)와 추첨 기간은 `openForFirstCome`이 예약 화면으로 가린다.
+  // - sameDayCutoff 18:00: 화면 JS가 당일 입실을 18시에 닫는다(`nowHour < 18`, 기록).
   openingRule: { openDaysBefore: 62, openTime: "00:00", sameDayCutoff: "18:00" },
-  // 오픈 경쟁 시간은 두지 않는다. 선착순 개시일이 달마다 다르다.
   defaultPollIntervalSeconds: 150,
-  // 자리 선점, 예약 제출 폼, 로그인(회원가입은 외부 `/logins`), 예약확인·취소, 추첨 신청.
-  blockedPaths: ["/ajax/preReservationAjax", "/Pmreservation2.do", "/login", "/PmmySubscription", "/Pmbukgusubscription", "/Pmsubscription"],
+  // 자리 선점(`preReservationAjax2.do`), 예약 제출 폼(`Pmreservation2.do`, 결제는 이 제출 뒤 로그인 후 단계라 경로를 못 봤다), 로그인·로그아웃(회원가입은 외부 `/logins`; 경로 접두어는 호스트를 가리지 않아 같이 막힌다),
+  // 예약확인·취소(`PmmySubscription.do`; 기록한 것은 이 하나지만 `Pmmy` 접두 이름은 같은 계열로 보고 접두어로 막는다. 막는 쪽으로만 넓힌 것이라 조회는 영향이 없다), 추첨 신청. 예약 화면 `Pmreservation.do`와 조회 경로는 막지 않는다.
+  blockedPaths: ["/ajax/preReservationAjax", "/Pmreservation2", "/login", "/logout", "/Pmmy", "/Pmbukgusubscription", "/Pmsubscription"],
   // 쿠키 없이 응답한다(기록).
   cookieSession: false,
   // 시설이 둘(강동, 당사)이라 시설을 꼭 골라야 한다.
@@ -44,73 +45,79 @@ const siteKindCodeOf = (facility: string): string => {
   return ref.siteKindCode;
 };
 
+
+/** 표의 한 행. 구역은 사이트명 칸의 색 클래스에서 읽는다. */
+interface RawRow {
+  name: string;
+  /** 사이트명 칸의 `line_…` 색 클래스. 없으면 `(없음)`. */
+  cls: string;
+  status: string;
+}
+
 interface Row {
   zone: string;
   name: string;
   open: boolean;
 }
 
-/**
- * 봇 탐지 장치·captcha 표지. ADR 0002가 넘지 않는 선으로 꼽은 장치의 이름이다. 북구의 조회 흐름에는 없었고(기록한 화면·스크립트·조회 응답 어디에도 없다), 나타나면 새 신호로 보고 멈춘다.
- * 로그인 요구의 조회 응답 원문은 기록이 없다. 화면 JS(`subIdx`)가 로그인 안 한 방문자를 `/login.do`로 보내므로 표 없이 `/login.do`가 오면 로그인 요구로 본다.
- */
-const BOT_DETECTION = /botmanager|crawlingCheck|dynapath|captcha/i;
-const LOGIN_REQUIRED = /\/login\.do/i;
-
-/** 응답 상태를 판정한다. 401·403·429는 차단, 5xx는 일시 오류, 그 밖의 200 아님은 구조 변경이다. */
-function assertOk(status: number, where = "reservationCntAjax.do"): void {
-  if (status === 401 || status === 403 || status === 429) throw new AdapterError("blocked", `${where}: HTTP ${status}`);
-  if (status >= 500) throw new AdapterError("transient", `${where}: HTTP ${status}`);
-  if (status !== 200) throw new AdapterError("unrecognized", `${where}: 예상 밖 HTTP ${status}`);
+/** 구역을 가릴 수 없는 행(모르는 색 클래스). 감시하는 구역과 무관할 수 있어 구조 변경으로 치지 않고 따로 든다. */
+interface UnattributedRow {
+  name: string;
+  cls: string;
 }
 
-/** 표를 읽는다. 사이트명 칸의 색 클래스로 구역을, 예약현황 칸으로 빈자리를 가른다. 모르는 모양과 값은 구조 변경이다. */
-function parseTable(html: string, facility: string, lenient = false): Row[] {
+/**
+ * 봇 탐지 장치·captcha 표지는 `BOT_DETECTION`이다. 북구의 조회 흐름에는 없었고(기록한 화면·스크립트·조회 응답 어디에도 없다), 나타나면 새 신호로 보고 멈춘다.
+ * 로그인 요구: 조회 응답의 로그인 요구 원문은 기록이 없다. 확인한 것은 화면 JS(`subIdx`)가 로그인 안 한 방문자를 `/login.do`로 보내는 모양(`location.href="/login.do"`)뿐이라,
+ * 표 없이 그런 이동 스크립트(또는 meta refresh)가 오면 로그인 요구다. 기록한 사이트 전체 화면은 머리말에 `<a class="login_btn" href="/login.do">` 링크를 달고 예약 화면은 위 스크립트도 함께 가진다.
+ * 그래서 로그인 링크나 이동 스크립트가 있어도 사이트 틀(`login_btn`)이 보이면 로그인 요구가 아니라 알 수 없는 화면(`unrecognized`)이다. 로그인 경로로의 리다이렉트(Location)는 HTTP 층이 접근 금지로 막는다.
+ */
+const LOGIN_REDIRECT = /(?:location(?:\.href)?\s*=|location\.(?:replace|assign)\s*\()\s*['"]\/?login\.do|http-equiv\s*=\s*["']?refresh["']?[^>]*login\.do/i;
+const SITE_FRAME = /class="login_btn"/;
+
+/** 표를 읽는다. 표 구조(표, 사이트명·예약현황 열, 사이트명, 행)가 깨지면 구조 변경이다. 값의 뜻(구역, 예약현황)은 보지 않는다. */
+function parseTable(html: string): RawRow[] {
   const where = "reservationCntAjax.do";
   if (BOT_DETECTION.test(html)) throw new AdapterError("blocked", `${where}: 봇 탐지·captcha 표지가 왔다`);
   const $ = cheerio.load(html);
   const table = $("table#tableSite");
   if (table.length === 0) {
-    if (LOGIN_REQUIRED.test(html)) throw new AdapterError("blocked", `${where}: 표 대신 로그인 요구가 왔다`);
+    if (LOGIN_REDIRECT.test(html) && !SITE_FRAME.test(html)) throw new AdapterError("blocked", `${where}: 표 대신 로그인 요구가 왔다`);
     throw new AdapterError("unrecognized", `${where}: 표(table#tableSite)가 없다`);
   }
   const headers = table.find("thead th").toArray().map((th) => $(th).text().trim());
   const nameCol = headers.indexOf("사이트명");
   const statusCol = headers.indexOf("예약현황");
   if (nameCol < 0 || statusCol < 0) throw new AdapterError("unrecognized", `${where}: 사이트명·예약현황 열이 없다(${headers.join(", ")})`);
-  const classes = rowClassZones[facility] ?? {};
   const rows = table
     .find("tbody tr")
     .toArray()
-    .map((tr): Row => {
+    .map((tr): RawRow => {
       const cells = $(tr).children("td");
       const span = cells.eq(nameCol).find("span.link");
       const name = span.text().trim();
-      const zone = Object.entries(classes).find(([cls]) => span.hasClass(cls))?.[1];
-      const status = cells.eq(statusCol).text().trim();
       if (!name) throw new AdapterError("unrecognized", `${where}: 행에 사이트명이 없다`);
-      // `catalog --live`는 모르는 색 클래스를 새로 생긴 구역으로 보고한다(구조 변경이 아니라 비교할 내용이다).
-      if (zone === undefined && !lenient) throw new AdapterError("unrecognized", `${where}: ${name}의 시설종류 색 클래스(${span.attr("class") ?? ""})를 모른다`);
-      const unknownClass = (span.attr("class") ?? "").split(/\s+/).find((c) => c.startsWith("line_")) ?? "(없음)";
-      if (status !== "예약가능" && status !== "예약종료") throw new AdapterError("unrecognized", `${where}: ${name}의 예약현황이 예약가능/예약종료가 아니다(${JSON.stringify(status)})`);
-      return { zone: zone ?? `색 클래스 ${unknownClass}`, name, open: status === "예약가능" };
+      const cls = (span.attr("class") ?? "").split(/\s+/).find((c) => c.startsWith("line_")) ?? "(없음)";
+      return { name, cls, status: cells.eq(statusCol).text().trim() };
     });
   if (rows.length === 0) throw new AdapterError("unrecognized", `${where}: 표에 행이 없다`);
   return rows;
 }
 
-/** 요청 하나를 보낸다. 접근 금지 경로(로그인으로 리다이렉트 포함)는 차단, 연결 실패·시간 초과(TLS 검증 실패 포함)는 일시 오류다. */
-async function send(where: string, request: () => Promise<TransportResponse>): Promise<TransportResponse> {
-  try {
-    return await request();
-  } catch (e) {
-    if (e instanceof BlockedPathError) throw new AdapterError("blocked", `${where}: 로그인·접근 금지 경로로 보내졌다(${e.message})`);
-    if (e instanceof AdapterError) throw e;
-    throw new AdapterError("transient", `${where}: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+/** 행을 구역으로 가른다. 색 클래스가 카탈로그에 없는 행은 구역을 가릴 수 없는 행으로 따로 둔다. */
+function attribute(facility: string, raw: RawRow[]): { rows: Row[]; unattributed: UnattributedRow[] } {
+  const classes = rowClassZones[facility] ?? {};
+  const rows: Row[] = [];
+  const unattributed: UnattributedRow[] = [];
+  for (const r of raw) {
+    const zone = classes[r.cls];
+    if (zone === undefined) unattributed.push({ name: r.name, cls: r.cls });
+    else rows.push({ zone, name: r.name, open: r.status === "예약가능" });
   }
+  return { rows, unattributed };
 }
 
-async function fetchTable(facility: string, date: string, ctx: AdapterContext, lenient = false): Promise<Row[]> {
+async function fetchTable(facility: string, date: string, ctx: AdapterContext): Promise<RawRow[]> {
   const res = await send("reservationCntAjax.do", () =>
     ctx.http.post(
       TABLE_URL,
@@ -120,32 +127,46 @@ async function fetchTable(facility: string, date: string, ctx: AdapterContext, l
       { headers: { Referer: PAGE_URL, Origin: ORIGIN, "X-Requested-With": "XMLHttpRequest", Accept: "text/html, */*; q=0.01" } },
     ),
   );
-  assertOk(res.status);
-  const rows = parseTable(res.body, facility, lenient);
-  if (lenient) return rows;
-  // 카탈로그의 구역이 표에 하나도 없으면(그 구역을 감시하지 않아도) 경고만 남긴다. 감시하는 구역이 없는 것은 조회 단위 판정이 실패로 친다.
+  assertOk(res, "reservationCntAjax.do");
+  return parseTable(res.body);
+}
+
+/** 한 (시설, 밤)의 표 읽기 결과. 구역을 가린 행과, 가리지 못한 행의 수(감시 구역이 사라졌을 때 이유를 밝히는 데 쓴다). */
+interface Table {
+  rows: Row[];
+  unattributed: number;
+}
+
+/**
+ * 폴링용으로 표를 읽는다. 예약현황이 "예약가능"/"예약종료" 밖이면 어느 행이든 구조 변경이다(스펙).
+ * 색 클래스가 낯선 행(구역을 가릴 수 없음)과 카탈로그의 구역이 표에 하나도 없는 것은 경고만 남기고, 감시하는 구역의 행이 없는 것은 조회 단위 판정이 실패로 친다.
+ */
+async function readTable(facility: string, date: string, ctx: AdapterContext): Promise<Table> {
+  const raw = await fetchTable(facility, date, ctx);
+  const odd = raw.find((r) => r.status !== "예약가능" && r.status !== "예약종료");
+  if (odd) throw new AdapterError("unrecognized", `reservationCntAjax.do: ${odd.name}의 예약현황이 예약가능/예약종료가 아니다(${JSON.stringify(odd.status)})`);
+  const { rows, unattributed } = attribute(facility, raw);
+  for (const cls of new Set(unattributed.map((u) => u.cls))) {
+    const seats = unattributed.filter((u) => u.cls === cls).map((u) => u.name);
+    warnDriftOnce(ctx, `${facility}:class:${cls}`, "bukgu zone drift", { facility, change: "unknown-class", class: cls, seats });
+  }
   const seen = new Set(rows.map((r) => r.zone));
   for (const z of resolveFacility(INFO, facility).zones) {
     if (!seen.has(z.code)) warnDriftOnce(ctx, `${facility}:gone:${z.code}`, "bukgu zone drift", { facility, change: "gone", zone: z.code });
   }
-  return rows;
-}
-
-/** 요청 없이 그 단위만 보고 나온 구조 변경. 그 단위만 실패로 치고 다른 단위의 조회는 막지 않는다. */
-class UnitStructureError extends AdapterError {
-  constructor(message: string) {
-    super("unrecognized", message);
-  }
+  return { rows, unattributed: unattributed.length };
 }
 
 /**
  * 추첨 대상 날짜를 가리는 기준. 예약 화면에서 읽는다.
- * - `limit`: 달력 상한 `d2`의 한국 날짜. 페이지 달력은 `date > d2`인 날만 막아서(`d2`는 그 날 00:00 + 요청 시각의 밀리초) 상한 날짜 자체는 눌리지만 열린 날이 아니다(기록한 11/01).
- * - `firstComeStart`: 다음 달 날짜의 선착순 개시 시각. 결제 마감일(`resEndDay`) 다음 월요일 10:00 KST(공지 두 건에서 확인).
+ * - `limitDate`: 달력 상한 `d2`의 한국 날짜. 페이지 달력은 `date > d2`인 날만 막아서(`d2`는 그 날 00:00 + 요청 시각의 밀리초) 상한 날짜 자체는 눌리지만 열린 날이 아니다(기록한 11/01).
+ * - `firstComeAtMs`: 다음 달 날짜의 선착순 개시 시각(epoch ms). 결제 마감일(`resEndDay`) 다음 월요일 10:00 KST(공지 두 건에서 확인).
+ * 사람 확인 대기: 선착순이 열린 뒤에도 `d2`가 이달 말(예: 11/01)에 머물면 `date < limitDate`가 다음 달 날짜를 모두 가려 그 알림이 나가지 않는다(안전한 쪽으로 실패하지만 선착순 알림을 놓는다).
+ * 개시 뒤 `d2`가 올라가는지는 기록으로 확인하지 못했다. 이 조건은 가리기만 한다(열어 주지 않는다).
  */
 interface LotteryGate {
-  limit: string;
-  firstComeStart: number;
+  limitDate: string;
+  firstComeAtMs: number;
 }
 
 const pageVar = (html: string, name: string): string | undefined => new RegExp(`var\\s+${name}\\s*=\\s*'?(\\d+)'?\\s*;`).exec(html)?.[1];
@@ -164,18 +185,18 @@ function parseGate(html: string, now: Date): LotteryGate {
   const payDeadline = `${kstDate(now).slice(0, 7)}-${String(resEndDay).padStart(2, "0")}`;
   let monday = addDays(payDeadline, 1);
   while (weekdayKey(monday) !== "mon") monday = addDays(monday, 1);
-  return { limit: kstDate(new Date(Number(d2))), firstComeStart: Date.parse(`${monday}T10:00:00+09:00`) };
+  return { limitDate: kstDate(new Date(Number(d2))), firstComeAtMs: Date.parse(`${monday}T10:00:00+09:00`) };
 }
 
 /**
  * 이 밤이 선착순으로 열려 있는가. 이달 날짜는 지난달에 선착순이 열렸으니 열려 있다. 다음 달 날짜는 선착순 개시 시각 뒤이고 달력 상한보다 앞일 때만 열려 있다.
  * 그 앞(추첨 접수·추첨·당첨자 결제 기간)의 표는 추첨 대상이라도 25자리가 모두 "예약가능"으로 보인다. 두 달 뒤 날짜는 조례상 아직 예약을 받지 않는다.
+ * (`LotteryGate`의 사람 확인 대기: 개시 뒤에도 달력 상한이 이달 말에 머물면 다음 달 날짜의 알림은 나가지 않는다.)
  */
 function openForFirstCome(date: string, today: string, gate: LotteryGate, now: Date): boolean {
-  const month = today.slice(0, 7);
-  const next = addDays(`${month}-28`, 4).slice(0, 7);
-  if (date.slice(0, 7) === next) return now.getTime() >= gate.firstComeStart && date < gate.limit;
-  return date.slice(0, 7) <= month;
+  const month = date.slice(0, 7);
+  if (month === nextMonthOf(today)) return now.getTime() >= gate.firstComeAtMs && date < gate.limitDate;
+  return month <= today.slice(0, 7);
 }
 
 type Results = Map<AvailabilityQuery, AvailableSite[] | AdapterError>;
@@ -189,15 +210,15 @@ type Results = Map<AvailabilityQuery, AvailableSite[] | AdapterError>;
  */
 async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Results> {
   const results: Results = new Map();
-  const tables = new Map<string, Row[]>();
-  const tls = tlsRound(ctx.http);
+  const tables = new Map<string, Table>();
+  const tls = tlsStreakRound(ctx.http);
   const now = ctx.clock.now();
   const today = kstDate(now);
   let gate: LotteryGate | UnitStructureError | undefined;
   const gateOf = async (): Promise<LotteryGate> => {
     if (gate === undefined) {
       const res = await send("Pmreservation.do", () => ctx.http.get(PAGE_URL));
-      assertOk(res.status, "Pmreservation.do");
+      assertOk(res, "Pmreservation.do");
       try {
         gate = parseGate(res.body, now);
       } catch (e) {
@@ -210,6 +231,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
   };
   let stopped: AdapterError | undefined;
   for (const q of units) {
+    // 최대 박수는 1이라 설정이 2박 이상을 거부한다. 아래 여러 박 처리는 최대 박수를 올리면 그대로 쓰인다.
     const max = resolveFacility(INFO, q.facility).maxNights ?? INFO.maxNights;
     if (q.nights > max) throw new Error(`bukgu ${q.facility}는 최대 ${max}박만 읽는다(${q.nights}박)`);
     if (stopped) {
@@ -226,18 +248,20 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
           continue;
         }
       }
-      const perNight: Row[][] = [];
+      const perNight: Table[] = [];
       for (const date of dates) {
         const key = `${q.facility}|${date}`;
-        if (!tables.has(key)) tables.set(key, await fetchTable(q.facility, date, ctx)); // 직렬: 요청은 HTTP 층이 한 줄로 보낸다.
+        if (!tables.has(key)) tables.set(key, await readTable(q.facility, date, ctx)); // 직렬: 요청은 HTTP 층이 한 줄로 보낸다.
         perNight.push(tables.get(key)!);
       }
       // 응답이 왔는데 감시하는 구역의 행이 없으면 화면 모양이 바뀐 것이다. 빈자리 없음으로 넘기지 않는다.
-      if (perNight.some((rows) => !rows.some((r) => r.zone === q.zone))) {
-        throw new UnitStructureError(`reservationCntAjax.do: 표에 감시하는 구역 ${q.zone}의 행이 없다`);
+      const missing = perNight.find((t) => !t.rows.some((r) => r.zone === q.zone));
+      if (missing) {
+        const why = missing.unattributed > 0 ? `(구역을 알 수 없는 행 ${missing.unattributed}개)` : "";
+        throw new UnitStructureError(`reservationCntAjax.do: 표에 감시하는 구역 ${q.zone}의 행이 없다${why}`);
       }
       // 여러 박이면 같은 사이트명이 밤마다 예약가능일 때만 빈자리다.
-      const open = perNight.map((rows) => new Set(rows.filter((r) => r.zone === q.zone && r.open).map((r) => r.name)));
+      const open = perNight.map((t) => new Set(t.rows.filter((r) => r.zone === q.zone && r.open).map((r) => r.name)));
       results.set(q, [...open[0]!].filter((n) => open.every((s) => s.has(n))).map((name) => ({ id: name, name })));
     } catch (e) {
       if (e instanceof UnitStructureError) {
@@ -270,17 +294,26 @@ export const bukguAdapter: ProviderAdapter = {
 
   /**
    * `catalog --live`: 내일(KST) 밤의 시설 전체 표를 한 번 받아 구역과 자리를 읽는다. 예약 화면은 받지 않고 추첨 대상 날짜도 가리지 않는다(표의 모양만 본다).
-   * 구역 코드는 예약처가 응답에 싣지 않으므로(이름이 코드다) 비운다.
+   * 구역 코드는 예약처가 응답에 싣지 않으므로(이름이 코드다) 비운다. 예약현황 값은 구역·자리 대조에 쓰지 않아 보지 않는다.
+   * 표를 읽지 못한 것(표·열·사이트명 없음, 조회 실패)만 실패다. 모르는 색 클래스의 행은 구역 이름 없이 따로 보고해 차이로 친다(실패가 아니다).
+   * 카탈로그에는 자리 목록이 없어 자리는 참고로만 보인다.
    */
   async observeFacility(facility, ctx): Promise<FacilityObservation> {
-    const rows = await fetchTable(facility, addDays(kstDate(ctx.clock.now()), 1), ctx, true);
+    const { rows, unattributed } = attribute(facility, await fetchTable(facility, addDays(kstDate(ctx.clock.now()), 1), ctx));
     const zones: FacilityObservation["zones"] = [];
     for (const r of rows) {
       const found = zones.find((z) => z.name === r.zone);
       if (found) found.seats.push(r.name);
       else zones.push({ name: r.zone, codes: [], seats: [r.name] });
     }
-    return { zones };
+    const unknown: NonNullable<FacilityObservation["unattributed"]> = [];
+    for (const u of unattributed) {
+      const reason = `색 클래스 ${u.cls}`;
+      const found = unknown.find((x) => x.reason === reason);
+      if (found) found.seats.push(u.name);
+      else unknown.push({ reason, seats: [u.name] });
+    }
+    return { zones, unattributed: unknown, note: "자리는 참고로만 보인다(카탈로그에 자리 목록이 없어 비교하지 않는다). 대조하는 것은 구역이다." };
   },
 
   deepLink: () => PAGE_URL,

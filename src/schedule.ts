@@ -39,6 +39,11 @@ export function addDays(date: string, days: number): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** 날짜가 속한 달의 다음 달(`YYYY-MM`). */
+export function nextMonthOf(date: string): string {
+  return addDays(`${date.slice(0, 7)}-28`, 4).slice(0, 7); // 어느 달이든 28일에 4일을 더하면 다음 달이다.
+}
+
 export function weekdayKey(date: string): WeekdayKey {
   return WEEKDAY_KEYS[new Date(`${date}T00:00:00Z`).getUTCDay()]!;
 }

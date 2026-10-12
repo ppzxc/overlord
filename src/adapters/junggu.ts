@@ -10,9 +10,9 @@ import {
 } from "../types.js";
 import { facilities } from "../catalogs/junggu.js";
 import { resolveFacility } from "../facility.js";
-import { BlockedPathError } from "../http.js";
+import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
 import { addDays, kstDate } from "../schedule.js";
-import { tlsRound } from "../tls-streak.js";
+import { tlsStreakRound } from "../tls-streak.js";
 import { enterQueue, netfunnelScriptCheck, setNetFunnelCookie, warnDriftOnce, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "camping.junggu.ulsan.kr";
@@ -58,34 +58,11 @@ const facilityRef = (facility: string): { cpId: string; menuNo: string } => {
 
 const pageUrl = (menuNo: string) => `${ORIGIN}${PAGE_PATH}?menuNo=${menuNo}`;
 
-/**
- * 봇 탐지 장치·captcha가 JSON 자리에 온 것을 알아보는 표지. 표지가 없는 JSON 아님은 unrecognized다.
- * 근거: 이 표지들은 ADR 0002가 넘지 않는 선으로 꼽은 봇 탐지 장치의 이름이다. 중구가 이 장치를 쓰는 것은 못 봤고(기록한 화면·스크립트·조회 응답 어디에도 없다),
- * 그래서 나타나면 새 신호로 보고 멈춘다.
- * 중구 로그인 화면과 차단 안내의 원문은 기록이 없다(로그인 경로를 부르지 않았다). 그래서 로그인·차단 문구는 짐작으로 판정하지 않는다.
- * 확인된 로그인 신호는 ajax 응답의 `msg: "login"`(화면 JS가 그렇게 다룬다)과 로그인 경로로의 리다이렉트(HTTP 층이 접근 금지로 막는다)뿐이다.
- * `menuNo=5010000`(머리말의 로그인 링크)과 "로그인 후 이용하실 수 있습니다."(화면 JS의 alert)는 정상 화면에도 있어 표지로 쓰지 않는다.
- */
-const BOT_DETECTION_PAGE = /botmanager|crawlingCheck|dynapath|captcha/i;
-
-/** 응답 상태를 판정한다. 403·429는 차단, 5xx는 일시 오류, 그 밖의 200 아님은 구조 변경이다. */
-function assertOk(res: TransportResponse, where: string): void {
-  if (res.status === 401 || res.status === 403 || res.status === 429) throw new AdapterError("blocked", `${where}: HTTP ${res.status}`);
-  if (res.status >= 500) throw new AdapterError("transient", `${where}: HTTP ${res.status}`);
-  if (res.status !== 200) throw new AdapterError("unrecognized", `${where}: 예상 밖 HTTP ${res.status}`);
-}
-
-/** 요청 하나를 보낸다. 접근 금지 경로(로그인으로 리다이렉트 포함)는 차단, 연결 실패·시간 초과는 일시 오류다. */
-async function send<T extends TransportResponse>(where: string, request: () => Promise<T>): Promise<T> {
-  try {
-    return await request();
-  } catch (e) {
-    if (e instanceof BlockedPathError) throw new AdapterError("blocked", `${where}: 로그인·접근 금지 경로로 보내졌다(${e.message})`);
-    if (e instanceof AdapterError) throw e;
-    // 원인(예: TLS 검증 실패의 cause.code)을 runBatch가 읽을 수 있게 cause로 남긴다.
-    throw new AdapterError("transient", `${where}: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
-  }
-}
+// 봇 탐지 장치·captcha가 JSON 자리에 온 것은 `BOT_DETECTION` 표지로 알아본다. 표지가 없는 JSON 아님은 unrecognized다.
+// 중구가 이 장치를 쓰는 것은 못 봤고(기록한 화면·스크립트·조회 응답 어디에도 없다), 그래서 나타나면 새 신호로 보고 멈춘다.
+// 중구 로그인 화면과 차단 안내의 원문은 기록이 없다(로그인 경로를 부르지 않았다). 그래서 로그인·차단 문구는 짐작으로 판정하지 않는다.
+// 확인된 로그인 신호는 ajax 응답의 `msg: "login"`(화면 JS가 그렇게 다룬다)과 로그인 경로로의 리다이렉트(HTTP 층이 접근 금지로 막는다)뿐이다.
+// `menuNo=5010000`(머리말의 로그인 링크)과 "로그인 후 이용하실 수 있습니다."(화면 JS의 alert)는 정상 화면에도 있어 표지로 쓰지 않는다.
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -94,7 +71,7 @@ function parseJson(res: TransportResponse, where: string): Record<string, unknow
   try {
     body = JSON.parse(res.body);
   } catch {
-    if (BOT_DETECTION_PAGE.test(res.body)) throw new AdapterError("blocked", `${where}: JSON이 아니라 봇 탐지·captcha 화면이 왔다`);
+    if (BOT_DETECTION.test(res.body)) throw new AdapterError("blocked", `${where}: JSON이 아니라 봇 탐지·captcha 화면이 왔다`);
     throw new AdapterError("unrecognized", `${where}: JSON이 아니다`);
   }
   if (!isRecord(body)) throw new AdapterError("unrecognized", `${where}: JSON 객체가 아니다`);
@@ -193,13 +170,6 @@ function warnZoneDrift(facility: string, onPage: Map<string, string>, ctx: Adapt
   }
 }
 
-/** 요청 없이 한 조회 단위만 보고 나온 구조 변경 판정. 그 단위만 실패로 치고 다른 단위의 조회는 막지 않는다. */
-class UnitStructureError extends AdapterError {
-  constructor(message: string) {
-    super("unrecognized", message);
-  }
-}
-
 const nightsOf = (q: AvailabilityQuery) => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 
 /** 시설 하나를 연 방문. 예약 화면에서 읽은 구역과, 방문 안에서 이미 읽은 월 지도·자리 목록(같은 (구역, 밤)은 한 번만 조회)을 든다. */
@@ -267,7 +237,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
     if (q.nights > max) throw new Error(`junggu ${q.facility}는 최대 ${max}박만 읽는다(${q.nights}박)`);
     byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
   }
-  const tls = tlsRound(ctx.http);
+  const tls = tlsStreakRound(ctx.http);
   let failure: AdapterError | undefined;
   /** 실패를 어댑터 오류로 바꾼다. TLS 검증 실패는 연속 바퀴 수로 종류를 정한다. */
   const classify = (e: unknown): AdapterError => {

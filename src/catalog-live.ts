@@ -131,8 +131,13 @@ async function renderFacilityDiff(observe: NonNullable<ProviderAdapter["observeF
     differences++;
     lines.push(`예약처에 새로 생긴 구역 ${z.name}(${z.codes.join(", ") || "코드 미확인"}): ${z.seats.length}자리`);
   }
+  for (const u of seen.unattributed ?? []) {
+    differences++;
+    lines.push(`구역을 가릴 수 없는 자리 ${compact(u.seats)}: ${u.reason}`);
+  }
   if (differences > 0) lines.push(`차이 있는 구역 ${differences}곳: 카탈로그를 갱신해야 한다`);
   else lines.push("차이 없음");
+  if (seen.note) lines.push(seen.note);
   return { text: `${lines.join("\n")}\n`, failed: false };
 }
 

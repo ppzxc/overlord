@@ -50,6 +50,24 @@ describe("HTTP 요청", () => {
     expect(requests.map((r) => new URL(r.url).pathname)).toEqual(["/pages/bbs/x"]);
   });
 
+  it("접근 금지 경로가 쿼리를 담으면 경로와 쿼리 원문의 접두어로 견주고, 쿼리가 다른 같은 경로는 막지 않는다", async () => {
+    const { requests, transport } = recording();
+    const http = client(transport, { blockedPaths: ["/camping/pageCont.do?menuNo=5"] });
+    await expect(http.get("https://example.com/camping/pageCont.do?menuNo=5010000")).rejects.toThrow(/접근 금지/);
+    await expect(http.post("https://example.com/camping/pageCont.do?menuNo=5040100", {})).rejects.toBeInstanceOf(BlockedPathError);
+    await http.get("https://example.com/camping/pageCont.do?menuNo=1010300");
+    await http.get("https://example.com/camping/pageCont.do");
+    expect(requests.map((r) => new URL(r.url).search)).toEqual(["?menuNo=1010300", ""]);
+  });
+
+  it("접근 금지 경로 견주기는 대소문자를 가리지 않는다", async () => {
+    const { requests, transport } = recording();
+    const http = client(transport, { blockedPaths: ["/camping/pageCont.do?menuNo=5", "/Web/Member"] });
+    await expect(http.get("https://example.com/camping/PAGECONT.do?MENUNO=5010000")).rejects.toThrow(/접근 금지/);
+    await expect(http.get("https://example.com/web/member/login")).rejects.toThrow(/접근 금지/);
+    expect(requests).toEqual([]);
+  });
+
   it("고래불은 /bbs/를 접근 금지로 선언한다", () => {
     expect(goraebulAdapter.describe().blockedPaths).toContain("/bbs/");
   });
@@ -281,6 +299,13 @@ describe("리다이렉트", () => {
     const { requests, transport } = redirecting({ "/a": { status: 302, body: "", location: "https://example.com/bbs/x" } });
     const failed = client(transport, { blockedPaths: ["/bbs/"] }).get("https://example.com/a");
     await expect(failed).rejects.toThrow(/접근 금지/);
+    await expect(failed).rejects.toBeInstanceOf(BlockedPathError);
+    expect(requests).toHaveLength(1);
+  });
+
+  it("접근 금지 쿼리로 가는 리다이렉트 홉은 따라가지 않는다", async () => {
+    const { requests, transport } = redirecting({ "/a": { status: 302, body: "", location: "/camping/pageCont.do?menuNo=5010000" } });
+    const failed = client(transport, { blockedPaths: ["/camping/pageCont.do?menuNo=5"] }).get("https://example.com/a");
     await expect(failed).rejects.toBeInstanceOf(BlockedPathError);
     expect(requests).toHaveLength(1);
   });

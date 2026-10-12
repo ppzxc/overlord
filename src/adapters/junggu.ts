@@ -50,10 +50,10 @@ const INFO: ProviderInfo = {
   facilityRequired: true,
 };
 
-const ref = (facility: string): { cpId: string; menuNo: string } => {
-  const r = resolveFacility(INFO, facility).ref;
-  if (typeof r !== "object" || !r.cpId || !r.menuNo) throw new Error(`junggu 시설 ${facility}에 cpId·menuNo가 없다`);
-  return { cpId: r.cpId, menuNo: r.menuNo };
+const facilityRef = (facility: string): { cpId: string; menuNo: string } => {
+  const ref = resolveFacility(INFO, facility).ref;
+  if (typeof ref !== "object" || !ref.cpId || !ref.menuNo) throw new Error(`junggu 시설 ${facility}에 cpId·menuNo가 없다`);
+  return { cpId: ref.cpId, menuNo: ref.menuNo };
 };
 
 const pageUrl = (menuNo: string) => `${ORIGIN}${PAGE_PATH}?menuNo=${menuNo}`;
@@ -207,6 +207,13 @@ function warnZoneDrift(facility: string, onPage: Map<string, string>, ctx: Adapt
   }
 }
 
+/** 요청 없이 한 조회 단위만 보고 나온 구조 변경 판정. 그 단위만 실패로 치고 다른 단위의 조회는 막지 않는다. */
+class UnitStructureError extends AdapterError {
+  constructor(message: string) {
+    super("unrecognized", message);
+  }
+}
+
 const nightsOf = (q: AvailabilityQuery) => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 
 /** 시설 하나를 연 방문. 예약 화면에서 읽은 구역과, 방문 안에서 이미 읽은 월 지도·자리 목록(같은 (구역, 밤)은 한 번만 조회)을 든다. */
@@ -220,7 +227,7 @@ interface Visit {
 
 /** 시설마다 NetFunnel `main`을 지나(키는 `NetFunnel_ID` 쿠키, 5004는 보내지 않는다) 예약 화면을 연다. */
 async function openFacility(facility: string, ctx: AdapterContext): Promise<Visit> {
-  const { cpId, menuNo } = ref(facility);
+  const { cpId, menuNo } = facilityRef(facility);
   const pass = await enterQueue(ctx, MAIN);
   setNetFunnelCookie(ctx.http, HOST, pass.result);
   const page = await send("pageCont.do", () => ctx.http.get(pageUrl(menuNo)));
@@ -241,7 +248,7 @@ async function dayOf(v: Visit, date: string, ctx: AdapterContext): Promise<Day> 
     v.months.set(month, days);
   }
   const day = days.get(date);
-  if (!day) throw new AdapterError("unrecognized", `ajaxGetMonthlyMap.do: 월 지도에 ${date}이 없다`);
+  if (!day) throw new UnitStructureError(`ajaxGetMonthlyMap.do: 월 지도에 ${date}이 없다`);
   return day;
 }
 
@@ -262,7 +269,8 @@ type Results = Map<AvailabilityQuery, AvailableSite[] | AdapterError>;
 /**
  * 한 바퀴. 시설마다 NetFunnel `main`을 지나 예약 화면을 열고, 필요한 달의 월 지도로 고를 수 없는 날(중구민 전용일 포함)을 거른 뒤
  * (구역, 밤)마다 자리 목록을 읽는다. 여러 박이면 같은 `ctId`가 밤마다 열려 있을 때만 빈자리다.
- * 요청 하나가 실패하면 남은 요청은 보내지 않고 남은 조회 단위가 그 실패를 값으로 받는다. 이미 읽은 단위의 결과는 그대로 둔다.
+ * 요청 하나가 실패하면 남은 요청은 보내지 않고 남은 조회 단위가 그 실패를 값으로 받는다(knps·동해시와 같다). 이미 읽은 단위의 결과는 그대로 둔다.
+ * 요청 없이 그 단위만 보고 나온 구조 변경(화면에서 사라진 구역, 월 지도에 없는 날짜)은 그 단위만 실패로 치고 다른 단위는 계속 읽는다.
  * TLS 검증 실패는 일시 오류지만 두 바퀴 연속이면 구조 변경으로 친다(인증서가 바뀌었을 수 있다).
  */
 async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Results> {
@@ -297,7 +305,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       try {
         visit ??= await openFacility(facility, ctx);
         // 감시하는 구역이 예약 화면의 구역 목록에서 사라졌으면 화면 모양이 바뀐 것이다. 빈자리 없음으로 넘기지 않는다.
-        if (!visit.zones.has(q.zone)) throw new AdapterError("unrecognized", `pageCont.do: 구역 선택 목록에 감시하는 구역 ${q.zone}이 없다`);
+        if (!visit.zones.has(q.zone)) throw new UnitStructureError( `pageCont.do: 구역 선택 목록에 감시하는 구역 ${q.zone}이 없다`);
         const dates = nightsOf(q);
         const days: Day[] = [];
         for (const d of dates) days.push(await dayOf(visit, d, ctx));
@@ -314,6 +322,10 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
         }
         results.set(q, sites);
       } catch (e) {
+        if (e instanceof UnitStructureError) {
+          results.set(q, e); // 이 단위만의 구조 변경이다. 요청은 실패하지 않았으니 다른 단위는 계속 읽는다.
+          continue;
+        }
         failure = classify(e);
         results.set(q, failure);
       }
@@ -359,5 +371,5 @@ export const jungguAdapter: ProviderAdapter = {
     return { zones }; // netfunnel.js 확인은 바퀴에서만 한다. --live는 요청을 늘리지 않는다.
   },
 
-  deepLink: (q) => pageUrl(ref(q.facility).menuNo),
+  deepLink: (q) => pageUrl(facilityRef(q.facility).menuNo),
 };

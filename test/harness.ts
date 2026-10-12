@@ -518,8 +518,8 @@ const jungguRaw = (name: string) => readFileSync(new URL(`../research/raw/junggu
 
 /** 중구 시설의 예약 화면 `menuNo`와 기록한 파일. 입화산 제2오토는 #78이 기록했고 황방산·태화연은 #79가 기록했다(research/raw/junggu). */
 const JUNGGU_PAGES: Record<string, string> = { "1010300": "pageCont.do_menuNo-1010300.html", "1020300": "pageCont.do_menuNo-1020300.html", "1030300": "pageCont.do_menuNo-1030300.html" };
-/** 입화산 제2오토 파일에는 cpId가 들어 있지 않다(#78 기록). 다른 시설은 파일 이름에 cpId가 있다. */
-const jungguMonthlyFile = (cpId: string) => (cpId === "iphwa_auto2" ? "ajaxGetMonthlyMap.do_iphwa_auto2_2026-10.json" : `ajaxGetMonthlyMap.do_${cpId}_2026-10.json`);
+const jungguMonthlyFile = (cpId: string) => `ajaxGetMonthlyMap.do_${cpId}_2026-10.json`;
+/** 입화산 제2오토의 자리 목록 파일 이름에는 cpId가 없다(#78 기록). 다른 시설은 파일 이름에 cpId가 있다. */
 const jungguSiteListFile = (cpId: string, csId: string, date: string) =>
   cpId === "iphwa_auto2" ? `ajaxGetSiteList.do_${csId.slice(-2)}_${date}.json` : `ajaxGetSiteList.do_${cpId}_${csId.slice(-2)}_${date}.json`;
 

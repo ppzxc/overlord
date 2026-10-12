@@ -332,6 +332,37 @@ describe("중구 신호 분류", () => {
       await p.stop();
     });
 
+    // 요청 없이 나오는 단위 판정(화면의 구역 목록, 월 지도의 날짜)은 그 감시 조건만 실패로 치고 다른 구역·날짜의 조회를 막지 않는다.
+    // 요청 하나가 실패해 남은 요청을 못 보내는 경우는 다르다(knps·동해시처럼 남은 단위가 같은 실패를 받는다). 실패할 감시를 설정의 맨 앞에 둔다.
+    it("예약 화면에서 사라진 구역을 감시하는 조건이 앞에 있어도, 뒤의 다른 구역 감시 조건은 조회해 열린 자리를 알린다", async () => {
+      const zoneSmall = csId("33"); // 기록한 10/20 응답에서 5자리 모두 열림
+      const p = startPoller(() => ({ status: 404, body: "" }), {
+        yaml: configWith(watch(IPHWA.facility, { from: "2026-10-20" }, [ZONE.iphwaLarge]), watch(IPHWA.facility, { from: "2026-10-20" }, [zoneSmall]).replace("iphwa-auto2 2026", "iphwa-auto2 소형 2026")),
+        server: jungguServer({ page: () => ({ status: 200, body: pageWithout(ZONE.iphwaLarge) }) }),
+        now: NOW,
+      });
+      await settle();
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
+      expect(p.sent).toHaveLength(1);
+      expect(p.sent[0]!.text).toContain("입화산 제2오토A(소형)");
+      await p.stop();
+    });
+
+    it("월 지도에 없는 날짜를 감시하는 조건이 앞에 있어도, 뒤의 다른 날짜 감시 조건은 조회해 열린 자리를 알린다", async () => {
+      const body = jungguMonthly();
+      body.monthlyMap.calendarList = body.monthlyMap.calendarList.filter((d) => d.date !== "2026-10-19");
+      const p = startPoller(() => ({ status: 404, body: "" }), {
+        yaml: configWith(watch(IPHWA.facility, { from: "2026-10-19" }, [ZONE.iphwaLarge]), watch(IPHWA.facility, { from: "2026-10-20" }, [ZONE.iphwaLarge])),
+        server: jungguServer({ monthly: () => json(body) }),
+        now: NOW,
+      });
+      await settle();
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
+      expect(p.sent).toHaveLength(1);
+      expect(p.sent[0]!.text).toContain("입화산 제2오토A(대형)");
+      await p.stop();
+    });
+
     it("예약 화면에 구역 선택 목록이 아예 없어도 unrecognized다", async () => {
       const server = jungguServer({ page: () => ({ status: 200, body: "<html><body>점검</body></html>" }) });
       const p = runIphwa({ server });

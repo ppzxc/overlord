@@ -395,7 +395,9 @@ describe("중구 폴러", () => {
     });
 
     it("JSON 자리에 봇 탐지 장치 표지(botmanager)가 오면 blocked로 멈춘다", async () => {
-      const body = '<script src="https://cdn-botmanager.example/agent.js"></script>';
+      // 기록한 예약 화면에 표지 한 줄을 끼운 변형이다. 레이아웃 HTML이어도 표지가 있으면 멈춘다.
+      const body = readFileSync(new URL("../research/raw/junggu/pageCont.do_menuNo-1010300.html", import.meta.url), "utf8").replace("</head>", '<script src="https://cdn-botmanager.example/agent.js"></script></head>');
+      expect(body).toContain("botmanager");
       const p = run({ from: "2026-10-20" }, { server: jungguServer({ siteList: () => ({ status: 200, body }) }) });
       await settle();
       expect(failedKinds(p)).toEqual(["blocked"]);

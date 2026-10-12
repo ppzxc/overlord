@@ -62,9 +62,10 @@ export function createHttpClient(opts: {
   const jar = new CookieJar();
 
   const assertAllowed = (url: string) => {
-    const { pathname } = new URL(url);
+    // 경로 접두어가 쿼리(`?menuNo=501`)까지 이어질 수 있도록 경로와 쿼리를 함께 견준다. 중구는 로그인·마이페이지가 pageCont.do의 menuNo로 갈린다.
+    const { pathname, search } = new URL(url);
     // 서버가 경로의 대소문자를 가리지 않는 예약처(xticket의 /Web과 /web)도 있어 대소문자 없이 견준다.
-    const lower = pathname.toLowerCase();
+    const lower = (pathname + search).toLowerCase();
     const blocked = opts.blockedPaths.find((p) => lower.startsWith(p.toLowerCase()));
     if (blocked) throw new BlockedPathError(blocked, url);
   };

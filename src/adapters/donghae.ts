@@ -4,7 +4,6 @@ import {
   type AdapterContext,
   type AvailabilityQuery,
   type AvailableSite,
-  type HttpClient,
   type ProviderAdapter,
   type ProviderInfo,
   type ZoneObservation,
@@ -12,7 +11,7 @@ import {
 
 import { facilities } from "../catalogs/donghae.js";
 import { resolveFacility } from "../facility.js";
-import { acquireKey, forgetKey, releaseKey, type NetFunnelQueue, type QueuePass } from "../netfunnel.js";
+import { acquireKey, forgetKey, netfunnelScriptCheck, releaseKey, warnDriftOnce, type NetFunnelQueue, type QueuePass } from "../netfunnel.js";
 
 const WWW = "https://www.campingkorea.or.kr";
 const RESERVATION = `${WWW}/user/reservation`;
@@ -58,10 +57,8 @@ const INFO: ProviderInfo = {
  */
 const PAGE_HEADERS = { Referer: `${RESERVATION}/BD_reservation.do`, Origin: WWW };
 
-const NETFUNNEL_JS = `${WWW}/resources/user/js/netfunnel.js`;
-// 2026-09-29에 확인한 값. 달라지면 경고만 남긴다.
-const NETFUNNEL_VERSION = "2.2.25_hotfix";
-const NETFUNNEL_TS_HOST = "nf.campingkorea.or.kr";
+// 2026-09-29에 확인한 값. 달라지면 경고만 남긴다. 새 키로 진입할 때마다 다시 확인한다.
+const netfunnelScript = netfunnelScriptCheck({ provider: "donghae", url: `${WWW}/resources/user/js/netfunnel.js`, version: "2.2.25_hotfix", tsHost: "nf.campingkorea.or.kr" });
 
 const CLOSED_VALUES = new Set(["예약완료", "예약불가", "준비중"]);
 const AUTH_MARKER = /로그인|인증/;
@@ -101,28 +98,6 @@ const ENTRY_MARKERS: { pattern: RegExp; label: string }[] = [
   { pattern: /class="mCalendar1"/, label: "월 달력" },
 ];
 
-/** `netfunnel.js` 경고 확인을 이미 한 세션. 새 키로 진입할 때마다 다시 확인한다. */
-const scriptChecked = new WeakSet<HttpClient>();
-
-/**
- * `netfunnel.js`의 버전과 `TS_HOST`가 확인한 값과 다르면 경고만 남긴다. 페이지와 같은 요청 순서를 지키려고 첫 조회가 끝난 뒤 세션당 한 번 받는다.
- * 받지 못해도 감시는 그대로다.
- */
-async function warnNetfunnelDrift(ctx: AdapterContext): Promise<void> {
-  if (scriptChecked.has(ctx.http) || ctx.signal?.aborted) return;
-  scriptChecked.add(ctx.http);
-  try {
-    const res = await ctx.http.get(NETFUNNEL_JS);
-    if (res.status !== 200) return;
-    const version = /Version\s+(\S+)/.exec(res.body)?.[1];
-    const host = /^NetFunnel\.TS_HOST\s*=\s*'([^']*)'/m.exec(res.body)?.[1];
-    if (version !== NETFUNNEL_VERSION) ctx.log?.("donghae netfunnel.js version changed", { expected: NETFUNNEL_VERSION, actual: version });
-    if (host !== NETFUNNEL_TS_HOST) ctx.log?.("donghae TS_HOST changed", { expected: NETFUNNEL_TS_HOST, actual: host });
-  } catch {
-    // 경고 전용이라 실패해도 감시는 그대로다.
-  }
-}
-
 /** `ND_checkNfKeyAvail.do`로 서버가 키를 아직 받아 주는지 묻는다. */
 async function keyAvailable(ctx: AdapterContext, key: string): Promise<boolean> {
   const body = await fetchOk(ctx.http.post(`${RESERVATION}/ND_checkNfKeyAvail.do`, { netfunnel_key: key }, { headers: PAGE_HEADERS }), "키 확인");
@@ -157,7 +132,7 @@ async function enterSession(ctx: AdapterContext, pass: QueuePass): Promise<Map<s
     if (!pattern.test(entry)) throw new AdapterError("unrecognized", `예약 화면 흐름 문자열이 사라졌다: ${label}`);
   }
   const reduced = parseReduced(entry);
-  scriptChecked.delete(ctx.http);
+  netfunnelScript.reset(ctx);
   return reduced;
 }
 
@@ -180,21 +155,14 @@ function parseReduced(html: string): Map<string, number> {
 }
 
 const KNOWN_ZONES = new Set(facilities.flatMap((f) => f.zones).map((z) => z.name));
-/** 세션(HttpClient)마다 이미 경고한 구역 차이. 같은 차이는 한 번만 남긴다. */
-const warnedDrift = new WeakMap<HttpClient, Set<string>>();
-
 /** 쓰지 않는 구역이 사라지거나 새 구역이 생긴 것은 경고만 남긴다. 감시 조건이 쓰는 구역이 사라진 것은 조회 단위 판정이 실패로 처리한다. */
 function warnZoneDrift(counts: Map<string, number>, ctx: AdapterContext): void {
-  const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
-  warnedDrift.set(ctx.http, warned);
   const drift = [
     ...[...counts.keys()].filter((n) => !KNOWN_ZONES.has(n)).map((n) => `new:${n}`),
     ...[...KNOWN_ZONES].filter((n) => !counts.has(n)).map((n) => `gone:${n}`),
   ];
   for (const d of drift) {
-    if (warned.has(d)) continue;
-    warned.add(d);
-    ctx.log?.("donghae zone drift", { change: d.startsWith("new:") ? "new" : "gone", zone: d.slice(d.indexOf(":") + 1) });
+    warnDriftOnce(ctx, d, "donghae zone drift", { change: d.startsWith("new:") ? "new" : "gone", zone: d.slice(d.indexOf(":") + 1) });
   }
 }
 
@@ -345,7 +313,7 @@ async function runBatch(
     parseNight(await fetchNight(trrsrtCode, date, ctx, pass), reduced, ctx),
   );
   const failure = calendar.failure ?? nightFailure;
-  await warnNetfunnelDrift(ctx);
+  await netfunnelScript.warn(ctx);
 
   for (const q of live) {
     const needed = nightsOf(q);

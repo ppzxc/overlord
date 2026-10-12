@@ -1,0 +1,2794 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>  
+<title>중구야영장 - 울산광역시 중구 입화산 자연휴양림 및 야영장 예약시스템</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="중구야영장">
+<meta name="keywords" content="중구야영장,중구캠핑장,입화산자연휴양림,태화연캠핑장,황방산생태야영장,별뜨락휴양림">
+<meta name="robots" content="index,follow">
+<meta name="naver-site-verification" content="6225c3210b5abcfefa9bbdfc524ab6615a7646e5" />
+<meta property="og:type" content="website">
+<meta property="og:title" content="중구야영장">
+<meta property="og:description" content="중구야영장-울산광역시 중구 입화산 자연휴양림 및 야영장 예약시스템">	
+<link rel="shortcut icon" href="/camping/favicon.ico" type="image/x-icon">
+<link rel="icon" href="/camping/favicon.ico" type="image/x-icon">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-TERZCEH4PC"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-TERZCEH4PC');
+</script>
+<script type="text/javascript" src="/camping/js/netfunnel.js" charset="UTF-8"></script>
+<script>
+	function fnLchk(){	//로그인 체크
+		NetFunnel_Action({action_id:"main"}, function(ev,ret){
+			document.location.href="/camping/pageCont.do?menuNo=5010000";
+		});
+		//NetFunnel_Action({action_id:"login"}, "/camping/pageCont.do?menuNo=5010000"	);
+	}
+
+	function fnRev(){	//야영장 예약
+		NetFunnel_Action({action_id:"main"}, function(ev,ret){
+			document.location.href="/camping/pageCont.do?menuNo=1010300";
+		});
+//		NetFunnel_Action({action_id:"main"}, "/camping/pageCont.do?menuNo=1010300");
+	}
+
+	function fnRev1(){	//야영장 예약
+//		NetFunnel_Action({action_id:"main"}, function(ev,ret){
+//			document.location.href="/camping/pageCont.do?menuNo=1010300";
+//		});
+		NetFunnel_Action({action_id:"main"}, "/camping/pageCont.do?menuNo=1010300");
+	}
+
+	function fnRev2(){	//야영장 예약		
+		NetFunnel_Action({action_id:"main"}, "/camping/pageCont.do?menuNo=1020300");
+	}
+
+	function fnRev3(){	//야영장 예약		
+		NetFunnel_Action({action_id:"main"}, "/camping/pageCont.do?menuNo=1030300");
+	}
+
+	function fnRev4(){	//야영장 예약		
+		NetFunnel_Action({action_id:"main"}, "/camping/pageCont.do?menuNo=2010400");
+	}
+
+	function fnRevPlay(){	//놀이터 예약
+		NetFunnel_Action({action_id:"main"}, "/camping/pageCont.do?menuNo=4010200");
+	}
+
+	function fnProRev1(){	//프로그램 예약		
+		NetFunnel_Action({action_id:"main"}, "/camping/pageCont.do?menuNo=3010200");
+	}
+
+	function fnProRev2(){	//프로그램 예약		
+		NetFunnel_Action({action_id:"main"}, "/camping/pageCont.do?menuNo=3020200");
+	}
+
+	function fnProRev3(){	//프로그램 예약		
+		NetFunnel_Action({action_id:"main"}, "/camping/pageCont.do?menuNo=3040200");
+	}
+
+	function fnMypageGo(){	//마이페이지 
+		NetFunnel_Action({action_id:"main"}, "/camping/pageCont.do?menuNo=5040100");
+	}
+</script>
+<link rel="stylesheet" type="text/css" href="/camping/css/base.css" />
+		<link rel="stylesheet" type="text/css" href="/camping/css/layout.css" />
+		<link rel="stylesheet" type="text/css" href="/camping/css/contents.css" />
+		<link rel="stylesheet" type="text/css" href="/camping/css/board.css" />
+	<script src="/camping/js/jquery-1.8.3.js"></script>
+	<script src="/camping/js/jquery.cookie.js"></script>
+	<script src="/camping/js/jquery-ui-1.11.4.js"></script>
+	<link rel="stylesheet" type="text/css" href="/camping/css/jquery-ui-1.11.4.css">
+	<script src="/camping/js/jquery.cal.js"></script>
+	<script src="/camping/js/jquery.bxslider.min-4.1.1.js"></script>	
+	<link rel="stylesheet" type="text/css" href="/camping/css/jquery.bxslider-4.1.1.css">
+	
+	<script src="/camping/js/ajax.js"></script>	
+	
+<script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script> <!-- 다음주소 api / https, http 둘다 가능 -->
+
+<script>
+<!--
+function openDaumPostcode() {
+    new daum.Postcode({
+        oncomplete: function(data) {
+            // 팝업에서 검색결과 항목을 클릭했을때 실행할 코드를 작성하는 부분.
+
+            // 각 주소의 노출 규칙에 따라 주소를 조합한다.
+            // 내려오는 변수가 값이 없는 경우엔 공백('')값을 가지므로, 이를 참고하여 분기 한다.
+            var addr = ''; // 주소 변수
+            var extraAddr = ''; // 참고항목 변수
+
+            //사용자가 선택한 주소 타입에 따라 해당 주소 값을 가져온다.
+            if (data.userSelectedType === 'R') { // 사용자가 도로명 주소를 선택했을 경우
+                addr = data.roadAddress;
+            } else { // 사용자가 지번 주소를 선택했을 경우(J)
+                addr = data.jibunAddress;
+            }
+
+            // 사용자가 선택한 주소가 도로명 타입일때 참고항목을 조합한다.
+            if(data.userSelectedType === 'R'){
+                // 법정동명이 있을 경우 추가한다. (법정리는 제외)
+                // 법정동의 경우 마지막 문자가 "동/로/가"로 끝난다.
+                if(data.bname !== '' && /[동|로|가]$/g.test(data.bname)){
+                    extraAddr += data.bname;
+                }
+                // 건물명이 있고, 공동주택일 경우 추가한다.
+                if(data.buildingName !== '' && data.apartment === 'Y'){
+                    extraAddr += (extraAddr !== '' ? ', ' + data.buildingName : data.buildingName);
+                }
+                // 표시할 참고항목이 있을 경우, 괄호까지 추가한 최종 문자열을 만든다.
+                if(extraAddr !== ''){
+                    extraAddr = ' (' + extraAddr + ')';
+                }
+                // 조합된 참고항목을 해당 필드에 넣는다.
+                //document.getElementById("sample6_extraAddress").value = extraAddr;
+            
+            } else {
+                //document.getElementById("sample6_extraAddress").value = '';
+            }
+
+            // 우편번호와 주소 정보를 해당 필드에 넣는다.
+            document.getElementById('zip_view').value = data.zonecode;
+            document.getElementById("address1").value = addr;
+            // 커서를 상세주소 필드로 이동한다.
+            if($("#address2").length > 0) document.getElementById("address2").focus();
+            else document.getElementById("address1").focus();
+        }
+    }).open();
+}
+//-->
+</script>	
+
+<script> 
+<!--
+	jQuery(document).ready(function () {
+		$(window).scroll(function () { 
+			if ($(this).scrollTop() > 100) { 
+				$('#top_go').fadeIn(500); 
+			} else { 
+				$('#top_go').fadeOut('slow'); 
+			}
+		}); 
+		$('#top_go').click(function (e) {
+			e.preventDefault(); 
+			$('html, body').animate({scrollTop: 0}, 200);
+		}); 
+	}); 
+
+
+
+
+//-->
+</script>
+
+
+  </head>
+
+  <body>
+<nav id="skipnavigation">
+	    <a href="#top_menu">전체메뉴로 바로가기</a>
+		 <a href="#contents_in">본문으로 바로가기</a>
+	    </nav>
+
+	<!--containter 시작-->
+	<div id="container">
+
+			<!-- header 시작-->
+			<header>
+
+			<!-- 모바일 메뉴 시작-->
+			<div id="mask_bg">
+	  <div id="all_menu_list_mobile">
+	  
+	   <!--모바일 로고, 닫기 버튼 영역-->
+	   <div class="top_bar">
+			 <div class="mobile_logo"><img src="/camping/images/common/logo.png" alt="" /><p>울산광역시 중구<span>야영·휴양시설 통합운영시스템</span></p></div>
+			 <div id="left_menu_mobile_closebutton">
+				<a class="cssicon close" href="/" onclick="javascript:toggle_mobile(); return false;"><span><span class="alt">모바일메뉴 닫기</span></span></a>
+			 </div>
+		</div>
+
+		<!--로그인 버튼 영역-->
+		<div class="mobile_login_area">
+			<ul>
+			 <!--기본-->
+				<li class="login"><a href="/camping/pageCont.do?menuNo=5010000">로그인</a></li>
+			    <li class="join"><a href="/camping/pageCont.do?menuNo=5020000">회원가입</a></li>					   
+			    </ul>
+		</div>   
+	   
+	   <!--모바일 메뉴 목록 시작-->
+	    <ul class="mobilemenu_first">
+	    <li><a href="javascript:"><span>야영장</span></a> <!-- open_menu / close_menu -->
+	      <ul class="mobilemenu_second">
+	      <li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=1010000" 
+						class="longNameMenu" >
+						<span>입화산 제2오토야영장</span>
+					</a>
+					<ul class="mobilemenu_third"><li>
+							<a href="/camping/pageCont.do?menuNo=1010100"><span>소개 및 현황</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=1010200"><span>이용안내</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=1010300"><span>예약하기</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=1010400"><span>찾아오시는길</span></a>
+							</li>      			 	
+					 </ul></li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=1020000" 
+						 >
+						<span>황방산 생태야영장</span>
+					</a>
+					<ul class="mobilemenu_third"><li>
+							<a href="/camping/pageCont.do?menuNo=1020100"><span>소개 및 현황</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=1020200"><span>이용안내</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=1020300"><span>예약하기</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=1020400"><span>찾아오시는길</span></a>
+							</li>      			 	
+					 </ul></li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=1030000" 
+						 >
+						<span>태화연 야영장</span>
+					</a>
+					<ul class="mobilemenu_third"><li>
+							<a href="/camping/pageCont.do?menuNo=1030100"><span>소개 및 현황</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=1030200"><span>이용안내</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=1030300"><span>예약하기</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=1030400"><span>찾아오시는길</span></a>
+							</li>      			 	
+					 </ul></li>
+				</ul>
+		 </li>
+		<li><a href="javascript:"><span>휴양림</span></a> <!-- open_menu / close_menu -->
+	      <ul class="mobilemenu_second">
+	      <li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=2010000" 
+						class="longNameMenu" >
+						<span>입화산 자연휴양림(별뜨락)</span>
+					</a>
+					<ul class="mobilemenu_third"><li>
+							<a href="/camping/pageCont.do?menuNo=2010100"><span>소개 및 현황</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=2010200"><span>주요시설</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=2010300"><span>이용안내</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=2010500"><span>찾아오시는길</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=2010400"><span>예약하기</span></a>
+							</li>      			 	
+					 </ul></li>
+				</ul>
+		 </li>
+		<li><a href="javascript:"><span>교육/체험 프로그램</span></a> <!-- open_menu / close_menu -->
+	      <ul class="mobilemenu_second">
+	      <li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=3010000" 
+						 >
+						<span>숲해설 프로그램</span>
+					</a>
+					<ul class="mobilemenu_third"><li>
+							<a href="/camping/pageCont.do?menuNo=3010100"><span>이용안내</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=3010200"><span>참여신청</span></a>
+							</li>      			 	
+					 </ul></li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=3020000" 
+						 >
+						<span>유아숲교육 프로그램</span>
+					</a>
+					<ul class="mobilemenu_third"><li>
+							<a href="/camping/pageCont.do?menuNo=3020100"><span>이용안내</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=3020200"><span>참여신청</span></a>
+							</li>      			 	
+					 </ul></li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=3040000" 
+						 >
+						<span>산림 숲속 체험교실</span>
+					</a>
+					<ul class="mobilemenu_third"><li>
+							<a href="/camping/pageCont.do?menuNo=3040100"><span>이용안내</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=3040200"><span>참여신청</span></a>
+							</li>      			 	
+					 </ul></li>
+				</ul>
+		 </li>
+		<li><a href="javascript:"><span>아이놀이뜰</span></a> <!-- open_menu / close_menu -->
+	      <ul class="mobilemenu_second">
+	      <li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=4010000" 
+						 >
+						<span>그물모험 놀이시설</span>
+					</a>
+					<ul class="mobilemenu_third"><li>
+							<a href="/camping/pageCont.do?menuNo=4010100"><span>시설 및 이용안내</span></a>
+							</li>      			 	
+					 <li>
+							<a href="/camping/pageCont.do?menuNo=4010200"><span>예약하기</span></a>
+							</li>      			 	
+					 </ul></li>
+				</ul>
+		 </li>
+		<li><a href="javascript:"><span>회원</span></a> <!-- open_menu / close_menu -->
+	      <ul class="mobilemenu_second">
+	      <li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=5010000" 
+						 >
+						<span>로그인</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=5020000" 
+						 >
+						<span>회원가입</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=5030000" 
+						class="longNameMenu" >
+						<span>아이디/비밀번호 찾기</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=5070000" 
+						 >
+						<span>이용약관</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="https://www.junggu.ulsan.kr/index.ulsan?menuCd=DOM_000000106001001000" target="_blank"
+						 >
+						<span>개인정보처리방침&nbsp;<img src="/camping/images/common/new_tab.png" alt="새창열림"></span>
+					</a>
+					</li>
+				</ul>
+		 </li>
+		<li><a href="javascript:"><span>알림마당</span></a> <!-- open_menu / close_menu -->
+	      <ul class="mobilemenu_second">
+	      <li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=6010000" 
+						 >
+						<span>알림사항</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=6020000" 
+						 >
+						<span>예약안내</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=6040000" 
+						 >
+						<span>사진모음집</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=6050000" 
+						 >
+						<span>자주하는 질문</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=6060000" 
+						 >
+						<span>이용후기</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=6070000" 
+						 >
+						<span>분실물보관</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=6080000" 
+						 >
+						<span>가볼만한 곳</span>
+					</a>
+					</li>
+				<li> <!-- open_menu -->
+					<a href="/camping/pageCont.do?menuNo=6011000" 
+						 >
+						<span>문의사항</span>
+					</a>
+					</li>
+				</ul>
+		 </li>
+		</ul>
+	    
+	   
+		
+	  </div><!--all_menu_list_mobile-->
+	</div><!--mask_bg-->
+	
+	
+<script>
+<!--
+	$(".mobilemenu_second").hide(); //2차메뉴 모두 숨김
+	$(".mobilemenu_third").hide(); //3차메뉴 모두 숨김
+	$(".mobilemenu_third").parent("li").addClass("menu_more"); //3차 메뉴가 있는 경우 2차메뉴에 클래스 추가
+	
+	//1차 메뉴 클릭 이벤트
+	$(".mobilemenu_first > li > a").click(function(){
+		if($(this).parent("li").hasClass("close_menu")){ //이미 오픈 되어있는 메뉴인 경우
+			//메뉴 모두 닫기
+			$(".mobilemenu_first > li").removeClass("close_menu");
+			$(".mobilemenu_first > li").addClass("open_menu");
+		
+			$(".mobilemenu_second").hide();
+			$('.mobilemenu_second').parent("li").removeClass("close_menu");
+			$('.mobilemenu_second').parent("li").addClass("open_menu");
+			
+			$(".mobilemenu_third").hide(); 			
+			$('.mobilemenu_third').parent("li").removeClass("close_menu");
+			$('.mobilemenu_third').parent("li").addClass("open_menu");
+		}else{
+			//메뉴 모두 닫기
+			$(".mobilemenu_first > li").removeClass("close_menu");
+			$(".mobilemenu_first > li").addClass("open_menu");
+		
+			$(".mobilemenu_second").hide();
+			$('.mobilemenu_second').parent("li").removeClass("close_menu");
+			$('.mobilemenu_second').parent("li").addClass("open_menu");
+			
+			$(".mobilemenu_third").hide(); 			
+			$('.mobilemenu_third').parent("li").removeClass("close_menu");
+			$('.mobilemenu_third').parent("li").addClass("open_menu");
+			
+			$(this).parent("li").removeClass("open_menu");
+			$(this).parent("li").addClass("close_menu");
+			$(this).parent("li").children(".mobilemenu_second").show();
+		}		
+	});
+	
+	//2차 메뉴 클릭 이벤트
+	$(".mobilemenu_second > li > a").click(function(){
+		if($(this).parent("li").children(".mobilemenu_third").length > 0){ //3차 메뉴가 있을 때
+			if($(this).parent("li").hasClass("close_menu")){ //3차 메뉴가 이미 오픈 되어있는 경우
+				$(".mobilemenu_third").hide();
+				$('.mobilemenu_third').parent("li").removeClass("close_menu");
+				$('.mobilemenu_third').parent("li").addClass("open_menu");
+			}else{
+				$(".mobilemenu_third").hide();
+				$('.mobilemenu_third').parent("li").removeClass("close_menu");
+				$('.mobilemenu_third').parent("li").addClass("open_menu");
+				
+				$(this).parent("li").removeClass("open_menu");
+				$(this).parent("li").addClass("close_menu");
+				$(this).parent("li").children(".mobilemenu_third").show();
+			}
+			
+			return false;
+		}
+	});
+//-->
+</script>	<!-- 모바일 메뉴 끝-->
+
+
+			<div class="total_bg"></div>
+
+
+<script >
+<!--
+	//상단 탑메뉴 
+	$(function(){
+	  $("header .header_area .menu_here .menu_1st li a").mouseover(function(){
+		$("header .all_menu_here").slideDown("fast");    
+	  });
+	  $("header").mouseleave(function(){
+		closeMenu();
+	  });
+	
+	  $("header .header_area .menu_here .menu_1st li a").focusin(function(){
+		  $("header .all_menu_here").slideDown("fast");  
+	  });
+	});
+	
+	//상단 메뉴 닫기
+	function closeMenu(){
+		$("header .all_menu_here").slideUp("fast");
+	}
+	
+
+	
+	//상단 1차메뉴 클릭 이벤트
+	function goSecMenu(idx){
+		//var goPage = $("#h_smenu > .hsm_box > .m" + idx + " > ul > li:nth-child(1) > a").attr("href");
+		//var goPage = $(".all_menu_here > .tm_inner > ul:nth-child("+idx+") > li:nth-child("+i+") > a").attr("href");
+		
+		var goPage = "";
+		var secMenuLen = $(".all_menu_here > .tm_inner > ul:nth-child("+idx+") > li").length;
+		for(var i=1; i<=secMenuLen; i++){
+			var href = $(".all_menu_here > .tm_inner  > ul:nth-child("+idx+") > li:nth-child("+i+") > a").attr("href");
+			
+			//if(!href.startsWith("http")){
+			if(href.indexOf("http://") < 0 && href.indexOf("https://") < 0){
+				goPage = href;
+				break;
+			}
+		}
+		
+		location.href = goPage;
+	}
+
+	
+
+	//모바일 메뉴 클릭 이벤트
+	function toggle_mobile(){
+		//$("#mask_bg").toggle();
+		if($("#mask_bg").css("display") == "none"){
+			$("body").css("overflow","hidden");
+			$("#mask_bg").show();
+		}else{
+			$("body").css("overflow","inherit");
+			$("#mask_bg").hide();
+		}
+	}
+
+
+//-->
+</script>
+	                <!--홈페이지 상단 영역 시작-->
+					<div class="header_area">
+					       
+						    <!--헤더 로고 시작-->
+							<div class="logo_here">
+								<a href="/camping/index.do"><img src="/camping/images/common/logo.png" alt="" /><p>울산광역시 중구<span>입화산 자연휴양림 및 야영장<br>예약시스템</span></p></a>
+							</div>
+							<!--헤더 로고 끝-->
+
+							<!--헤더 메뉴 영역 시작-->					
+							<div class="menu_here" id="main_menu_list">
+								<ul class="menu_1st">									
+								   <li class="select">
+											<a href="javascript:goSecMenu(1)">야영장</a>
+											</li>
+									<li >
+											<a href="javascript:goSecMenu(2)">휴양림</a>
+											</li>
+									<li >
+											<a href="javascript:goSecMenu(3)">교육/체험 프로그램</a>
+											</li>
+									<li >
+											<a href="javascript:goSecMenu(4)">아이놀이뜰</a>
+											</li>
+									<li >
+											<a href="javascript:" onclick="location.href='/camping/pageCont.do?menuNo=6010000'">알림마당</a>												
+											</li>
+									</ul>
+							</div>
+							<!--헤더 메뉴 영역 끝-->
+
+							<!--상단 내려오는 메뉴 시작-->
+							<div class="all_menu_here" id="top_menu">
+
+								<!-- inner 시작 -->
+								<div class="tm_inner">
+									
+										<!-- 2차메뉴만, 홈페이지안내 및 관리자 메뉴 제외 -->
+										<ul class="tm_list"></ul>
+											<ul class="tm_list"></ul>
+											<ul class="tm_list"></ul>
+											<ul class="tm_list"></ul>
+											<ul class="tm_list"></ul>
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(5)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=6010000'>알림사항</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(2)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=2010100'>입화산 자연휴양림(별뜨락)</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												 
+														var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(4)"
+														$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=4010100'>그물모험 놀이시설</a></li>");
+													
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(1)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=1010100'>입화산 제2오토야영장</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(3)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=3010100'>숲해설 프로그램</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(1)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=1020100'>황방산 생태야영장</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(5)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=6020000'>예약안내</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(3)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=3020100'>유아숲교육 프로그램</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(1)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=1030100'>태화연 야영장</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(5)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=6040000'>사진모음집</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(3)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=3040100'>산림 숲속 체험교실</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(5)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=6050000'>자주하는 질문</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(5)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=6060000'>이용후기</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(5)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=6070000'>분실물보관</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(5)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=6080000'>가볼만한 곳</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<script>
+											<!--
+												
+															var target_obj = "header .all_menu_here .tm_inner > ul:nth-child(5)"
+															$(target_obj).append("<li><a href='/camping/pageCont.do?menuNo=6011000'>문의사항</a></li>");
+														
+											//-->
+
+											</script>
+											
+											<div class="tm_closebtn">
+										 <a href="javascript:closeMenu();"><img src="/camping/images/common/topmenu_closebtn.png" alt="상단메뉴 닫기" /></a>
+										</div>
+
+								</div>
+								<!-- tm_inner 끝-->
+
+							</div>
+							<!--상단 내려오는 메뉴 끝-->
+
+							<!--헤더 기타 영역 시작-->
+							<div class="etc_here">	
+
+							<!--기본-->
+							     <div class="join_btn">
+									 <ul>							   
+									 <li class="login"><a href="/camping/pageCont.do?menuNo=5010000">로그인</a></li>
+									 <li class="join"><a href="/camping/pageCont.do?menuNo=5020000">회원가입</a></li>	
+									 </ul>
+									</div>							   
+							     <div class="ht_menu_btn">
+									<a href="/camping/pageCont.do?menuNo=6090000" title="사이트맵 바로가기" class="all_menu_btn">
+									 <img src="/camping/images/common/menu_icon_off.png" alt="사이트맵" class="off" />
+									 <img src="/camping/images/common/menu_icon.png" alt="사이트맵" class="on" />
+									</a>
+									<a href="javascript:toggle_mobile();" title="모바일 메뉴 열기" class="mobile_menu_btn">
+									 <img src="/camping/images/common/menu_icon_off.png" alt="모바일 메뉴" class="off" />
+									 <img src="/camping/images/common/menu_icon.png" alt="모바일 메뉴" class="on" />
+									</a>
+								</div>
+							</div>
+		                    <!--헤더 기타 영역 끝-->
+					</div>
+	               	<!--홈페이지 상단 영역 끝 (header_area)-->
+
+                    
+
+			</header>
+			<!-- header 끝-->
+			
+			<form name="menuListForm" action ="#" method="post">
+		        <input type="hidden" id="menuNo" name="menuNo" value="1000000" />
+		        <input type="hidden" id="link" name="link" value="" />
+		        <input type="hidden" name="tmp_menuNm" value="4010100|4010000|시설 및 이용안내|/|/|/play/play01|" />
+		        <input type="hidden" name="tmp_menuNm" value="6010000|6000000|알림사항|/|/|/cop/bbs/selectBoardList.do?bbsId=BBSMSTR_000000000021|" />
+		        <input type="hidden" name="tmp_menuNm" value="1030100|1030000|소개 및 현황|/|/|campsite/campsite03_1|" />
+		        <input type="hidden" name="tmp_menuNm" value="2010000|2000000|입화산 자연휴양림(별뜨락)|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="4010000|4000000|그물모험 놀이시설|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="2010100|2010000|소개 및 현황|/|/|forest/forest01_1|" />
+		        <input type="hidden" name="tmp_menuNm" value="1000000|0|야영장|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="1020100|1020000|소개 및 현황|/|/|campsite/campsite02_1|" />
+		        <input type="hidden" name="tmp_menuNm" value="3010100|3010000|이용안내|/|/|progrm/progrm01_1|" />
+		        <input type="hidden" name="tmp_menuNm" value="5040100|5040000|야영장·휴양림 |/|/|/mypage/campReserve.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="1010000|1000000|입화산 제2오토야영장|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="1010100|1010000|소개 및 현황|/|/|campsite/campsite01_1|" />
+		        <input type="hidden" name="tmp_menuNm" value="5010000|5000000|로그인|/|/|/users/users01|" />
+		        <input type="hidden" name="tmp_menuNm" value="3010000|3000000|숲해설 프로그램|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="3040100|3040000|이용안내|/|/|progrm/progrm04_1|" />
+		        <input type="hidden" name="tmp_menuNm" value="3020100|3020000|이용안내|/|/|progrm/progrm02_1|" />
+		        <input type="hidden" name="tmp_menuNm" value="1030200|1030000|이용안내|/|/|campsite/campsite03_2|" />
+		        <input type="hidden" name="tmp_menuNm" value="1020200|1020000|이용안내|/|/|campsite/campsite02_2|" />
+		        <input type="hidden" name="tmp_menuNm" value="1020000|1000000|황방산 생태야영장|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="5040200|5040000|교육/체험 프로그램 |/|/|/mypage/programReserve.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="1010200|1010000|이용안내|/|/|campsite/campsite01_2|" />
+		        <input type="hidden" name="tmp_menuNm" value="3040200|3040000|참여신청|/|/|/program/program3/intro.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="6020000|6000000|예약안내|/|/|community/information|" />
+		        <input type="hidden" name="tmp_menuNm" value="2000000|0|휴양림|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="5020000|5000000|회원가입|/|/|/uss/umt/EgovMberSbscrbView.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="3020200|3020000|참여신청|/|/|/program/program1/intro.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="3020000|3000000|유아숲교육 프로그램|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="3010200|3010000|참여신청|/|/|/program/program2/intro.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="4010200|4010000|예약하기|/|/|/play/play1/intro.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="2010200|2010000|주요시설|/|/|forest/forest01_2|" />
+		        <input type="hidden" name="tmp_menuNm" value="1010300|1010000|예약하기|/|/|/iphwa_auto2/intro.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="5040300|5040000|놀이시설|/|/|/mypage/playReserve.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="5030000|5000000|아이디/비밀번호 찾기|/|/|/users/users03|" />
+		        <input type="hidden" name="tmp_menuNm" value="2010300|2010000|이용안내|/|/|forest/forest01_3|" />
+		        <input type="hidden" name="tmp_menuNm" value="3000000|0|교육/체험 프로그램|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="1020300|1020000|예약하기|/|/|/hwangbang/intro.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="1030000|1000000|태화연 야영장|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="1030300|1030000|예약하기|/|/|/taehwa/intro.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="6040000|6000000|사진모음집|/|/|/cop/bbs/selectBoardList.do?bbsId=BBSMSTR_000000000025|" />
+		        <input type="hidden" name="tmp_menuNm" value="3040000|3000000|산림 숲속 체험교실|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="2010400|2010000|예약하기|/|/|/iphwa2/intro.do|" />
+		        <input type="hidden" name="tmp_menuNm" value="1030400|1030000|찾아오시는길|/|/|campsite/campsite03_4|" />
+		        <input type="hidden" name="tmp_menuNm" value="1020400|1020000|찾아오시는길|/|/|campsite/campsite02_4|" />
+		        <input type="hidden" name="tmp_menuNm" value="1010400|1010000|찾아오시는길|/|/|campsite/campsite01_4|" />
+		        <input type="hidden" name="tmp_menuNm" value="4000000|0|아이놀이뜰|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="2010500|2010000|찾아오시는길|||forest/forest01_5|" />
+		        <input type="hidden" name="tmp_menuNm" value="5040000|5000000|나의 예약정보|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="5050000|5000000|나의 정보수정|/|/|/users/password|" />
+		        <input type="hidden" name="tmp_menuNm" value="6000000|0|알림마당|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="5000000|0|회원|/|/|dir|" />
+		        <input type="hidden" name="tmp_menuNm" value="6050000|6000000|자주하는 질문|/|/|/cop/bbs/selectBoardList.do?bbsId=BBSMSTR_000000000024|" />
+		        <input type="hidden" name="tmp_menuNm" value="5060000|5000000|회원탈퇴|/|/|/mypage/mypage04|" />
+		        <input type="hidden" name="tmp_menuNm" value="6060000|6000000|이용후기|/|/|/cop/bbs/anonymous/selectBoardList.do?bbsId=BBSMSTR_000000000023|" />
+		        <input type="hidden" name="tmp_menuNm" value="6070000|6000000|분실물보관|/|/|/cop/bbs/selectBoardList.do?bbsId=BBSMSTR_000000000027|" />
+		        <input type="hidden" name="tmp_menuNm" value="5070000|5000000|이용약관|/|/|users/terms|" />
+		        <input type="hidden" name="tmp_menuNm" value="6080000|6000000|가볼만한 곳|/|/|community/place|" />
+		        <input type="hidden" name="tmp_menuNm" value="5080000|5000000|개인정보처리방침|/|/|https://www.junggu.ulsan.kr/index.ulsan?menuCd=DOM_000000106001001000|" />
+		        <input type="hidden" name="tmp_menuNm" value="6011000|6000000|문의사항|/|/|/cop/bbs/anonymous/selectBoardList.do?bbsId=BBSMSTR_000000000028|" />
+		        </form>
+
+<!-- contents 시작-->
+			<div id="contents"> 
+
+			 <!--서브탑 시작-->
+			 <div id="sub_top">
+			  <div class="inner">
+			    <div class="cont_title">
+			       <h1>예약하기</h1>
+				</div>
+			  </div>		  
+			 </div>
+			 <!--서브탑(sub_top) 끝-->		
+
+             
+			 <!--서브 콘텐츠 시작-->
+			 <div id="sub_contents">
+
+			  <!--서브페이지 내비게이션-->
+				 <div id="sub_nav">
+				   <ul class="nav_line">
+					<li class="nav_home"><a href="/camping/"><img src="/camping/images/common/home_icon.png" alt="홈" /></a></li>
+					<li id="mu1click">
+					 <button onclick="return false;"><span>야영장</span></button>
+						<ul class="menu_box">
+						 <li><a href="/camping/pageCont.do?menuNo=1010100">야영장</a></li>
+						 <li><a href="/camping/pageCont.do?menuNo=2010100">휴양림</a></li>
+						 <li><a href="/camping/pageCont.do?menuNo=3010100">교육/체험 프로그램</a></li>
+						 <li><a href="/camping/pageCont.do?menuNo=4010100">아이놀이뜰</a></li>
+						 <li><a href="/camping/pageCont.do?menuNo=6010000">알림마당</a></li>
+						 </ul>
+					</li>  
+		  
+					<li id="mu2click">
+					<button onclick="return false;"><span>황방산 생태야영장</span></button>
+						<ul class="menu_box">
+						 <li><a href="/camping/pageCont.do?menuNo=1010100">입화산 제2오토야영장</a></li>
+								<li><a href="/camping/pageCont.do?menuNo=1020100">황방산 생태야영장</a></li>
+								<li><a href="/camping/pageCont.do?menuNo=1030100">태화연 야영장</a></li>
+								</ul>
+					</li>
+
+				   <li id="mu3click">
+					<button onclick="return false;"><span>예약하기</span></button>
+					<ul class="menu_box">
+					 <li><a href="/camping/pageCont.do?menuNo=1020100">소개 및 현황</a></li>
+					 <li><a href="/camping/pageCont.do?menuNo=1020200">이용안내</a></li>
+					 <li><a href="/camping/pageCont.do?menuNo=1020300">예약하기</a></li>
+					 <li><a href="/camping/pageCont.do?menuNo=1020400">찾아오시는길</a></li>
+					 </ul>
+				   </li>
+				   </ul>
+
+<script>
+<!--
+$("#mu1click > button").on("click", function(){
+	if($("#mu1click > ul").css("display") != "none"){
+		$("#mu1click > ul").hide();
+	}else{
+		$("#mu2click > ul").hide();
+		$("#mu3click > ul").hide();
+		$("#mu1click > ul").show();
+	}
+});
+
+$("#mu2click > button").on("click", function(){
+	if($("#mu2click > ul").css("display") != "none"){
+		$("#mu2click > ul").hide();
+	}else{
+		$("#mu1click > ul").hide();
+		$("#mu3click > ul").hide();
+		$("#mu2click > ul").show();
+	}
+});
+
+$("#mu3click > button").on("click", function(){
+	if($("#mu3click > ul").css("display") != "none"){
+		$("#mu3click > ul").hide();
+	}else{
+		$("#mu1click > ul").hide();
+		$("#mu2click > ul").hide();
+		$("#mu3click > ul").show();
+	}
+});
+//-->
+</script>
+
+		         <!--내비게이션 메뉴 정렬(nav_line) 끝-->
+
+				 <!--sns공유 시작-->
+				 <ul class="sn_etc">
+					<li><a href="javascript:" onclick="fnPrint(); return false;" title="현재 페이지 프린트 하기"><img src="/camping/images/common/print_icon.png" alt="프린트" /></a></li>
+					<li><a href="javascript:copyLink();" title="현재 페이지 링크 복사하기"><img src="/camping/images/common/share_icon.png" alt="링크복사" /></a></li>
+				 </ul>
+				 <!--sns공유(sn_etc) 끝-->
+
+				 </div>
+			  <!--서브페이지 내비게이션 #sub_nav 끝-->
+
+			  <script>
+				<!--
+				var fnPrint = function(){
+					var ori_body = document.body.innerHTML;
+					document.body.innerHTML = contents_in.innerHTML;
+					window.print();
+					setTimeout(function() {
+					  document.body.innerHTML = ori_body;
+					  location.reload();
+					}, 500);
+				};
+
+				function copyLink(){
+					var location = window.location.href;
+					
+					if(location.indexOf("selectBoardArticle.do") != -1){ //게시판 글보기 일때
+						location = window.location.href.split("?")[0]; //파라미터 없이
+						
+						location += "?" + "nttId=" + document.frm.nttId.value;
+						location += "&" + "bbsId=" + document.frm.bbsId.value;
+						location += "&" + "menuNo=1020300";
+					}else if(location.indexOf("EventProgramDetail.do") != -1){ //강좌 상세보기 일때
+						location = window.location.href.split("?")[0]; //파라미터 없이
+						
+						location += "?" + "appProId=" + document.viewForm.appProId.value;
+						location += "&" + "eventId=" + document.viewForm.eventId.value;
+						location += "&" + "menuNo=9010100";
+					}
+					
+					window.prompt('아래의 URL을 복사하여 사용하실수 있습니다.', location);
+				}
+				//-->
+				</script>
+
+			  <!--내부 콘텐츠 영역-->
+			  <div id="contents_in">
+
+
+
+
+
+<style>
+/*popup*/
+.popup_layer {position:fixed;top:0;left:0;z-index: 10000; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.4); }
+/*팝업 박스*/ /* 25.06.18 height 크기 변경. 424px -> 512px */
+.popup_box{position: relative;top:50%;left:50%; overflow: auto; height: 505px; max-width:574px; width:93%; transform:translate(-50%, -50%);z-index:1002;box-sizing:border-box;background:#fff;box-shadow: 2px 5px 10px 0px rgba(0,0,0,0.35);-webkit-box-shadow: 2px 5px 10px 0px rgba(0,0,0,0.35);-moz-box-shadow: 2px 5px 10px 0px rgba(0,0,0,0.35);}
+/*컨텐츠 영역*/
+.popup_box .popup_cont {padding:35px 40px;line-height:1.4rem;font-size:14px; }
+.popup_box .popup_cont h2 {padding:0;color:#333;margin:0;line-height:1.3em;}
+.popup_box .popup_cont p{ border-top: 1px solid #666;padding-top: 30px;font-size:17px; line-height:1.5em;}
+/*버튼영역*/
+.popup_box .popup_btn {display:table;table-layout: fixed;width:100%;height:70px;background:#ECECEC;word-break: break-word;}
+.popup_box .popup_btn a {position: relative; display: table-cell; height:70px;  font-size:17px;text-align:center;vertical-align:middle;text-decoration:none; background:#ECECEC;}
+.popup_box .popup_btn a:before{content:'';display:block;position:absolute;top:26px;right:29px;width:1px;height:21px;background:#000;-moz-transform: rotate(-45deg); -webkit-transform: rotate(-45deg); -ms-transform: rotate(-45deg); -o-transform: rotate(-45deg); transform: rotate(-45deg);}
+.popup_box .popup_btn a:after{content:'';display:block;position:absolute;top:26px;right:29px;width:1px;height:21px;background:#000;-moz-transform: rotate(45deg); -webkit-transform: rotate(45deg); -ms-transform: rotate(45deg); -o-transform: rotate(45deg); transform: rotate(45deg);}
+.popup_box .popup_btn a.close_day {background:#5d5d5d;} 
+.popup_box .popup_btn a.close_day:before, .popup_box .popup_btn a.close_day:after{display:none;}
+/*오버레이 뒷배경*/
+.popup_overlay{position:fixed;top:0px;right:0;left:0;bottom:0;z-index:1001;;background:rgba(0,0,0,0.5);}
+/*popup*/
+</style>
+
+<div class="popup_layer" id="popup_layer" style="display: none;">
+  <div class="popup_box">
+      <div class="popup_cont">
+          <h2>황방산 생태야영장 이용 안내</h2>
+          <p>
+		   1. 맨발걷기 이용객으로 인한 소음 발생<br>
+           &nbsp; * 심한 곳 : 카라반 201호, 이동식카라반 111호, 야영사이트 105/106/112호<br>
+              2. 주간 화장실(여자) 이용 시 혼잡<br>
+			  3. 맨발 이용객 야영사이트 횡단에 따른 프라이버시 침해<br>
+              4. 차량 카라반(소) 2층 침대 협소 (성인이 이용하기에 불편할 수 있음.) <br>
+           &nbsp; * 차량 카라반(소) 2층 침대 사이즈 : 가로 177cm 세로 63cm <br>
+           &nbsp; &nbsp; 전체 높이 : 112cm(1층 45cm 2층 67cm) <br>
+           &nbsp; &nbsp; 사다리폭 : 28cm (높이 : 130cm)<br><br>
+			  상기 불편사항에 대한 양해를 당부드리며 이용객 편의제공 및 개선을 위해<br>최선의 노력을 기울이겠습니다. 고맙습니다.
+          </p>
+      </div>
+      <div class="popup_btn" style="float: bottom;">
+          <a href="javascript:closePop();">닫기</a>
+      </div>
+  </div>
+</div>
+
+<script>
+<!--
+
+$( document ).ready(function(){
+	document.getElementById("popup_layer").style.display = "block";
+});
+
+//alert("황방산 생태야영장 이용관련 알려드립니다.\n\n1. 맨발걷기 이용객으로 인한 소음 발생\n * 심한 곳 : 카라반 201호, 이동식카라반 111호, 사이트 105/106/112호\n2. 주간 화장실(여자) 이용 시 혼잡\n3. 맨발 이용객 야영사이트 횡단에 따른 프라이버시 침해\n\n상기 불편사항에 대한 양해를 당부드리며 이용객 편의제공 및 개선을\n위해 최선의 노력을 기울이겠습니다.\n고맙습니다.");
+//-->
+
+function closePop() {
+    document.getElementById("popup_layer").style.display = "none";
+}
+//->
+</script>
+
+
+
+<script>
+<!--
+document.oncontextmenu = function(){return false;};
+
+document.onkeydown = function(e){
+	if(e.keyCode === 123 || (e.ctrlKey && e.shiftKey && e.keyCode == 73) || (e.ctrlKey && e.shiftKey && e.keyCode == 74) || (e.ctrlKey && e.shiftKey && e.keyCode == 67)){
+		e.preventDefault();
+		e.returnValue = false;
+	}
+};
+
+!function() {
+
+	function detectDevTool(allow) {
+  		if(isNaN(+allow)) allow = 100;
+		var start = +new Date();
+	    debugger;
+		var end = +new Date();
+	    if(isNaN(start) || isNaN(end) || end - start > allow) {
+			//alert('DEVTOOLS detected. all operations will be terminated.');
+			//document.write('DEVTOOLS detected.');
+			alert('개발자도구가 감지되었습니다.');
+			history.back(-1);
+		}
+	}
+
+	if(window.attachEvent) {
+		if (document.readyState === "complete" || document.readyState === "interactive") {
+			detectDevTool();
+			window.attachEvent('onresize', detectDevTool);
+			window.attachEvent('onmousemove', detectDevTool);
+			window.attachEvent('onfocus', detectDevTool);
+			window.attachEvent('onblur', detectDevTool);
+		} else {
+			setTimeout(argument.callee, 0);
+		}
+	} else {
+		window.addEventListener('load', detectDevTool);
+		window.addEventListener('resize', detectDevTool);
+		window.addEventListener('mousemove', detectDevTool);
+		window.addEventListener('focus', detectDevTool);
+		window.addEventListener('blur', detectDevTool);
+	}
+}();
+//-->
+</script>
+
+
+<!--<script src="https://xpayClient.uplus.co.kr/xpay/js/xpay_crossplatform.js"></script>-->
+<script src="https://xpay.tosspayments.com/xpay/js/xpay_crossplatform.js "></script>
+
+<script>
+   	var disabledDays = new Array();
+   	var dateList = new Array();
+   	var totalAmountList = new Array(); //숙박기간
+   	var discountOptionList = new Array(); //할인옵션
+
+
+	 	
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000010", "codeNm":"국가유공자 50%", "discount":"50"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000011", "codeNm":"독립유공자 50%", "discount":"50"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000012", "codeNm":"참전유공자 50%", "discount":"50"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000013", "codeNm":"고엽제후유의증 50%", "discount":"50"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000014", "codeNm":"특수임무유공자 50%", "discount":"50"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000015", "codeNm":"5.18민주유공자 50%", "discount":"50"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000016", "codeNm":"의사상자 50%", "discount":"50"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000017", "codeNm":"국군등록포로 및 억류지출신 포로가족 50%", "discount":"50"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000018", "codeNm":"장애인 (제32조 등록 장애인) 50%", "discount":"50"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000141", "codeNm":"중구민 다자녀가정 50%(미성년자녀 1명 포함 2명이상)", "discount":"50"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000019", "codeNm":"다자녀가정(만19세 미만 3명) 30%", "discount":"30"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000020", "codeNm":"다문화가족 (울산 중구 다문화가족 조례) 30%", "discount":"30"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000021", "codeNm":"한부모가족 (한부모가족지원법 제4조) 30%", "discount":"30"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000022", "codeNm":"국민기초생활 수급자 30%", "discount":"30"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000023", "codeNm":"임산부 배지 및 차량표시 소지자(본인) 30%", "discount":"30"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000024", "codeNm":"울산광역시자원봉사증 소지자(본인) 30%", "discount":"30"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000130", "codeNm":"중구민 30%", "discount":"30"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000142", "codeNm":"울산시민 다자녀가정 30%(미성년자녀 1명 포함 2명이상)", "discount":"30"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000144", "codeNm":"중구 혁신도시 내 공공기관 30%", "discount":"30"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000025", "codeNm":"차상위계층 20%", "discount":"20"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000140", "codeNm":"울산시민 20%", "discount":"20"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000143", "codeNm":"북한이탈주민 20%", "discount":"20"});
+   	
+   	discountOptionList.push({"code":"OPTION_0000000000145", "codeNm":"행복나눔기부 30%", "discount":"30"});
+   	
+
+
+
+   	function fSumPrice(){	//숙박기간 or 할인정보 변경에 따른 금액 계산
+   		var disCountVal = $("select[name='discountIds'] option:selected").val();
+   		var disCountTxt = $("select[name='discountIds'] option:selected").text();
+   		var disCountRate = 0;
+   		
+   		$("#str_discount > span.txt").text(disCountTxt);
+   		
+   		for(var i=0; i<discountOptionList.length; i++){
+   			if(discountOptionList[i]['code'] == disCountVal){
+   				disCountRate = discountOptionList[i]['discount'] * 1;
+   			}
+   		}
+   		
+   		var price = $("#str_charge > span.txt").text().replace(/,/g, "").replace(/원/g, "") * 1;
+   		var discountPrice = price * disCountRate / 100;
+   		var totalPrice = price - discountPrice;
+   		var totalPrice_str = totalPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+   		
+   		$("#str_totalCharge > span.tp").text(totalPrice_str + "원");
+		$("#str_payment > div.txt").text(totalPrice_str + "원");
+   	}
+   	
+   	function fChangeDiscount(){
+   		fSumPrice();
+   	}
+   	
+   	$(document).ready(function(){
+   		$.datepicker.setDefaults({
+   			dateFormat: 'yy-mm-dd',
+   		    prevText: '이전 달',
+   		    nextText: '다음 달',
+   		    changeMonth: true,
+   		    changeYear: true,
+   		    monthNames: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+   		    monthNamesShort: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+   		    dayNames: ['일','월','화','수','목','금','토'],
+   		    dayNamesShort: ['일','월','화','수','목','금','토'],
+   		    dayNamesMin: ['일','월','화','수','목','금','토'],
+   		    showMonthAfterYear: true,
+   		    autoSize: false,
+   		    buttonImageOnly: false,
+   		    yearRange: '2026:2030', minDate: 0
+   		    ,onChangeMonthYear: function (year, month, inst) {
+   		    	var sDate = year + "-" + (month < 10 ? "0" + month : month) + "-01";
+   		    	fAjaxMonthly(sDate);
+   		    },beforeShowDay: disableAllTheseDays 
+   		    ,onSelect : function (date){
+   		    	$("select[name='totalAmount'] option").remove();
+   		    	$("select[name='totalAmount']").append("<option value=''>-</option>");
+   		    	$("select[name='totalCapacity'] option").remove();
+   		    	$("select[name='totalCapacity']").append("<option value=''>-</option>");
+
+   		    	$(".book_summ > ul > li#str_btRsDate > span.txt").text("-");
+   		    	$(".book_summ > ul > li#str_totalCapacity > span.txt").text("-");
+
+   		    	$(".price_summ > ul > li#str_charge > span.tit").text(); //날짜, 성수기, 주말 여부
+   		    	$(".price_summ > ul > li#str_charge > span.txt").text("0원"); 
+   		    	$(".price_summ > ul > li#str_totalCharge > span.tp").text("0원"); 
+   		    	
+   		    	$("input[name='targetId']").val("");
+				$("input[name='rsId']").val("");
+
+				$("#str_payment > div.txt").text("0원");
+				$("input[name='rsPayMethod']").prop("disabled", true);
+				$(".payment").hide();
+
+				//숙박기간, 인원, 할인정보 옵션 숨김 처리
+				$(".selectAfter").hide();
+   		    	
+   		    	fAjaxSiteList(date);
+   		    }
+   		});
+	 
+		//get 방식으로 넘어온 targetDatetime 데이터 
+		var beDate = "";
+
+		//이용 날짜가 있는 경우만, 리스트 출력 처리. (datepicker 클릭 시 이벤트와 동일하게 처리)
+		if(beDate != "") {
+			$("select[name='totalAmount'] option").remove();
+			$("select[name='totalAmount']").append("<option value=''>-</option>");
+			$("select[name='totalCapacity'] option").remove();
+			$("select[name='totalCapacity']").append("<option value=''>-</option>");
+
+			$(".book_summ > ul > li#str_btRsDate > span.txt").text("-");
+			$(".book_summ > ul > li#str_totalCapacity > span.txt").text("-");
+
+			$(".price_summ > ul > li#str_charge > span.tit").text(); //날짜, 성수기, 주말 여부
+			$(".price_summ > ul > li#str_charge > span.txt").text("0원"); 
+			$(".price_summ > ul > li#str_totalCharge > span.tp").text("0원"); 
+			
+			$("input[name='targetId']").val("");
+			$("input[name='rsId']").val("");
+
+			$("#str_payment > div.txt").text("0원");
+			$("input[name='rsPayMethod']").prop("disabled", true);
+			$(".payment").hide();
+
+			//숙박기간, 인원, 할인정보 옵션 숨김 처리
+			$(".selectAfter").hide();
+
+			fAjaxSiteList(beDate);
+		}
+
+
+		//숙박기간변경
+		$("#period").on("change", function(){ 
+			var cpid = document.listForm.targetId.value;
+			var date = document.listForm.isSearchDate.value;
+			var appProcess = document.listForm.isChuchum.value; 
+
+			fChangeAmount2(cpid, date, appProcess);
+		});
+
+   		var selectedVal = $("#calPick").val();
+   		var t_year = "2026";
+   		var t_month = "10";
+   		
+   		var searchDate = selectedVal == "" ? (t_year+"-"+t_month+"-01") : selectedVal;
+   		
+   		var ajaxMonthly = fAjaxMonthly(searchDate);
+   		
+   		fSumPrice();
+   	});
+   	
+   	//사이트 선택
+   	function fAjaxSiteSelect(ctId, date, appProcess, ctName){
+   		$(".site_list > ul > li").removeClass("on");
+   	
+		
+			alert("로그인 후 이용하실 수 있습니다.");
+			location.href="/camping/pageCont.do?menuNo=5010000";
+			return;
+		
+	
+   		var cam_id = ctId.substr(16, 4);
+
+   		var now = date.replace(/-/gi, "");
+   		now = parseInt(now);
+   		
+   		if (cam_id == '0127' || cam_id == '0128' || cam_id == '0129'
+				|| cam_id == '0198' || cam_id == '0199' || cam_id == '0200' || cam_id == '0054' || cam_id == '0061' || cam_id == '0044' || cam_id == '0045')
+			alert("해당 사이트는 개인소지 이동식 카라반만 이용할 수 있습니다. 일반 이용객은 현장에서 퇴실조치 될 수 있습니다. (※ 단, 이용당일 12:00이후 현장결제 후 사용 가능)");
+   		
+   		if(appProcess == 'L0'){//선착순 예약일때만 안내 출력
+   			alert("[ " + ctName + " ] 예약을 시작합니다.\n\n10분 이내에 예약정보를 모두 입력하신 후 다음 단계로 진행하셔야 하며 10분이 초과될 경우 취소될 수 있습니다.");
+   		}
+
+		if(appProcess == 'L0'){
+			$(".book_btn .pay_btn").text("결제하기");
+		}else{
+			$(".book_btn .pay_btn").text("예약하기");
+		}
+   		
+   		$.ajax({
+   			url: "/camping/ajaxSelecteSite.do",
+			type: "post",
+			dataType: "json",
+			data: {"targetDatetime" : date, "targetId" : ctId, "rsEtc1" : "hwangbang", "cpId" : "hwangbang"},
+			success: function(data){
+				if(data.msg == "login"){
+					alert("로그인 후 이용하실 수 있습니다.");
+					location.href="/camping/pageCont.do?menuNo=5010000";
+					return;
+				}else if(data.msg == "sameRev"){
+					alert("이미 동일한 날짜, 사이트에 결제진행중인 건이 있습니다.\\n마이페이지에서 결제를 완료해주세요.");
+					return;
+				}else if(data.msg == "already"){
+					alert("이미 다른 사람이 예약진행중인 날짜입니다.");
+					return;
+				}else if(data.msg == "dupRev"){
+					alert("예약일 기준, 중복 예약은 금지됩니다. 자세한 내용은 공지사항을 참조하세요.");
+					return;
+				}else if(data.msg == "notExclusive"){
+					alert("선택할 수 없는 사이트 정보입니다. 다시 진행하시기 바랍니다.");
+					fAjaxSiteList(date);
+					return;
+				}else if(data.msg == "dupRevToday"){ // 20220628 추가 - 당일 중복
+					alert("예약일 기준, 중복 예약은 금지됩니다. 자세한 내용은 공지사항을 참조하세요.");
+					return;
+				}else if(data.msg == "dupRevDraw"){ // 20220628 추가 - 월 추첨 2회 신청 초과
+					alert("월 추첨 가능 횟수를 모두 예약하였습니다. 자세한 내용은 공지사항을 참조하세요.");
+					return;
+				}else if(data.msg == "dupRevMonth"){ // 20220628 추가 - 월 4회 신청 초과
+					alert("월별 신청 가능 횟수를 모두 신청하였습니다.");
+					return;
+				}else{
+					//console.log(data);
+					if(data.msg != ""){
+						$(".site_list > ul > li#"+ctId).addClass("on");
+
+						//숙박기간, 인원, 할인정보 옵션 보이도록 처리
+						$(".selectAfter").show();
+						
+						//숙박기간 시작							
+						$("select[name='totalAmount'] option").remove();
+
+						if(data.totalAmountList.length == 0)
+							$("select[name='totalAmount']").append("<option value=''>-</option>");
+					
+						for(var i=0; i<data.totalAmountList.length; i++){
+
+							totalAmountList[data.totalAmountList[i]['rsStay']] = {
+									"txtRsStay" : data.totalAmountList[i]['rsStay'],
+									"rsPrice" : data.totalAmountList[i]['rsPrice'],
+									"btRsDate" : data.totalAmountList[i]['btRsDate']
+							};							
+							
+							$("select[name='totalAmount']").append("<option value='"+data.totalAmountList[i]['rsStay']+"'>"+data.totalAmountList[i]['txtRsStay']+"</option>");
+						}
+
+						$("select[name='totalAmount']").on("change", function(){
+							fChangeAmount(); 
+						});
+						
+						fChangeAmount(); 
+						//숙박기간 끝
+						
+						//인원 시작
+						var keys = Object.keys(data.totalCapacityList); //key:value 형태값의 key 추출
+						$("select[name='totalCapacity'] option").remove();
+						
+						if(keys.length == 0)
+							$("select[name='totalCapacity']").append("<option value=''>-</option>");
+						
+						//for (var i=0; i<keys.length; i++) {
+						for (var i=keys.length-1; i>=0; i--) {
+					    	var key = keys[i];
+					    	//console.log("key : " + key + ", value : " + data.totalCapacityList[key]);
+					    	$("select[name='totalCapacity']").append("<option value='"+key+"'>"+data.totalCapacityList[key]+"</option>");
+					    }
+						
+						$("select[name='totalCapacity']").on("change", function(){
+							fChangeCapacity();
+						});
+						
+						fChangeCapacity();
+						//인원 끝
+						
+						//시설명 표기
+						$("#str_ctName > span.txt").text(data.resultVO.txtRsEtc2 + "-" + data.resultVO.targetName);						
+
+						//선택한 사이트ID 및 날짜 지정
+						$("input[name='targetId']").val(data.resultVO.targetId);
+						$("input[name='rsId']").val(data.resultVO.rsId);
+
+						//하단 결제방식 선택 영역
+						var cAppProcess = data.currentAppVO.appProcess;
+						if(cAppProcess.indexOf("L0") != -1){ //선착순
+							$("input[name='rsPayMethod']").prop("disabled", false);
+							$(".payment").show();
+						}else{ //추첨
+							$("input[name='rsPayMethod']").prop("disabled", true);
+							$(".payment").hide();
+						}
+
+						$("#period").focus();
+					}
+				}
+
+			},error: function (xhr, status, error) {
+				console.log(xhr);
+			},complete : function() {}
+  		});
+
+   	}
+ 
+ 	//숙박기간 초기값
+   	function fChangeAmount(){
+   		var rsStay = $("select[name='totalAmount'] option:selected").val(); 
+   		if(rsStay != ""){
+			var rsPrice = totalAmountList[rsStay].rsPrice;
+			rsPrice = rsPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+			
+			$(".book_summ ul li#str_btRsDate span.txt").text(totalAmountList[rsStay].btRsDate);
+			$(".price_summ ul li#str_charge span.txt").text(rsPrice + "원");
+   		}
+   		
+   		fSumPrice();
+   	}
+
+	//숙박기간에 변경에 따른 금액변경
+	function fChangeAmount2(ctId, date, appProcess){	
+   		var rsStay = $("select[name='totalAmount'] option:selected").val(); 
+
+		if(rsStay != ""){ 
+
+			var rsPrice = totalAmountList[rsStay].rsPrice;
+			rsPrice = rsPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+			if( appProcess == "L0" && date !="" ) {	//선착순, 예약 날짜 확인
+//alert(rsStay); //1, 2
+				// 2박 3일, 1박 2일  변경 체크 - 기존에 자료 중 중복되는 거 있는지~
+				$.ajax({
+					url: "/camping/ajaxChangeStayGigan.do",
+					type: "post",
+					dataType: "json",
+					data: {"targetDatetime" : date, "targetId" : ctId, "rsEtc1" : rsStay, "cpId" : "hwangbang"}, 
+					success: function(data){
+						if(data.msg == "login"){
+							alert("로그인 후 이용하실 수 있습니다.");
+							location.href="/camping/pageCont.do?menuNo=5010000";
+							return;
+						}else if(data.msg == "dupRevToday"){ // 20220628 추가 - 당일 중복
+							alert("예약일 기준, 중복 예약은 금지됩니다. 자세한 내용은 공지사항을 참조하세요.");
+							return;
+						}else if(data.msg == "dupRevDraw"){ // 20220628 추가 - 월 추첨 2회 신청 초과
+							alert("월 추첨 가능 횟수를 모두 예약하였습니다. 자세한 내용은 공지사항을 참조하세요.");
+							return;
+						}else if(data.msg == "dupRevMonth"){ // 20220628 추가 - 월 4회 신청 초과
+							alert("월별 신청 가능 횟수를 모두 신청하였습니다.");
+							return;
+						}else if(data.msg == "already"){
+							alert("이미 다른 사람이 예약진행중인 날짜입니다. 다시 선택해주세요.");
+							$(".selectAfter").hide(); //숙박기간, 인원, 할인정보 영역 숨김처리
+							$("select[name='discountIds']").val("-1").prop("selected", true); //할인정보를 선택하세요로 초기화 해야 필수 값 체크에 걸려서 결제를 못함.
+							return;
+						}else if(data.msg == "sameRev"){
+							alert("이미 동일한 날짜, 사이트에 결제진행중인 건이 있습니다.\\n마이페이지에서 결제를 완료해주세요.");
+							return;
+						}else{
+							//console.log(data);
+							if(data.msg != ""){
+//							if(data.msg == "success"){
+								
+								//금액 변경 
+								$(".book_summ ul li#str_btRsDate span.txt").text(totalAmountList[rsStay].btRsDate);
+								$(".price_summ ul li#str_charge span.txt").text(rsPrice + "원");
+								
+							}else{
+								alert("숙박기간을 다시 선택하여 주세요.");
+							}
+						}
+					},error: function (xhr, status, error) {
+						console.log(xhr);
+					},complete : function() {}
+				});
+				// 끝 - 1박 2일 변경 체크 
+			}
+			else{
+				$(".book_summ ul li#str_btRsDate span.txt").text(totalAmountList[rsStay].btRsDate);
+				$(".price_summ ul li#str_charge span.txt").text(rsPrice + "원");
+			}
+   		}
+   		
+   		fSumPrice();
+   	}
+   	
+   	function fChangeCapacity(){
+   		var totalCapacity = $("select[name='totalCapacity'] option:selected").val(); 
+   		if(totalCapacity != ""){
+   			$("#str_totalCapacity > span.txt").text(totalCapacity + "명");
+   		}
+   	}
+   	
+   	function fShowScvImg(){
+   		if($("#scv").css("display") == "none"){
+   			//var popY = ( $(window).scrollTop() + ($(window).height() - $("#scv").height()) / 2 ) + "px";
+   			var popY = ( $(window).scrollTop() + ($(window).height()) / 2 ) + "px";
+   			$("#scv").css({"top":popY});
+   			
+   			$("#scv").show();
+	   		/*$('html, body').stop().animate({
+	            scrollTop : $('#scv').offset().top
+	        });*/
+   		}else{
+   			$("#scv").hide();
+   		}
+   	}
+   	
+   	function fHideScvImg(){
+   		$("#scv").hide();
+   	}
+   	
+   	//사이트 목록
+   	function fAjaxSiteList(searchDate){
+   		var isExclusive = "";
+   		
+   		for(var i=0; i<dateList.length; i++){
+   			var dt = dateList[i]['date'];
+   			if(dt == searchDate){
+   				if(dateList[i]['isExclusive']) isExclusive = "Y";
+   				else isExclusive = "";
+   				break;
+   			}
+   		}
+
+		var userSe = "";
+		var userAddr = "";
+		var userAddr2 = "";
+
+		$(".site_list").empty(); //사이트목록 영역 초기화
+
+		if(isExclusive == "Y" && userSe != "USR" 
+			&& ((userAddr.indexOf("중구") == -1 && userAddr2.indexOf("중구") == -1) || userAddr.indexOf("울산") == -1)
+		){
+			alert("선택하신 날짜는 울산 중구민 대상으로 신청을 받습니다.\n다른 날짜를 선택해주시기 바랍니다.");
+			//$("input[name='targetDatetime']").val(""); 
+			//다음 달의 날짜를 선택하여 이 기능이 동작한 경우 값을 초기화해버리면 이번 달의 모든 날짜(지나간 날짜X)가 선택가능한것으로 보이기 때문에 주석처리함.
+			//값을 초기화 하더라도 사이트목록 출력 시 예약불가로 표시되기는 함.
+			$("input[name='targetDatetime']").focus();
+			$(".site_list").empty(); //사이트목록 영역 초기화
+			return;
+		}
+   		
+   		$.ajax({
+   			url: "/camping/ajaxGetSiteList.do",
+			type: "post",
+			dataType: "json",
+			data: {"searchDate" : searchDate, "cpId" : "hwangbang", "csId" : "CP_SPEC_000000000004", "isExclusive" : isExclusive},
+			success: function(data){
+				console.log(data);
+				if(data.msg != ""){
+					if(!data.siteList){
+						alert("선택하신 날짜는 사이트 정보가 없습니다.\n다른 날짜를 선택해주시기 바랍니다.");
+						$("input[name='targetDatetime']").focus();
+						$(".site_list").empty(); //사이트목록 영역 초기화
+						return;
+					}
+
+					const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
+					
+					var tDate = new Date();
+					var fDate = new Date(searchDate);
+					var fDate_str = fDate.getFullYear() + ". " + ((fDate.getMonth()+1)<10?"0"+(fDate.getMonth()+1):(fDate.getMonth()+1)) + ". " 
+								+ (fDate.getDate()<10?"0"+fDate.getDate():fDate.getDate()) + ".(" + WEEKDAY[fDate.getDay()] + ")";
+					var fDate_str2 = fDate.getFullYear() + "." + ((fDate.getMonth()+1)<10?"0"+(fDate.getMonth()+1):(fDate.getMonth()+1)) + "." 
+								+ (fDate.getDate()<10?"0"+fDate.getDate():fDate.getDate()) + "."; 
+											
+					const distance = fDate.getTime() - tDate.getTime();
+					const dday = Math.floor(distance/(1000*60*60*24)) + 1; //날짜만 보여줄것이기 때문에 +1
+					
+					//선택일자
+					$(".camp_info > .summary > .sm_date").text(fDate_str);
+					
+					//D-day
+					var dday_img = "<img src='/camping/images/contents/campcar_icon.png' alt=''>";
+					$(".camp_info > .summary > .dday").html(dday_img + " 여행까지 " + "<span>D-" + dday + "</span>");
+					
+					//사이트목록 영역 초기화
+					$(".site_list").empty();
+					
+					if(data.siteList.length > 0){
+						var appProcess = data.currentAppVO.appProcess;
+						appProcess = (appProcess.indexOf("L1") != -1) ? "L1" : "L0";
+						
+						var scv_img = "/camping/images/contents/plotplan1.png";
+						var cp_id = "hwangbang";
+						if(cp_id == "iphwa_auto2") scv_img = "/camping/images/contents/plotplan1.png";
+						else if(cp_id == "hwangbang") scv_img = "/camping/images/contents/plotplan2.png";
+						else if(cp_id == "taehwa") scv_img = "/camping/images/contents/plotplan3.png";
+						else if(cp_id == "iphwa") scv_img = "/camping/images/contents/plotplan5.png";
+						else if(cp_id == "iphwa2") scv_img = "/camping/images/contents/plotplan4.png";
+						
+						$(".site_list").append("<a href='/' class='site_btn' onclick='fShowScvImg(); return false;'>배치도 확인하기</a>");
+						$(".site_list").append("<div class='site_chk_view' id='scv'>"
+								  + "<a href='/' onclick='fHideScvImg(); return false;'><img src='/camping/images/contents/scv_close.png' alt='닫기'></a>"
+								  + "<div class='scv_img'>"
+								  + "<img src='" + scv_img + "' alt='황방산 생태야영장 - 배치도'>"
+								  + "<p class='scvimg_chk'>"
+								  + "중구민 우선 추첨 사이트"
+								  + "</p>"								  
+								  + "</div>"
+								  + "</div>");
+						$(".site_list").append("<ul></ul>");
+						
+						for(var i=0; i<data.siteList.length; i++){
+							var resultVO = data.siteList[i];
+							var ctName = resultVO.ctName;
+							if(appProcess == "L1") ctName += " - 현재 " + resultVO.lotteryCount + " 건 접수";
+							
+							var ctPrice = resultVO.ctPrice;
+							ctPrice = ctPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+							
+							var ctIsBookable = resultVO.ctIsBookable;
+							var ctIsIng = resultVO.ctIsIng;
+							var ctState = resultVO.ctState;
+
+						//사이트 활성/비활성 체크	console.log(resultVO.ctState);							
+						if(ctState == "DISABLED")   continue;
+							
+							var stat_onclick = "";
+							var stat_class = "";
+							var stat_str = "";
+							
+						if(ctIsBookable == "Y"){
+								if(ctIsIng == "Y"){
+									stat_onclick = "onclick='alert(\"현재 다른 사람이 예약 진행중인 사이트입니다.\"); return false;'";
+									stat_str = "예약진행";
+									stat_class = "class='done'";
+								}else{
+									stat_onclick = "onclick='fAjaxSiteSelect(\""+resultVO.ctId+"\", \""+searchDate+"\", \""+appProcess+"\", \""+resultVO.ctName+"\"); return false;'";
+									stat_str = "예약하기";
+								}
+							}else{
+								stat_onclick = "onclick='alert(\"선택할 수 없습니다.\"); return false;'";
+								stat_class = "class='done'";
+								if(ctState == "RESERVED") stat_str = "예약완료";
+								else stat_str = "예약불가";
+							}
+							
+							$(".site_list > ul").append(
+								"<li id='"+resultVO.ctId+"' " + stat_class + ">"
+								+ "<a href='/' " + stat_onclick + ">"
+								+ "<span class='name'>" + ctName + "</span>"
+								+ "<span class='fair'>" + ctPrice + "원</span>"
+								+ "<span class='stat'>" + stat_str + "</span>"
+								+ "</a>"
+								+ "</li>"
+							);
+						}
+					}
+					
+					//예약금액 부분 날짜 표기
+					fDate_str2 += "(" + (data.isPeek ? "성수기" : "비수기") + "/" + (data.isWeekend ? "주말" : "평일") + ")";
+					$("#str_charge > span.tit").text(fDate_str2);
+
+					if(data.isPeek) document.listForm.isPeekDate.value = "Y";
+					else document.listForm.isPeekDate.value = "N";
+
+					// 230328 추가 
+					document.listForm.isChuchum.value = appProcess;
+					document.listForm.isSearchDate.value = searchDate; 
+				}
+			},error: function (xhr, status, error) {	
+				console.log(xhr);
+			},complete : function() {
+			}
+  		});
+   	}
+   	
+   	function fAjaxMonthly(searchDate){
+   		$.ajax({
+   			url: "/camping/ajaxGetMonthlyMap.do",
+			type: "post",
+			dataType: "json",
+			data: {"searchDate" : searchDate, "cpId" : "hwangbang"},
+			success: function(data){
+				//console.log(data);
+				if(data.msg != ""){
+					disabledDays = new Array();
+					dateList = new Array();
+					
+					var list = data.monthlyMap.calendarList;
+					
+					for(var i=0; i<list.length; i++){
+						var map = list[i];
+						//console.log(map);
+						
+						dateList.push(map);
+						
+						if(!map.isAbleDate && map.isOtherMonth != "Y"){
+							disabledDays.push(map.date);
+						}
+					}	
+				}
+			},error: function (xhr, status, error) {
+				console.log(xhr);
+			},complete : function() {
+				fSetDatePicker(searchDate);
+			}
+  		});
+   	}
+   	
+ 	// 특정일 선택막기
+   	function disableAllTheseDays(date) {
+   	    var m = date.getMonth(), d = date.getDate(), y = date.getFullYear();
+   	    m = m + 1;
+   	    if(m < 10) m = "0" + m;
+   	    if(d < 10) d = "0" + d;
+   	    
+   	    for (i = 0; i < disabledDays.length; i++) {
+   	        if($.inArray(y + '-' + m + '-' + d, disabledDays) != -1) {
+   	            return [false];
+   	        }
+   	    }
+   	    return [true];
+   	}
+ 	
+ 	function fSetDatePicker(searchDate){
+ 		var x = new Date(searchDate);
+ 		
+ 		if($("#calPick").hasClass("hasDatepicker")){
+			$("#calPick").datepicker("refresh");
+		}else{
+			$("#calPick").datepicker();
+		}
+ 	}
+   	
+	var doubleSubmitFlag = false; //중복 저장 버튼 방지 
+
+   	function fchk(f){
+   		var v_ChkToday = new Date();
+   		var v_ChkTodayYYYY = v_ChkToday.getFullYear();
+   		var v_ChkTodayMM = v_ChkToday.getMonth();
+   		if (parseInt(v_ChkTodayMM) < 9) {
+   			v_ChkTodayMM = parseInt(v_ChkTodayMM) + 1;
+   			v_ChkTodayMM = '0' + v_ChkTodayMM;
+   		} else {
+   			v_ChkTodayMM = parseInt(v_ChkTodayMM) + 1;
+   		}
+   		var v_ChkTodayDD = v_ChkToday.getDate();
+   		if (parseInt(v_ChkTodayDD) < 10) {
+   			v_ChkTodayDD = '0' + v_ChkTodayDD;
+   		}
+
+   		/*var v_strChkToday = v_ChkTodayYYYY + '' + v_ChkTodayMM + '' + v_ChkTodayDD;
+   		var v_strChkToday = parseInt(v_strChkToday);
+
+   		var targtetDatetime = $("input[name='targetDatetime']").val();
+   		var now = targtetDatetime.replace(/-/gi, "");
+   		now = parseInt(now);*/
+
+		//날짜비교 개선.. (다음달 날짜 선택한 경우 정상동작 안함)
+		var v_strChkToday = new Date(v_ChkTodayYYYY + '-' + v_ChkTodayMM + '-' + v_ChkTodayDD);
+		var targtetDatetime = new Date($("input[name='targetDatetime']").val());
+
+		var diffDate = targtetDatetime.getTime() - v_strChkToday.getTime();
+		diffDate = Math.abs(diffDate / (1000 * 3600 * 24));
+		
+   		
+   		if(f.targetDatetime.value == ""){
+   			alert("이용날짜를 선택해주세요.");
+   			f.targetDatetime.focus();
+   			return false;
+   		}
+   		
+   		if(f.targetId.value == ""){
+   			alert("사이트를 선택해주세요.");
+   			return false;
+   		}
+   		
+   		if($("select[name='totalAmount'] option:selected").val() == ""){
+   			alert("숙박기간을 선택해주세요.");
+   			$("select[name='totalAmount']").focus();
+   			return false;
+   		}
+   		
+   		if($("select[name='totalCapacity'] option:selected").val() == ""){
+   			alert("인원을 선택해주세요.");
+   			$("select[name='totalCapacity']").focus();
+   			return false;
+   		}
+
+		if($("select[name='discountIds'] option:selected").val() == "-1"){
+			alert("할인정보를 선택해주세요.");
+   			$("select[name='discountIds']").focus();
+   			return false;
+		}
+   		
+   		if(f.rsBuyerName.value == ""){
+   			alert("이름을 입력해주세요.");
+   			f.rsBuyerName.focus();
+   			return false;
+   		}
+   		
+   		if(f.rsBuyerTel.value == ""){
+   			alert("연락처를 입력해주세요.");
+   			f.rsBuyerTel.focus();
+   			return false;
+   		}
+
+		if(f.searchCpId.value == "taehwa" && f.rsEtc5.value == ""){
+			alert("차량번호를 입력해주세요.");
+   			f.rsEtc5.focus();
+   			return false;
+		}
+   		
+   		// 약관 동의
+   		var $objAgree = $("#agr1");
+   		if (!$objAgree.is(":checked")) {
+   			alert("이용준수사항에 동의해주세요.");
+   			$objAgree.focus();
+   			return false;
+   		}
+   		
+   		$objAgree = $("#agr2");
+   		if (!$objAgree.is(":checked")) {
+   			alert("입실정원 준수안내에 동의해주세요.");
+   			$objAgree.focus();
+   			return false;
+   		}
+
+   		$objAgree = $("#agr3");
+   		if (!$objAgree.is(":checked")) {
+   			alert("취소 및 환불규정에 동의해주세요.");
+   			$objAgree.focus();
+   			return false;
+   		}
+
+		$objAgree = $("#agr4");
+   		if (!$objAgree.is(":checked")) {
+   			alert("재난상황별 대응 지침에 동의해주세요.");
+   			$objAgree.focus();
+   			return false;
+   		}
+
+   		$objAgree = $("#agr");
+   		if (!$objAgree.is(":checked")) {
+   			alert("개인정보수집동의에 동의해주세요.");
+   			$objAgree.focus();
+   			return false;
+   		}
+
+		var limitDate = 2;
+		if(f.isPeekDate.value == "Y") limitDate = 10;
+
+   		if (diffDate <= limitDate) {
+   			alert("오늘로부터 "+limitDate+"일이내 예약건은 취소시 위약금이 발생합니다.");
+   		}
+			
+		//중복 저장 버튼 방지 
+		if(doubleSubmitFlag){
+			alert('정보 저장 중입니다.');
+			return false;
+		}else{
+			doubleSubmitFlag = true;     
+
+	   		setTimeout(function(){
+	   			submitByAjax(f, function(result) {
+					if (result.resultMap.callJs == undefined) {
+						var msg = result.msg;
+						if(msg != "") alert(msg);
+						//location.replace("./" + result.uri);
+						location.href = "/camping" + result.uri;
+					} else {
+						eval(result.resultMap.callJs);
+					}
+				});
+	   		}, 50);
+  	
+		}
+
+   		return false;
+   	}
+
+	//야영장 a태그 클릭 시, 링크 처리.
+	function changeCp(csId) {
+
+		var tDatetime = $('#calPick').val(); //이용날짜 value
+		location.href="/camping/hwangbang/intro.do?menuNo=1020300&searchCsId="+csId+"&targetDatetime="+tDatetime; //이동 url 처리 시, targetDatetime 변수를 추가로 전달.
+
+	}
+
+</script>
+
+
+<form name="listForm" method="post" action="/camping/hwangbang/insert.do" onsubmit="return fchk(this);" target="hiddenPayment">
+ <input type="hidden" name="menuNo" value="1020300" />
+ <input type="hidden" name="searchCpId" value="hwangbang" />
+ 
+ <input type="hidden" name="rsId" value="" />
+ <input type="hidden" name="rsType" value="" />
+ <input type="hidden" name="targetId" value="" />
+ <!-- <input type="hidden" name="targetDatetime" value="" /> -->
+ <input type="hidden" name="isPeekDate" value="N" />
+
+ <input type="hidden" name="isChuchum" value="" />
+ <input type="hidden" name="isSearchDate" value="" />
+
+ <!--예약 페이지 상단 시작-->
+ <div class="booking_area_top">
+
+  <!--왼쪽-->
+  <div class="ba_left">
+	  <!--카테고리 선택 영역-->
+	  <div class="ba_top">
+		<h2>황방산 생태야영장</h2>
+
+		<div class="place">
+	     <button class="btn_place" onclick="fToggle_place(); return false;">
+	     
+	      황방산 오토야영장
+	     
+	      
+	     
+	      
+	     
+	     </button>
+	     
+		 <ul>
+		  
+		  <li><a href="javascript:" onclick="changeCp('CP_SPEC_000000000004');">황방산 오토야영장</a></li>
+		  
+		  <li><a href="javascript:" onclick="changeCp('CP_SPEC_000000000034');">황방산 차량카라반(소)</a></li>
+		  
+		  <li><a href="javascript:" onclick="changeCp('CP_SPEC_000000000005');">황방산 카라반야영장</a></li>
+		  
+		 </ul>
+		</div>
+		
+		<script>
+		<!--
+		function fToggle_place(){
+			$(".ba_top > .place > ul").toggle();
+		}
+				
+		$('html').click(function(e) { 
+			if(!$(e.target).hasClass("btn_place")) { 
+				if($(".ba_top > .place > ul").css("display") != "none"){
+					$(".ba_top > .place > ul").hide();
+				}
+			} 
+		});
+		//-->
+		</script>
+		
+	  </div>
+	  <!--카테고리 선택 영역 끝 .ba_top-->
+
+
+	  <!--선택한 내용 설명 영역-->
+	  <div class="ba_top_info">
+	   <div class="bti_img">
+	    
+	    
+			
+			
+			
+		
+
+
+
+
+
+
+	
+		<img src='/camping/cmm/fms/getImage.do?atchFileId=FILE_000000000020296&fileSn=0&isList=Y' alt="대표 이미지" />
+	
+	
+
+	    
+	   </div>
+	   <div class="bti_cont">
+	    <h3>
+	     
+	      황방산 오토야영장
+	     
+	      
+	     
+	      
+	     
+	    </h3>
+		<ul class="bti_cont_list">
+		 <li>
+		 	<span class="tit">유형 :</span>
+		 	<span class="txt"> 
+		 	  
+		 	  	
+			  
+		 	  	
+			  
+		 	  	
+			  
+		 	  	
+			  
+		 	  	오토캠핑
+			  
+		 	  	
+			  
+		 	  	
+			  
+		 	</span>
+		 </li>
+		 <li><span class="tit">입장 가능 인원 :</span><span class="txt"> 1 ~ 6인 (평형 7m×9m)</span></li>
+		 
+		</ul>
+	   </div>
+	  </div>
+	  <!--선택한 내용 설명 영역 끝.ba_top_info-->
+      
+      <div class="sa_notice"> 
+	 <!--  <p>이용날짜를 먼저 선택하고 사이트를 선택해주세요. 사이트 선택 후 숙박기간과 인원을 선택할 수 있습니다.</p> -->
+	 <p>순서 : 이용날짜 선택 -> 사이트 선택 -> 숙박기간과 인원, 할인정보 선택</p>
+	  </div>
+	  <!--캠핑 정보 선택 영역-->
+	  <div class="select_area">
+	   <div class="sa1">
+	   	<label for="calPick">이용날짜</label>
+	   	<input type="text" id="calPick" name="targetDatetime" title="이용날짜" readonly="readonly" value="" />
+	   </div> 
+	   <div class="sa2 selectAfter" style="display:none;">
+	    <label for="period">숙박기간</label>
+	    <select id="period" class="pr_s" title="숙박기간 선택" name="totalAmount">
+	     <option value="">-</option>		 
+		</select>
+	   </div>
+	   <div class="sa3 selectAfter" style="display:none;">
+	    <label for="people">인원</label>
+	    <select id="people" class="pp_s" title="인원 선택" name="totalCapacity">
+	     <option value="">-</option>	 
+		</select>
+	   </div>
+	   <div class="long_box selectAfter" style="display:none;">
+	    <label for="discount">할인정보</label>
+
+	 
+		<select id="discount" class="dc" title="할인정보 선택" name="discountIds" onchange="fChangeDiscount();">	
+			<option value="-1">대면 할인정보를 선택하세요.</option>
+	    	<option value="">없음</option>
+		 	
+		 	<option value="OPTION_0000000000010" >국가유공자 50%</option>
+		 	
+		 	<option value="OPTION_0000000000011" >독립유공자 50%</option>
+		 	
+		 	<option value="OPTION_0000000000012" >참전유공자 50%</option>
+		 	
+		 	<option value="OPTION_0000000000013" >고엽제후유의증 50%</option>
+		 	
+		 	<option value="OPTION_0000000000014" >특수임무유공자 50%</option>
+		 	
+		 	<option value="OPTION_0000000000015" >5.18민주유공자 50%</option>
+		 	
+		 	<option value="OPTION_0000000000016" >의사상자 50%</option>
+		 	
+		 	<option value="OPTION_0000000000017" >국군등록포로 및 억류지출신 포로가족 50%</option>
+		 	
+		 	<option value="OPTION_0000000000018" >장애인 (제32조 등록 장애인) 50%</option>
+		 	
+		 	<option value="OPTION_0000000000141" >중구민 다자녀가정 50%(미성년자녀 1명 포함 2명이상)</option>
+		 	
+		 	<option value="OPTION_0000000000019" >다자녀가정(만19세 미만 3명) 30%</option>
+		 	
+		 	<option value="OPTION_0000000000020" >다문화가족 (울산 중구 다문화가족 조례) 30%</option>
+		 	
+		 	<option value="OPTION_0000000000021" >한부모가족 (한부모가족지원법 제4조) 30%</option>
+		 	
+		 	<option value="OPTION_0000000000022" >국민기초생활 수급자 30%</option>
+		 	
+		 	<option value="OPTION_0000000000023" >임산부 배지 및 차량표시 소지자(본인) 30%</option>
+		 	
+		 	<option value="OPTION_0000000000024" >울산광역시자원봉사증 소지자(본인) 30%</option>
+		 	
+		 	<option value="OPTION_0000000000130" >중구민 30%</option>
+		 	
+		 	<option value="OPTION_0000000000142" >울산시민 다자녀가정 30%(미성년자녀 1명 포함 2명이상)</option>
+		 	
+		 	<option value="OPTION_0000000000144" >중구 혁신도시 내 공공기관 30%</option>
+		 	
+		 	<option value="OPTION_0000000000025" >차상위계층 20%</option>
+		 	
+		 	<option value="OPTION_0000000000140" >울산시민 20%</option>
+		 	
+		 	<option value="OPTION_0000000000143" >북한이탈주민 20%</option>
+		 	
+		 	<option value="OPTION_0000000000145" >행복나눔기부 30%</option>
+		 		 
+		</select>
+
+
+	   </div>
+	  </div>
+	  <!--캠핑 정보 선택 영역 끝.select_area-->
+
+
+	  <!--캠핑 정보 선택 후 표시 영역-->
+	  <div class="camp_box">
+
+	   <!--선택된 사항이 없을 때-->
+	   <div class="nothing" style="display:none;">
+	    여행 날짜를 선택해주세요.
+	   </div>
+	   <!--선택된 사항이 없을 때 끝-->
+
+	   <!--선택된 사항이 있을 때 사이트 표시 영역-->
+	   <div class="camp_info">
+	    <div class="summary">
+		 <p class="sm_date"></p> 
+		 <p class="dday"></p> 
+		</div>
+
+		<div class="site_list">
+		</div>
+	   </div>
+	   <!--선택된 사항이 있을 때 사이트 표시 영역 끝.-->
+	  </div>
+	  <!--캠핑 정보 선택 후 표시 영역 끝.camp_box-->
+  </div>
+  <!--왼쪽 끝-->
+
+  <!--오른쪽 시작-->
+  <div class="ba_right">
+   <div class="receipt">
+
+
+    <div class="book_summ">
+     <h2>예약선택</h2>
+	 <ul>
+	  <li id="str_ctName"><span class="tit">시설명</span><span class="txt">-</span></li><!-- 입화산 오토(대형)505 -->
+	  <li id="str_btRsDate"><span class="tit">이용일</span><span class="txt">-</span></li><!-- 2022.02.12. ~ 2022.02.13. (1박 2일) -->
+	  <li id="str_totalCapacity"><span class="tit">사용인원</span><span class="txt">0명</span></li><!-- 4명 -->
+	 </ul>
+	</div>
+
+	
+    <div class="price_summ">
+     <h2>예약금액</h2>
+	 <ul>
+	  <li id="str_charge" class="date_info"><span class="tit">-</span><span class="txt">0원</span></li>
+	  <li id="str_discount"><span class="tit">할인정보</span><span class="txt">-</span></li> 
+	  <li id="str_totalCharge" class="total"><span class="tit">합계</span><span class="tp">0원</span></li> 
+	 </ul>
+	</div>
+
+
+   </div>
+  </div>
+  <!--오른쪽 끝-->
+	 
+	 
+ </div>
+ <!--예약 페이지 상단 끝.booking_area_top-->
+
+
+ <!--예약 페이지 하단 예약자 정보 입력 시작-->
+ <div class="booking_area_bottom">
+
+  <!--이용자 정보 입력 시작-->
+  <div class="ab_box">
+   <h2>이용자 정보</h2>
+    <div class="book_table">
+	 <ul>
+	
+
+	
+	  <li>
+	   <div class="th">이름</div>
+	   <div class="td">
+		<input type="hidden" id="p_name" name="rsBuyerName" value="" />
+		
+	   </div>
+	  </li>
+	  <li>
+	   <div class="th">연락처</div>
+	   <div class="td">
+		
+		<input type="hidden" id="call" name="rsBuyerTel" value="" />
+		
+	    
+		
+	   </div>
+	  </li>
+	  <li>
+	   <div class="th">이메일</div>
+	   <div class="td">
+		<input type="hidden" id="email" name="rsBuyerEmail" value="" />
+		
+	   </div>
+	  </li>
+	
+
+	  <li>
+	   <div class="th"><label for="zip_view">주소</label></div>
+	   <div class="td">             
+		<input id="zip_view" name="rsBuyerZip" type="text" maxlength="7" value="" title="우편번호 입력" />
+		<button onclick="openDaumPostcode(); return false;" class="addr_btn">우편번호 찾기</button>
+		<br />
+		<label for="address1" class="hide">주소입력</label>
+		<input id="address1" name="rsBuyerAddr1" class="rsadd" type="text" value=" " title="주소 입력" />
+	   </div>
+	  </li>
+	  <li>
+	   <div class="th carn"><label for="carnum"><span class="must_write">차량번호</span></label></div>
+	   <div class="td">
+	    <input type="text" id="carnum" name="rsEtc5" class="short_ip" title="차량번호 입력"  />
+		<br /><span class="check_txt mgt_5">차량번호 전체를 다 입력해주세요.</span>
+	   </div>
+	  </li>
+	 </ul>
+	</div>
+  </div>
+  <!--이용자 정보 입력 끝-->
+
+
+  <!--이용준수사항 시작-->
+  <div class="ab_box">
+   <h2>이용준수사항</h2>
+   <div class="rule_box">
+    <div class="rb_in">
+	 <ul class="cont_list">
+	  <li class="okay"><span class="bold">야영장 및 휴양림 입장 시 주의사항</span>
+	   <ul class="cont_list2">
+				<li>출입은 반드시 출입구를 이용하여야 하며, 관리자의 안내에 따라 주시기 바랍니다.</li>
+				<li>관리사무소에서 예약자 본인 확인(신분증 지참) <span class="c_red">※ 예약자 없이 입장 불가</span>
+				<ul class="cont_list2">
+					<li>예약자가 사정이 있어(병원, 입원 등) 오지 못하는 경우 등본상 주소지가 같은 경우에 한하여 증빙서류 모두 지참 시 입실가능
+						<br><span class="c_red">※ 증빙서류 : 예약자의 신분증, 등본(3개월 이내), 입실자의 신분증(사진, 캡쳐본, 복사본 인정 불가)</span>
+					</li>
+				</ul>
+			   </li>			   
+				<li>휴양림 및 야영장의 이용시간은 14:00부터 다음날 13:00까지(카라반시설은 14:00부터 다음날 11:00)며, 다음 예약자를 위하여 이용시간을 준수하여 주시기 바랍니다.</li>
+				<li>가능하다면 22:00부터 07:00 까지는 자동차의 출입을 삼가해 주시고, 휴양림 및 야영장 내에서는 서행하여야 합니다. (불필요한 자동차 사용을 삼가 주시기 바랍니다.)</li>
+				<li>휴양림 및 야영장 내에서 자동차를 세차할 수 없습니다.</li>
+				<li>위급을 요하는 경우와 호우·강풍 등으로 피난이 필요한 경우 관리자의 지시에 따라 주시기 바랍니다.</li>
+	   </ul>
+	  </li>
+	  
+	  <li class="okay"><span class="bold">위생 안내</span>
+	   <ul class="cont_list2">
+				<li>개수대는 취사용으로만 공급하며, 다른용도의 사용은 금지되어 있습니다. 먹는 물로 부적합하오니 먹는 물은 따로 준비해오시기 바랍니다.</li>
+				<li>폐수는 반드시 지정된 곳에 버려 주시고 절대로 바닥에 버려서는 안 됩니다.</li>
+				<li>재활용 및 일반쓰레기는 지정된 장소에 종류별로 분류하여 쓰레기수거장 배출시간(10:00~22:00)에 맞춰 버려주시기 바랍니다.</li>
+	   </ul>
+	  </li>
+	  
+	  <li class="okay"><span class="bold">공공시설 에티켓 준수</span>
+	   <ul class="cont_list2">
+				<li>심한 소음은 항상 주의하여 주시고, 고성방가(단체 게임이나 노래), 지나친 음주로 인한 소란스러움, 캠프파이어 및 폭죽놀이, 지나친 흡연 및 애정표현 등은 다른 이용객들을 힘들게 합니다. </li>
+				<li>해당 사항을 위반하거나 타 이용객들의 민원 발생 시 퇴실 조치합니다.</li>
+				<li>건전한 야영문화 정착을 위한 <span class="c_red">정숙시간은 21:00부터  07:00까지</span> 입니다.</li>
+	   </ul>
+	  </li>
+
+	  <li class="okay"><span class="bold">화재예방 안내</span>
+	   <ul class="cont_list2">
+		<li>야영장 및 휴양림 내 시설물의 보호를 위하여 지정된 장소(사이트 내) 외에서의 화기 사용을 금합니다. <span class="c_red">함부로 불(모닥불, 장작불)을 사용하는 것을 금지</span>합니다.</li>
+	    <li>가스버너, 바비큐 화로를 이용한 숯불만 사용이 가능합니다. (숯불, 펠릿난로 : 입화산 소나무·참나무 야영장 제외)</li>
+	    <li>주변의 나무 등 부산물을 수집 및 소각하는 행위를 절대로 하시면 안됩니다.</li>
+	    <li>전기그릴, 라디에이터 등 고출력 전기용품(600W이상)은 사용을 제한합니다.<br /><span class="c_red">※ 차단기가 떨어져 다른 이용객에게 피해를 끼치므로 자제해 주실 것을 당부드립니다.</span></li>
+	    <li>펠릿난로, 등유난로, 전기(600W이하)난로는 사용이 가능합니다. (장작난로, 고체연료 사용 금지)</li>
+	   </ul>
+	  </li>
+	  
+	  <li class="dont"><span class="bold">물놀이 안내</span>
+	   <ul class="cont_list2">
+	    <li>야영장 및 휴양림은 <span class="c_red bold">개인 물놀이 풀장 사용을 금지</span>합니다.</li>
+	   </ul>
+	  </li>
+
+	  <li class="dont"><span class="bold">사고의 방지 · 유실 또는 피해</span>
+	   <ul class="cont_list2">
+	    <li>야영장 및 휴양림 내에서의 놀이기구의 사용을 금합니다. (안전사고 방지)<br />※ 예 : 전동 휠(스쿠터포함), 싱싱카, 스케이트 보드, 인라인스케이트 등 바퀴달린 놀이기구의 탑승금지</li>
+	    <li>야영장내에서의 야영 여가활동 외 불필요한 행위를 금합니다.<br />※ 예 : 놀이공간(잔디마당 등)을 제외한 곳에서의 뛰어놀기, 차량 이동 구간에 뛰어들기 등</li>
+	    <li>놀이기구 사용 및 불필요한 행위로 인한 모든사고의 책임은 본인에게 있음을 알려드립니다.</li>
+		<li>취사 및 야영은 지정된 곳에서만 할 수 있습니다.</li>
+		<li>관리자는 사용자의 소유물에 대한 유실 또는 피해에 대하여 책임을 지지 않습니다.</li>
+		<li>시설에 대한 피해에 대해서는 수선 또는 대체에 소요되는 비용이 청구됩니다.</li>
+	   </ul>
+	  </li>
+
+	  <li class="dont"><span class="bold">규정 이용 인원 및 사이트 면적 외 사용금지(위반 시 퇴실조치)</span>
+	   <ul class="cont_list2">
+	    <li>이용정원은 야영장 6인 까지이며, 방문객 및 어린이 포함 인원입니다.</li>
+				<li>야영장 1사이트 내 텐트 1동만 설치 가능하며, 이용차량 1대만 주차 가능합니다.</li>
+				<li>이웃 사이트(일행 또는 지인) 한 사이트 동석을 금지합니다.</li>
+				<li>사용자께서는 배정된 곳을 사용하셔야 하며, 항상 깨끗하게 이용하여 주시기 바랍니다.</li>
+				<li>해당 사항을 위반하거나 타 이용객들의 민원 발생 시 퇴실 조치합니다.</li>
+	   </ul>
+	  </li>
+
+	  <li class="dont"><span class="bold">데크 이외 지역 텐트 및 타프 설치금지</span>
+	   <ul class="cont_list2">
+	    <li>야영장 및 휴양림 특성상 산 속에 위치하고 있고 데크 간에 여유 공간이 부족하므로 무분별한 산림훼손을 방지하기 위해 지정된 데크 이외에는 텐트를 설치할 수가 없습니다.</li>
+	   </ul>
+	  </li>
+
+	  <li class="dont"><span class="bold">지정 사이트 외 이용금지</span>
+	   <ul class="cont_list2">
+	    <li>이동식카라반은 지정 사이트에서만 이용 가능하며, 일반 사이트는 이용 불가.(홈페이지 배치도 및 영상보기 참조)</li>
+	    <li>이동식카라반 사이트는 이동식 카라반, 트레일러(750kg이상), 캠핑카 전장 5.5m 이상만 이용가능</li>
+	    <li>이동식카라반 사이트 당일 12:00까지 이용객이 없을 경우, 일반 오토캠핑 이용 가능.(1박만 가능)</li>
+	    <li>당일 일반 오토캠핑 사용은 현장결제만 가능하며, 홈페이지 사전예약 불가(사전예약 시 퇴실 조치)</li>
+	    <li>일반 오토야영 사이트의 이동식카라반 사이트 시설변경 불가</li>
+	   </ul>
+	  </li>
+
+	  <li class="dont"><span class="bold">흡연구역 외 흡연 금지</span>
+	   <ul class="cont_list2">
+	    <li>노약자나 어린이들, 비흡연자에게 피해가 갈 수 있으니 주위 분들을 배려하여 흡연구역이나 외곽 지역을 이용해 주시기 바랍니다.</li>
+	   </ul>
+	  </li>
+	  
+	  <li class="dont"><span class="bold">반려동물 동반 금지</span>
+	   <ul class="cont_list2">
+	    <li>황방산 생태야영장 외 야영장 및 휴양림은 반려동물과 동반 입장하실 수 없습니다.</li>
+	    <li>황방산 생태야영장은 반려동물과 동반 입장하실 수 있습니다.<br>
+		    <span class="c_red bold">※ 목줄 착용, 대형견 입마개 필수, 카라반 출입금지</span></li>
+		<li>반려동물은 지정된 시설에서만 입장이 가능하며 항상 사람의 감독 하에 있어야 합니다. <span class="c_red">(※ 혐오·유해 동물은 동반 입장을 금지함)</span></li>
+		<li>시설 내에서 반드시 줄로 매어야 하며 숙박시설(카라반) 내에는 입장을 금지합니다.</li>
+	   </ul>
+	  </li>
+
+	  <li class="dont"><span class="bold">종교행위 등 금지 안내</span>
+	   <ul class="cont_list2">
+	    <li>야영장 및 휴양림 내에서 정치적 또는 종교적인 홍보 등은 금지되어 있습니다.</li>
+	    <li>관리자의 사전 허가 없이는 상업적인 홍보 또는 물품의 판매를 할 수 없습니다.</li>
+	   </ul>
+	  </li>
+
+
+
+	 </ul>
+	
+	</div>
+
+	<div class="rb_agrline">
+	 <input type="checkbox" name="agr1" id="agr1" value="Y" /><label for="agr1">준수사항을 확인하였습니다.</label>
+	</div>
+   </div>
+  </div>
+  <!--이용준수사항 끝-->
+
+  <!--입실정원 준수 안내 시작-->
+  <div class="ab_box">
+   <h2>입실정원 준수안내</h2>
+   <div class="rule_box">
+    <div class="rb_in">
+	 <ul class="cont_list">
+	  
+	  <li>입실정원 : 6인 </li>
+	  <li>이웃 사이트(일행 또는 지인) 한 사이트 동석 금지</li>
+	 </ul>
+	</div>
+
+	<div class="rb_agrline">
+	 <input type="checkbox" name="agr2" id="agr2" value="Y" /><label for="agr2">준수사항을 확인하였습니다.</label>
+	</div>
+   </div>
+  </div>
+  <!--입실정원 준수 안내 끝-->
+
+  <!--취소 및 환불규정 시작-->
+  <div class="ab_box">
+   <h2>취소 및 환불규정</h2>
+   <div class="rule_box">
+    <div class="rb_in">
+	 
+           
+	 <ul class="cont_list mgb_20">
+	  <li>예약취소 및 예약변경은 예약확인 및 취소에서 하시면 됩니다.</li>
+	  <li>예약취소나 예약변경시 환불금액은 입력하신 계좌번호로 환불되오니, 정보를 정확하게 입력하셔야 합니다.</li>
+	 </ul>
+
+	 <table class="cont_table">
+			<caption>취소일에 따른 시설사용료 반환기준-구분, 취소일, 반환기준(사용자 사정에 의한 취소, 운영자 잘못(귀책)에 의한 취소로 구성</caption>
+			<colgroup>
+				<col class="w15">
+				<col class="w25">
+				<col class="w30">
+				<col class="w30">
+			</colgroup>
+			<thead>
+				<tr>
+					<th scope="col" rowspan="2" class="center">구분</th>
+					<th scope="col" class="center" rowspan="2">취소일</th>
+					<th scope="col" class="center tophead last" colspan="2">반환 기준</th>
+				</tr>
+				<tr>
+					<th scope="col" class="center">사용자 사정에 의한 취소</th>
+					<th scope="col" class="center last">운영자 잘못(귀책)에 의한 취소</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<th scope="row" rowspan="5" class="peak bold_line peak_season_bak">성수기</th>
+					<td class="center">10일전 취소 또는 예약당일 취소</td>
+					<td class="center">전액 반환</td>
+					<td class="center last">전액 반환</td>
+				</tr>
+				<tr>
+					<td class="center">사용예정일 9~7일전까지 취소</td>
+					<td class="center">사용료의 80% 반환</td>
+					<td class="center last">전액 반환+사용료의 20% 배상</td>
+				</tr>
+				<tr>
+					<td class="center">사용예정일 6~5일전까지 취소</td>
+					<td class="center">사용료의 60% 반환</td>
+					<td class="center last">전액 반환+사용료의 40% 배상</td>
+				</tr>
+				<tr>
+					<td class="center">사용예정일 4~3일전까지 취소</td>
+					<td class="center">사용료의 40% 반환</td>
+					<td class="center last">전액 반환+사용료의 60% 배상</td>
+				</tr>
+				<tr>
+					<td class="center bold_line">사용예정일 2~1일전까지 취소 또는 당일취소</td>
+					<td class="center bold_line">사용료의 10% 반환</td>
+					<td class="center last bold_line">전액반환+손해배상</td>
+				</tr>
+				<tr>
+					<th scope="row" rowspan="3" class="bottom off_peak_season_bak">비수기</th>
+					<td class="center offpeak">사용예정일 2일전까지 취소</td>
+					<td class="center offpeak">전액 반환</td>
+					<td class="center last offpeak">전액 반환</td>
+				</tr>
+				<tr>
+					<td class="center offpeak">사용예정일 1일전까지 취소</td>
+					<td class="center offpeak">사용료의 90% 반환</td>
+					<td class="center last offpeak">전액 반환+사용료의 10% 배상</td>
+				</tr>
+				<tr>
+					<td class="center offpeak">사용예정일 당일 취소 또는 연락없이 불참</td>
+					<td class="center offpeak">사용료의 80% 반환</td>
+					<td class="center last offpeak">전액 반환+사용료의 20% 배상</td>
+				</tr>
+			</tbody>
+		</table>
+        <p class="tb_notice mgt_5">※ 천재지변으로 시설이용이 전혀 불가능한 경우 : 사용료 전액 반환하나, 운영자 잘못(귀책)으로 인한 배상 기준은 적용하지 않음.</p>
+	</div>
+
+	<div class="rb_agrline">
+	 <input type="checkbox" name="agr3" id="agr3" value="Y" /><label for="agr3">약관에 동의합니다.</label>
+	</div>
+   </div>
+  </div>
+  <!--취소 및 환불규정 끝-->
+
+
+  <!--재난상황별 대응 시작-->
+  <div class="ab_box">
+    <h2>재난상황별 대응 지침 </h2>
+   <div class="rule_box">
+    <div class="rb_in">
+<div class="t_box">
+ <table class="cont_table">
+  <caption>재난상황별 중구야영장 대응 계획-종류,주의보,경보로 구성</caption>
+  <colgroup>
+   <col class="w20">
+   <col class="w40">
+   <col class="w40">
+  </colgroup>
+
+  <thead>
+   <tr>
+    <th scope="col">종류</th>
+    <th scope="col">주의보</th>
+    <th scope="col" class="last">경보</th>
+   </tr>
+  </thead>
+
+  <tbody>
+   <tr>
+    <th scope="row">태풍</th>
+	<td>
+	 <ul class="cont_list">
+	  <li>강제 퇴실 조치 및 입실 불가</li>
+	 </ul>
+	</td>
+	<td class="last">
+	 <ul class="cont_list">
+	  <li>강제 퇴실 조치 및 입실 불가</li>
+	 </ul>
+	</td>
+   </tr>
+
+   
+   <tr>
+    <th scope="row">강풍</th>
+	<td rowspan="5">
+	 <ul class="cont_list">
+	  <li>입실 시 재난상황 안내</li>
+	  <li>안내 방송 송출<br>※ 안내 내용 : 현재 주의보 발효 안내, 경보 발생 시 담당 부서의 판단에 따라 퇴실 조치될 수 있음</li>
+	 </ul>
+	</td>
+	<td class="last" rowspan="3">
+	 <ul class="cont_list">
+	  <li>퇴실 권고 및 담당 부서 판단에 따라 강제 퇴실 조치</li>
+	  <li>안내 방송</li>
+	 </ul>
+	</td>
+   </tr>
+
+   <tr>
+    <th scope="row">호우</th>
+   </tr>
+
+   <tr>
+    <th scope="row">대설</th>
+   </tr>
+
+   <tr>
+    <th scope="row">한파</th>
+	<td class="last" rowspan="3">
+	 <ul class="cont_list">
+	  <li>입실 시 재난상황 안내</li>
+	  <li>안내 방송 송출<br>※ 안내 내용 : 현재 경보 발효 안내, 담당 부서의 판단에 따라 퇴실 조치될 수 있음</li>
+	 </ul>
+	</td>
+   </tr>
+
+   <tr>
+    <th scope="row">폭염</th>
+   </tr>
+
+   <tr>
+    <th scope="row">황사</th>
+	<td class="center">해당 없음</td>
+   </tr>
+
+   <tr>
+    <th scope="row">풍랑</th>
+	<td rowspan="3" class="center">해당 없음</td>
+	<td class="last center" rowspan="3">해당 없음</td>
+   </tr>
+   <tr>
+    <th scope="row">건조</th>
+   </tr>
+   <tr>
+    <th scope="row">폭풍 해일</th>
+   </tr>
+  </tbody>
+ </table>
+ <p class="tb_notice mgt_10">※ 재난특보가 발효하지 않아도 담당 부서의 판단에 따라 퇴실 권고 및 강제 퇴실 조치 될 수 있습니다.</p>
+ <p class="tb_notice mgt_10">※ 입화산 자연휴양림, 입화산 제2 오토야영장 : 척과천 범람 시 다운로 방면 진입다리 출입 통제</p>
+ <p class="tb_notice mgt_10">※ 입화산 자연휴양림 체험 프로그램 : 즉시 취소 및 시설물 복구 완료까지 휴장</p>
+ <p class="tb_notice mgt_10">※ 퇴실 권고 및 강제 퇴실 조치 시점으로부터 30일 이내 환불 조치</p>
+<a href="/camping/pageCont.do?menuNo=6020000#std" class="go_now mgt_15" target="_blank" title="새창열림">특보 발표기준 보러가기</a>
+</div>
+	</div>
+	
+	<div class="rb_agrline">
+	 <input type="checkbox" name="agr4" id="agr4" value="Y" /><label for="agr4">위 사항을 확인하였습니다. 안내원의 안내에 협조하며, 미협조 시 모든 책임은 본인에게 있음을 동의합니다.</label>
+	</div>
+
+  </div>  
+  </div>
+  <!--재난상황별 대응 끝-->
+
+
+  <!--개인정보 수집·이용 동의 시작-->
+  <div class="ab_box">
+   <h2>개인정보 수집·이용 동의</h2>
+   <div class="rule_box">
+    <div class="rb_in">
+	   <ul class="cont_list">
+	    <li><span class="bold">개인정보의 수집·이용목적</span>
+		 <ul class="cont_list2">
+		  <li>울산광역시 중구 야영·휴양시설 통합운영체계 "서비스 이용, 개인식별, 고지사항 전달 등을 목적으로 개인정보를 처리합니다."</li>
+		 </ul>
+		</li>
+
+		
+	    <li><span class="bold">수집하려는 개인정보의 항목</span>
+		 <ul class="cont_list2">
+		  <li>이름, 이메일, 연락처(휴대폰번호),  주소, 차량번호</li>
+		 </ul>
+		</li>
+
+		
+	    <li><span class="bold">개인정보의 보유 및 이용 기간</span>
+		 <ul class="cont_list2">
+		  <li>근거 : 정보주체의 동의</li>
+		  <li>기간 : <span class="u_high">가입 시 ~ 탈퇴 시</span></li>
+		 </ul>
+		</li>
+
+		
+	    <li><span class="bold">동의 거부 권리 및 불이익</span>
+		 <ul class="cont_list2">
+		  <li>신청자는 개인정보 활용 동의에 거부할 권리가 있습니다.</li>
+		  <li>다만, 동의를 거부할 경우 홈페이지 및 시설 안내만 가능하며 그 외 예약 및 타 서비스 이용은 불가능합니다.</li>
+		 </ul>
+		</li>
+	   </ul>
+	</div>
+
+	<div class="rb_agrline pi_agr">
+	 <input type="radio" name="agr" id="agr" value="Y" /><label for="agr" class="mgr_45">동의</label>
+	 <input type="radio" name="agr" id="disagr" value="N" checked="checked" /><label for="disagr">비동의</label>
+	</div>
+   </div>
+  </div>
+  <!--개인정보 수집·이용 동의 끝-->
+
+  <!--결제선택 시작-->
+  <div class="payment" style="display:none;">
+   <div id="str_payment" class="howm">
+    <div class="tit">결제금액</div>
+	<div class="txt">0원</div>
+   </div>
+
+   <div class="payway">
+    <div class="tit">결제선택</div>
+	<div class="txt">
+	    <input type="radio" name="rsPayMethod" id="pay1" value="CARD" checked="checked" disabled />
+		<label for="pay1" class="payla1">신용카드</label>
+	    <input type="radio" name="rsPayMethod" id="pay2" value="TRANSFER" disabled />
+		<label for="pay2">계좌이체</label>
+	</div>
+   </div>
+  </div>
+  <!--결제선택 끝-->
+
+  <!--버튼 영역 시작-->
+  <div class="book_btn">
+   <div class="floatleft">
+    <a href="/camping/pageCont.do?menuNo=1020300" class="cancle_btn">취소하기</a>
+   </div>
+   <div class="floatright">
+    <button class="pay_btn">예약하기</button>
+	
+   </div>
+  </div>
+  <!--버튼 영역 끝-->
+  
+ </div>
+ <!--예약 페이지 하단 예약자 정보 입력 끝-->
+ 
+</form>
+
+<div id="hiddenPayment" style="overflow: hidden; width:0; height:0;"></div>
+
+
+
+
+
+
+	
+
+	
+	                       
+	
+	                       
+			  </div>
+			  <!--내부 콘텐츠 영역 끝 contents_in-->
+			 </div>
+			 <!--서브 콘텐츠 끝 sub_contents-->
+			</div>
+			<!--contents 끝-->
+
+	
+	
+
+	<div class="top_go">
+	 <!--<a href="" title="새창열림" target="_blank" class="rsv_now"><span>예약현황</span></a>-->
+	 <a href="https://camping.junggu.ulsan.kr/new/page/vr/main.do" title="새창열림" target="_blank" class="vr"><img src="/camping/images/common/vr_icon.png" alt=""><span>VR보기</span></a>
+	 <a href="#container" class="tg">TOP</a>
+	</div>
+
+	<!-- footer 시작-->
+	
+	  <footer>
+        <div class="inner">
+		 <div class="f_menu">
+		  <a href="https://www.junggu.ulsan.kr/index.ulsan?menuCd=DOM_000000106001001000" class="prv" title="새창열림" target="_blank">개인정보처리방침</a>
+		  <a href="/camping/pageCont.do?menuNo=5070000">이용약관</a>
+		  <a href="/camping/pageCont.do?menuNo=6090000">사이트맵</a>
+
+		  <div class="f_dirgo">
+		   <div class="flink fl1">
+		    <button class="flink_btn" onclick="javascript:toggle_flink(1);">
+			 <span>관련 사이트</span>
+		    </button>
+			<ul id="flink_1">
+			 <li><a href="http://www.junggu.ulsan.kr/" title="새창" target="_blank">울산 중구청</a></li>
+			 <li><a href="http://council.junggu.ulsan.kr/" title="새창" target="_blank">울산 중구의회</a></li>
+			 <li><a href="http://www.junggu.ulsan.kr/health/" title="새창" target="_blank">울산 중구보건소</a></li>
+			 <li><a href="http://www.ulsan.go.kr/" title="새창" target="_blank">울산광역시청</a></li>
+			 <li><a href="http://www.junggu.ulsan.kr/edu/" title="새창" target="_blank">중구평생학습관</a></li>
+			 <li><a href="http://artscenter.junggu.ulsan.kr/" title="새창" target="_blank">중구문화의전당</a></li>
+			 <li><a href="http://www.junggu.ulsan.kr/tour/" title="새창" target="_blank">울산중구문화관광</a></li>
+			</ul>
+		   </div>
+		  </div>
+		 </div>
+
+		 <div class="f_info">
+		  <img src="/camping/images/common/f_logo.png" alt="울산광역시 중구 야영·휴앵시설 통합운영시스템">
+
+		  <p class="address">울산 중구청 : [44475] 울산광역시 중구 단장골길 1 (복산동)</p>
+		  <p><span>사업자 번호 620-83-01219</span>대표자 : 김영길</p>
+		  <p class="call">
+		   <span><span class="bold">입화산 자연휴양림(별뜨락) : </span>052-708-2830 <span class="bold">(대표번호)</span></span>
+		   <span><span class="bold">아이놀이뜰 : </span>052-708-2831</span>
+		   <span><span class="bold">입화산제2오토 : </span>052-211-2832</span>
+		   <span><span class="bold">황방산 : </span>052-708-2833</span>
+		   <span><span class="bold">태화연 : </span>052-211-2834</span>
+		  </p>
+		 </div>
+
+		 <div class="f_copy">
+		  <p>Copyright Ulsan Junggu. All rights reserved.</p>
+		 </div>
+		</div>
+
+	  </footer>
+	  <!--footer 끝-->
+
+
+	</div>
+	<!--containter 끝-->
+
+    <script>
+		<!--
+			function toggle_flink(index){
+				$('#flink_'+index).toggle();
+				for(var i=1; i<=3; i++){
+					if(i != index){
+						$('#flink_'+i).hide();
+					}
+				}
+			}
+		//-->
+	</script>
+
+
+</body>
+</html>

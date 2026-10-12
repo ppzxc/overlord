@@ -39,8 +39,8 @@ const nfUrl = (q: NetFunnelQueue, opcode: number, now: number, key?: string) =>
   `${q.tsUrl}?opcode=${opcode}&nfid=0&prefix=NetFunnel.gRtype=${opcode};&sid=${q.sid}&aid=${q.aid}&js=yes${key ? `&key=${encodeURIComponent(key)}` : ""}&${now}`;
 
 /**
- * 대기열에 참여해 키와 기다린 시간(ms)을 받는다. 301/302는 곧바로 `blocked`이고 가상 대기에 참여하지 않는다.
- * 연결 실패·키 미수신·상한 초과는 `transient`다.
+ * 대기열에 참여해 키와 기다린 시간(ms)을 받는다. 301/302와 HTTP 403·429는 곧바로 `blocked`이고 가상 대기에 참여하지 않는다.
+ * 연결 실패·키 미수신·상한 초과·HTTP 5xx는 `transient`다.
  */
 export async function enterQueue(ctx: AdapterContext, queue: NetFunnelQueue): Promise<EnteredPass> {
   const started = ctx.clock.now().getTime();
@@ -50,11 +50,14 @@ export async function enterQueue(ctx: AdapterContext, queue: NetFunnelQueue): Pr
     let body: string;
     try {
       const res = await ctx.http.get(nfUrl(queue, opcode, ctx.clock.now().getTime(), key), { unpaced: true });
+      // 403·429는 ADR 0002처럼 멈춘다(서버가 우리를 막았거나 속도를 줄이라는 뜻). 그 밖의 200 아님(5xx 등)은 일시 오류다.
+      if (res.status === 403 || res.status === 429) throw new AdapterError("blocked", `대기열 HTTP ${res.status}`);
       if (res.status !== 200) throw new AdapterError("transient", `대기열 HTTP ${res.status}`);
       body = res.body;
     } catch (e) {
       if (e instanceof AdapterError) throw e;
-      throw new AdapterError("transient", `대기열 서버에 연결하지 못했다: ${(e as Error).message}`);
+      // 원인(예: TLS 검증 실패의 cause.code)을 어댑터가 읽을 수 있게 cause로 남긴다.
+      throw new AdapterError("transient", `대기열 서버에 연결하지 못했다: ${(e as Error).message}`, { cause: e });
     }
     const { code, fields, result } = parseNf(body);
     if (code === 301 || code === 302) throw new AdapterError("blocked", `대기열이 차단 신호(${code})를 줬다`);
@@ -175,4 +178,50 @@ export async function releaseKey(ctx: AdapterContext, queue: NetFunnelQueue): Pr
     lease.completed = true;
     await completeQueue(ctx, queue, lease.key, true);
   }
+}
+
+/** 예약처가 기록한 `netfunnel.js` 값. 달라지면 경고만 남긴다. */
+export interface NetFunnelScript {
+  /** 로그 문구 앞머리. 예: `junggu` */
+  provider: string;
+  url: string;
+  version: string;
+  tsHost: string;
+}
+
+/**
+ * `netfunnel.js`의 버전과 `TS_HOST`가 기록한 값과 다르면 경고만 남기는 확인. 세션(HttpClient)당 한 번 받고, 받지 못해도 감시는 그대로다.
+ * `reset`을 부르면 그 세션이 다음 `warn`에서 다시 확인한다(새 키로 진입할 때마다 확인하는 예약처용).
+ */
+export function netfunnelScriptCheck(script: NetFunnelScript): { warn(ctx: AdapterContext): Promise<void>; reset(ctx: AdapterContext): void } {
+  const checked = new WeakSet<HttpClient>();
+  return {
+    async warn(ctx) {
+      if (checked.has(ctx.http) || ctx.signal?.aborted) return;
+      checked.add(ctx.http);
+      try {
+        const res = await ctx.http.get(script.url);
+        if (res.status !== 200) return;
+        const version = /Version\s+(\S+)/.exec(res.body)?.[1];
+        const host = /^NetFunnel\.TS_HOST\s*=\s*'([^']*)'/m.exec(res.body)?.[1];
+        if (version !== script.version) ctx.log?.(`${script.provider} netfunnel.js version changed`, { expected: script.version, actual: version });
+        if (host !== script.tsHost) ctx.log?.(`${script.provider} TS_HOST changed`, { expected: script.tsHost, actual: host });
+      } catch {
+        // 경고 전용이라 실패해도 감시는 그대로다.
+      }
+    },
+    reset: (ctx) => void checked.delete(ctx.http),
+  };
+}
+
+/** 세션마다 이미 경고한 차이(키 문자열). */
+const warnedDrift = new WeakMap<HttpClient, Set<string>>();
+
+/** 같은 세션에서 같은 `key`의 차이는 한 번만 로그로 남긴다. 구역·자리 차이 경고용이다. */
+export function warnDriftOnce(ctx: AdapterContext, key: string, msg: string, fields: Record<string, unknown>): void {
+  const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
+  warnedDrift.set(ctx.http, warned);
+  if (warned.has(key)) return;
+  warned.add(key);
+  ctx.log?.(msg, fields);
 }

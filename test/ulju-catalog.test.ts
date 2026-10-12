@@ -117,6 +117,7 @@ describe("catalog ulju --live", () => {
   describe("조회 실패는 1이다", () => {
     it.each([
       ["HTTP 503", { status: 503, body: "" }, "transient"],
+      ["HTTP 401", { status: 401, body: "" }, "blocked"],
       ["HTTP 403", { status: 403, body: "" }, "blocked"],
       ["JSON 아님", { status: 200, body: "<html></html>" }, "unrecognized"],
       ["모르는 result", { status: 200, body: JSON.stringify({ result: "maintenance" }) }, "unrecognized"],

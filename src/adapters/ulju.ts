@@ -67,7 +67,7 @@ function isQueryable(date: string, now: Date): boolean {
 }
 
 const failure = (res: TransportResponse): AdapterError | undefined => {
-  if (res.status === 403 || res.status === 429) return new AdapterError("blocked", `${DAY_PATH}: HTTP ${res.status}`);
+  if (res.status === 401 || res.status === 403 || res.status === 429) return new AdapterError("blocked", `${DAY_PATH}: HTTP ${res.status}`);
   if (res.status >= 500) return new AdapterError("transient", `${DAY_PATH}: HTTP ${res.status}`);
   if (res.status !== 200) return new AdapterError("unrecognized", `${DAY_PATH}: 예상 밖 HTTP ${res.status}`);
   return undefined;

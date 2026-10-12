@@ -219,6 +219,7 @@ describe("ulju 폴러", () => {
     const onDay = (response: TransportResponse) => uljuServer({ day: () => response });
 
     it.each([
+      ["HTTP 401(로그인 요구)", { status: 401, body: "" }],
       ["HTTP 403", { status: 403, body: "" }],
       ["HTTP 429", { status: 429, body: "" }],
     ])("%s는 blocked다", async (_name, response) => {

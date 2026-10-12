@@ -631,19 +631,28 @@ export function jungguServer(
 const bukguRaw = (name: string) => readFileSync(new URL(`../research/raw/bukgu/${name}`, import.meta.url), "utf8");
 
 /**
- * 기록한 `reservationCntAjax.do` 응답(강동 `siteKindCode=010100`, `priceCode` 빈 값). 25자리 전체 표다.
- * 기록한 날짜: 10/14(예약가능 18), 10/17·10/31(모두 예약종료), 10/18(11), 10/20(22), 10/22(21), 10/25(15), 11/01(25, 추첨 접수 기간).
+ * 기록한 `reservationCntAjax.do` 응답(`priceCode` 빈 값, 시설 전체 표). 기본은 강동(`010100`).
+ * 강동: 10/14(예약가능 18), 10/17·10/31(모두 예약종료), 10/18(11), 10/20(22), 10/22(21), 10/25(15), 11/01(25, 추첨 접수 기간).
+ * 당사(`010200`, 20자리): 10/14(17), 10/17(2), 10/20(20), 10/25(18), 11/01(20, 추첨 접수 기간).
  */
-export const bukguTable = (date: string): string => bukguRaw(`reservationCntAjax.do_010100_${date}.html`);
+export const bukguTable = (date: string, siteKindCode = "010100"): string => bukguRaw(`reservationCntAjax.do_${siteKindCode}_${date}.html`);
 
 /**
- * 가짜 북구 서버. `reservationCntAjax.do`만 흉내 낸다. 쿠키 없이도 답하고(기록), 기록하지 않은 날짜나 그 밖의 요청은 404라서
- * 어댑터가 예약 화면이나 다른 경로를 부르면 드러난다.
+ * 기록한 예약 화면(`Pmreservation.do`). 달력 상한 `d2`(2026-11-01 00:00 KST + 밀리초)와 `resEndDay` '16' 등 페이지 변수가 있다.
+ * `d2`의 밀리초는 요청 시각이 실려 요청마다 달라진다(2026-10-13 두 번 받아 `.072`와 `.038`).
+ */
+export const bukguPage = (): string => bukguRaw("Pmreservation.do.html");
+
+/**
+ * 가짜 북구 서버. `reservationCntAjax.do`와 예약 화면 GET을 흉내 낸다. 쿠키 없이도 답하고(기록), 기록하지 않은 날짜나 그 밖의 요청은 404라서
+ * 어댑터가 다른 경로를 부르면 드러난다.
  */
 export function bukguServer(
   opts: {
     /** 응답을 바꾼다. 기본은 기록한 표다. */
     table?: (form: { resDate: string; siteKindCode: string; priceCode: string }) => TransportResponse | undefined;
+    /** 예약 화면 응답을 바꾼다. 기본은 기록한 화면이다. */
+    page?: () => TransportResponse | undefined;
     /** 모든 요청에 앞서 응답을 가로챈다. */
     intercept?: (req: TransportRequest) => TransportResponse | undefined;
   } = {},
@@ -654,6 +663,7 @@ export function bukguServer(
     if (hijacked) return hijacked;
     const url = new URL(req.url);
     if (url.hostname !== "camping.ubimc.or.kr") return { status: 404, body: "" };
+    if (req.method === "GET" && url.pathname === "/Pmreservation.do") return opts.page?.() ?? { status: 200, body: bukguPage(), setCookie: ["JSESSIONID=sess1; Path=/; Secure; HttpOnly"] };
     if (req.method !== "POST" || url.pathname !== "/ajax/reservationCntAjax.do") return { status: 404, body: "" };
     const raw = Object.fromEntries(new URLSearchParams(req.body ?? ""));
     const form = { resDate: raw.resDate ?? "", siteKindCode: raw.siteKindCode ?? "", priceCode: raw.priceCode ?? "" };
@@ -661,7 +671,7 @@ export function bukguServer(
     const custom = opts.table?.(form);
     if (custom) return custom;
     try {
-      return { status: 200, body: bukguTable(form.resDate), setCookie: ["JSESSIONID=sess1; Path=/; Secure; HttpOnly"] };
+      return { status: 200, body: bukguTable(form.resDate, form.siteKindCode), setCookie: ["JSESSIONID=sess1; Path=/; Secure; HttpOnly"] };
     } catch {
       return { status: 404, body: "" };
     }

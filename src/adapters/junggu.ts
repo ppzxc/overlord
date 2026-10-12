@@ -4,7 +4,6 @@ import {
   type AvailabilityQuery,
   type AvailableSite,
   type FacilityObservation,
-  type HttpClient,
   type ProviderAdapter,
   type ProviderInfo,
   type TransportResponse,
@@ -13,6 +12,7 @@ import { facilities } from "../catalogs/junggu.js";
 import { resolveFacility } from "../facility.js";
 import { BlockedPathError } from "../http.js";
 import { addDays, kstDate } from "../schedule.js";
+import { tlsRound } from "../tls-streak.js";
 import { enterQueue, netfunnelScriptCheck, setNetFunnelCookie, warnDriftOnce, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "camping.junggu.ulsan.kr";
@@ -178,20 +178,6 @@ function parsePageZones(html: string): Map<string, string> {
   return zones;
 }
 
-/** 인증서 검증 실패를 가리키는 OpenSSL 오류 코드(Node가 `cause.code`에 싣는다). */
-const TLS_VERIFY_CODE = /^(UNABLE_TO_|CERT_|SELF_SIGNED_CERT|DEPTH_ZERO_SELF_SIGNED|ERR_TLS_CERT_|HOSTNAME_MISMATCH|INVALID_CA|INVALID_PURPOSE|PATH_LENGTH_EXCEEDED)/;
-
-/** 오류와 그 `cause` 사슬에서 TLS 검증 실패 코드를 찾는다. */
-function tlsVerifyCode(e: unknown): string | undefined {
-  for (let cur = e, depth = 0; cur instanceof Error && depth < 5; cur = cur.cause, depth++) {
-    const code = (cur as { code?: unknown }).code;
-    if (typeof code === "string" && TLS_VERIFY_CODE.test(code)) return code;
-  }
-  return undefined;
-}
-
-/** 세션(HttpClient)마다 TLS 검증이 연속으로 실패한 바퀴 수. 검증 실패 없이 끝난 바퀴가 있으면 지운다. */
-const tlsStreak = new WeakMap<HttpClient, number>();
 // 2026-10-12에 기록으로 확인한 값(research/raw/junggu/netfunnel.excerpt.js). 달라지면 경고만 남긴다.
 const netfunnelScript = netfunnelScriptCheck({ provider: "junggu", url: `${ORIGIN}/camping/js/netfunnel.js`, version: "2.2.19", tsHost: "campwait.junggu.ulsan.kr" });
 
@@ -281,19 +267,14 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
     if (q.nights > max) throw new Error(`junggu ${q.facility}는 최대 ${max}박만 읽는다(${q.nights}박)`);
     byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
   }
-  const priorTls = tlsStreak.get(ctx.http) ?? 0;
-  let tlsFailed = false;
+  const tls = tlsRound(ctx.http);
   let failure: AdapterError | undefined;
   /** 실패를 어댑터 오류로 바꾼다. TLS 검증 실패는 연속 바퀴 수로 종류를 정한다. */
   const classify = (e: unknown): AdapterError => {
-    const code = tlsVerifyCode(e);
-    if (code === undefined) {
-      if (e instanceof AdapterError) return e;
-      throw e;
-    }
-    tlsFailed = true;
-    const kind = priorTls + 1 >= 2 ? "unrecognized" : "transient";
-    return new AdapterError(kind, `TLS 인증서 검증에 실패했다(${code}, 연속 ${priorTls + 1}바퀴): ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+    const tlsFailure = tls.classify(e);
+    if (tlsFailure) return tlsFailure;
+    if (e instanceof AdapterError) return e;
+    throw e;
   };
   for (const [facility, queries] of byFacility) {
     let visit: Visit | undefined;
@@ -331,8 +312,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       }
     }
   }
-  if (tlsFailed) tlsStreak.set(ctx.http, priorTls + 1);
-  else tlsStreak.delete(ctx.http);
+  tls.finish();
   if (!failure) await netfunnelScript.warn(ctx);
   return results;
 }

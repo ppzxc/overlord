@@ -31,3 +31,19 @@ TLS는 검증을 끄지 않고 Node 기본 루트에 `certs/`의 Sectigo 중간 
 
 보내지 않은 것: `/ajax/preReservationAjax2.do`(`subIdx()`가 로그인 안 한 방문자를 `/login.do`로 보낸 뒤에야 부른다), 예약 제출 폼 action `/Pmreservation2.do`, 로그인 `/login.do`와 외부 `https://www.ulsan.go.kr/logins`,
 예약확인 `/PmmySubscription.do`, 추첨 신청 `/Pmbukgusubscription.do`·`/Pmsubscription.do`, 결제(`doPay()`의 LGD 폼). `subIdx` 버튼은 누르지 않았다. 당사현대차오션캠프(`siteKindCode=010200`)는 이 기록에서 조회하지 않았다(#82).
+
+# 당사현대차오션캠프(`siteKindCode=010200`)와 추기 확인 기록 (#82)
+
+2026-10-13 00:14 ~ 00:17 KST(화요일 새벽), 같은 원칙(UA `overlord-availability-poller/0.1 (ADR0002 one-time recording)`, 요청마다 5초 + 0~3초, 검증을 끈 곳 없이 기본 루트에 `certs/`를 더한 신뢰 목록, 쿠키 없이)으로 `camping.ubimc.or.kr`에 HTTP 요청 17건이다.
+(그 뒤 `catalog bukgu gangdong --live`와 `catalog bukgu dangsa --live`를 실제로 돌려 POST 두 건을 더 보냈다. 저장하지 않았다.) 봇 탐지·captcha 호출 없음, 접근 금지 경로 호출 없음, `subIdx` 버튼은 누르지 않았다.
+
+1. GET `/Pmreservation.do` -> 200, 50,067자 (00:14:22). 저장하지 않았다. **#81에서 받은 화면과 `d2`의 값만 다르다**: `var d2= 1793458800038;`(그때는 `...072`). 서버가 요청마다 2026-11-01 00:00 KST에 요청 시각의 밀리초를 더해 채우는 값이다. `resEndDay` 등 나머지 변수는 같았다.
+2. POST `reservationCntAjax.do` 당사 `resDate=2026-10-14&siteKindCode=010200&priceCode=` (00:14:29) -> 20행, 예약가능 17 -> `reservationCntAjax.do_010200_2026-10-14.html`.
+3. 같은 밤에 `priceCode`만 바꿔 넷(00:15:02 ~ 00:15:23) -> `_010200_040400_` 일반데크(단독형) 6행, `_040500_` 복층데크(단독형) 6행, `_040600_` 일반데크(당사) 4행, `_040700_` 복층데크(당사) 4행. 사이트명 칸 색 클래스는 각각 `line_orange`, `line_yellow`, `line_pink`, `line_sky` 하나다.
+4. 다른 날, `priceCode` 빈 값: 10/17(토) 예약가능 2행, 10/20(화) 20행, 10/25(일) 18행(00:15:29 ~ 00:15:44), 11/01(일, 추첨 접수 기간) 20행(00:15:51) -> `reservationCntAjax.do_010200_2026-10-17.html`, `_10-20`, `_10-25`, `_11-01`. 11/01은 10/20과 바이트까지 같다.
+5. POST 강동 `resDate=2026-11-01` 다시 (00:15:57) -> #81에서 받은 11/01 표와 바이트까지 같다(25행 모두 예약가능). 저장하지 않았다.
+6. 공개 안내 화면 GET 여섯 (00:16:33 ~ 00:17:07, 모두 200, 저장하지 않았다): `/Pgordinance.do`(운영조례), `/html/front/contents/210820.html`(당사 주의사항 팝업), `/Pgc030201.do`(이용요금), `/Pgcontent020301.do`(당사 안내), `/Pgcontent010301.do`(강동 안내), `/Pgc030301.do`(준수사항).
+   최대 박수·연박 규정은 없다(이용요금은 "1개소/1박"·"1동/1박", 조례 제5조는 "사용일이 속한 월의 전월부터 예약"과 24시간 결제만 말한다).
+
+색 클래스 -> 구역은 시설마다 다르다. 강동은 `line_yellow` 일반데크, `line_sky` 필로티, `line_pink` 카라반이고 당사는 `line_orange` 일반데크(단독형), `line_yellow` 복층데크(단독형), `line_pink` 일반데크(당사), `line_sky` 복층데크(당사)다.
+판정 값은 당사에서도 "예약가능"(뒤에 공백)과 "예약종료"(앞에 공백) 둘뿐이었다(9개 응답). 응답 본문에 세션 값·토큰이 없다(`jsessionid`·`csrf`·`token` 검색 결과 없음). 값을 가린 곳 없음.

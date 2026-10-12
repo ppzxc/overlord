@@ -4,6 +4,7 @@ import {
   type AdapterContext,
   type AvailabilityQuery,
   type AvailableSite,
+  type FacilityObservation,
   type HttpClient,
   type ProviderAdapter,
   type ProviderInfo,
@@ -76,6 +77,7 @@ interface Row {
   CAMP_ID: string;
   NAME: string;
   FACILITY_ID: string;
+  FACILITY_NAME?: unknown;
   ISRESERVABLE: "Y" | "N";
 }
 
@@ -202,6 +204,33 @@ export const uljuAdapter: ProviderAdapter = {
 
   /** 같은 (시설, 밤)은 구역이 여럿이어도 한 번만 조회한다. */
   queryAvailabilityBatch: queryBatch,
+
+  /**
+   * `catalog --live`: 내일(KST) 밤을 시설에 한 번 조회해 구역과 자리를 읽는다. 바퀴와 같은 요청 원칙(한 줄, 5초+지터)이다.
+   * 내일이 booking_ended나 no_list면 그 다음 날로 한 번 더 시도하고, 그래도 없으면 비교할 날짜가 없다고 알린다(실패가 아니다).
+   * 내일은 늘 이번 달이거나 달의 마지막 날의 다음 달 1일이라 날짜 창 규칙(isQueryable)에 걸리지 않는다.
+   */
+  async observeFacility(facility: string, ctx: AdapterContext): Promise<FacilityObservation> {
+    const classes = classesOf(facility);
+    const tomorrow = addDays(kstDate(ctx.clock.now()), 1);
+    const tried: string[] = [];
+    for (const date of [tomorrow, addDays(tomorrow, 1)]) {
+      tried.push(date);
+      const rows = await fetchNight(classes, date, ctx);
+      if (!rows) continue;
+      // 구역 이름은 끝에 공백이 붙는 때가 있어(`카라반(일반) `) 다듬는다. 구역·자리는 응답에 나온 순서대로 모은다.
+      const zones = new Map<string, FacilityObservation["zones"][number]>();
+      for (const r of rows) {
+        if (typeof r.FACILITY_NAME !== "string") throw new AdapterError("unrecognized", `${DAY_PATH}: list 행에 FACILITY_NAME이 없다`);
+        const name = r.FACILITY_NAME.trim();
+        const zone = zones.get(r.FACILITY_ID) ?? { name, codes: [r.FACILITY_ID], seats: [] };
+        zones.set(r.FACILITY_ID, zone);
+        zone.seats.push(r.NAME);
+      }
+      return { zones: [...zones.values()] };
+    }
+    return { zones: [], nothingToCompare: `대조할 날짜가 없다(${tried.join(", ")} 모두 조회할 수 없다고 응답했다)` };
+  },
 
   deepLink: () => BOOKING_URL,
 };

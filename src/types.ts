@@ -141,6 +141,8 @@ export interface ZoneObservation {
 
 /** 예약처 응답 하나로 본 시설의 구역과 자리. 구역마다 응답이 따로 필요 없는 예약처용이다. */
 export interface FacilityObservation {
+  /** 비교할 응답을 받지 못한 이유(예: 조회할 수 있는 날짜가 없다). 있으면 `zones`는 비어 있고 catalog --live는 비교 없이 이 이유를 알리며 실패로 치지 않는다. */
+  nothingToCompare?: string;
   zones: {
     name: string;
     /** 응답이 그 구역의 칸에 실은 구역 코드. 칸이 모두 닫혀 있으면 비어 있다. */

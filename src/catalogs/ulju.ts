@@ -1,6 +1,14 @@
 // 울주군립야영장 통합 예약처(camping.ulju.ulsan.kr) 시설·구역 카탈로그. 정적 목록이며 어댑터 로직과 네트워크 코드는 두지 않는다.
 // 시설 `ref`는 예약 화면 라디오의 `classes` 값이고, 구역은 `FACILITY_ID`(이름 `FACILITY_NAME`), 자리는 `CAMP_ID`(이름 `NAME`)다. 자리 id는 `NAME`이다.
 // 출처: 네 시설 모두 2026-10-12 18:37~18:49 KST 기록(research/raw/ulju, #73)이다. 시설마다 2026-10-16 하루만 받았다. 호스트의 robots.txt는 `Yeti`(네이버)에만 `Allow: /`를 선언하고 `*` 규칙이 없다.
+// `--live` 확인(#75): 2026-10-12 19:03~19:04 KST에 `catalog ulju <시설> --live`를 네 시설에 각각 한 번씩(요청 1회, 내일 2026-10-13, 사이 8초 이상) 실제로 돌려 구역 코드·이름이 모두 일치했다.
+//   등억알프스·작천정달빛·대운산하늘숲은 기록(10-16)과 같은 구역이었고 자리 수도 같았다. 대운산하늘숲은 자리 목록까지 일치했다.
+//
+// 자리 목록(`seats`)은 자리 필터(`seats:` 토큰 `A02`, `A10-A15`)를 쓸 수 있는 시설에만 넣는다(#75). 토큰은 영문 접두어+숫자만 받는데 자리 id는 응답의 `NAME`이다.
+//   작천정별빛(`별빛야영장2`, `캐빈하우스1`), 등억알프스(`등억 오토캠핑장1`, `(일반)1.배롱나무`), 작천정달빛(`달빛 왁자지껄1`)은 한글 이름이라 토큰으로 걸 수 없어 목록을 두지 않는다.
+//   `--live`는 그 시설에서 구역 코드·이름과 구역별 실제 자리 수만 보이고 자리 단위 차이는 잡지 못한다. 대운산하늘숲만 이름이 `A1`~`A20`이라 목록을 두고 `--live`가 자리까지 대조한다.
+//   한글 이름 자리를 거르는 방법은 자리 필터 형식을 넓히는 별도 일이다.
+//   `--live` 이름 대조는 `FACILITY_NAME`을 다듬어(trim) 비교한다. 내일(KST)이 `booking_ended`·`no_list`면 다음 날로 한 번 더 시도하고, 그래도 없으면 대조할 날짜가 없다고 알리고 0으로 끝난다.
 //
 // 기록으로 확인한 것(#73, 작천정별빛, `classes=C0000001`):
 // - 요청: `POST /ujcamping/campsite/get_cal_day_data_list`, 본문 JSON `{sql_state:"GetData", select_date, classes, facility:"", use_only}`. 헤더는 페이지(`mscommon.js`의 `getPostData`)와 같은
@@ -54,15 +62,18 @@ const jakcheonDalbitZones: ZoneInfo[] = [
   { code: "F0000018", name: "야영데크(8.5*6.5)", type: "야영데크" },
 ];
 
+/** `A5`~`A14`처럼 이어지는 자리 이름. 대운산하늘숲의 자리 이름은 `A1`~`A20` 꼴이라 `seats:` 필터 토큰(`A5`, `A5-A14`)으로 걸 수 있다. */
+const aSeats = (from: number, to = from) => Array.from({ length: to - from + 1 }, (_, i) => `A${from + i}`);
+
 const daeunsanZones: ZoneInfo[] = [
-  { code: "F0000015", name: "7.3m × 7m", type: "크기별 사이트" },
-  { code: "F0000008", name: "7.2m × 7m", type: "크기별 사이트" },
-  { code: "F0000009", name: "8m × 5.8m", type: "크기별 사이트" },
-  { code: "F0000010", name: "7.1m × 7m", type: "크기별 사이트" },
-  { code: "F0000011", name: "7.1m × 6.9m", type: "크기별 사이트" },
-  { code: "F0000012", name: "2.5m × 12m, 8m × 8m", type: "크기별 사이트" },
-  { code: "F0000013", name: "7.2m × 7.2m", type: "크기별 사이트" },
-  { code: "F0000014", name: "7.2m × 6.9m", type: "크기별 사이트" },
+  { code: "F0000015", name: "7.3m × 7m", type: "크기별 사이트", seats: aSeats(5, 14) },
+  { code: "F0000008", name: "7.2m × 7m", type: "크기별 사이트", seats: [...aSeats(1), ...aSeats(16, 18)] },
+  { code: "F0000009", name: "8m × 5.8m", type: "크기별 사이트", seats: aSeats(2) },
+  { code: "F0000010", name: "7.1m × 7m", type: "크기별 사이트", seats: aSeats(3) },
+  { code: "F0000011", name: "7.1m × 6.9m", type: "크기별 사이트", seats: aSeats(4) },
+  { code: "F0000012", name: "2.5m × 12m, 8m × 8m", type: "크기별 사이트", seats: aSeats(15) },
+  { code: "F0000013", name: "7.2m × 7.2m", type: "크기별 사이트", seats: aSeats(19) },
+  { code: "F0000014", name: "7.2m × 6.9m", type: "크기별 사이트", seats: aSeats(20) },
 ];
 
 export const facilities: FacilityInfo[] = [

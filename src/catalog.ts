@@ -42,9 +42,11 @@ export function renderFacilities(adapter: ProviderAdapter): string {
 export function renderCatalog(adapter: ProviderAdapter, facilityCode?: string): string {
   const info = adapter.describe();
   const facility = resolveFacility(info, facilityCode);
+  // 시설마다 최대 박수가 다르면 시설 값이 예약처 기본을 덮어쓴다(provider-check와 같은 규칙).
+  const maxNights = facility.maxNights ?? info.maxNights;
   const rows = [
     ["코드", "이름", "유형", "정원", "자리"],
     ...facility.zones.map((z) => [z.code, z.name, z.type, z.capacity ? `${z.capacity}인` : "-", seatsText(z)]),
   ];
-  return `${info.id} (최대 ${info.maxNights}박)\n${renderRows(rows)}\n`;
+  return `${info.id} (최대 ${maxNights}박)\n${renderRows(rows)}\n`;
 }

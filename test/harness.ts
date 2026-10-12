@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { donghaeAdapter } from "../src/adapters/donghae.js";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
 import { knpsAdapter } from "../src/adapters/knps.js";
+import { xticketAdapter } from "../src/adapters/xticket.js";
 import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
 import { loadConfig } from "../src/config.js";
 import { Liveness } from "../src/liveness.js";
@@ -139,7 +140,7 @@ export function startPoller(
   const done = runPoller(
     {
       config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV, opts.adapters),
-      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter },
+      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter, xticket: xticketAdapter },
       transport,
       clock,
       sink,
@@ -365,4 +366,94 @@ export function knpsServer(
     }
     return { status: 404, body: "" };
   };
+}
+
+export const XTICKET_DALSEO = "f27ad3485cf140b64341e2cc975c376d14561a12aca07349ae393d97379882c7";
+export const XTICKET_NAJEONG = "08f2d6ac872d55a829cd62de5a910ff0922eeb57506d4ddbe021224fce47d006";
+
+export interface XticketPlayDate {
+  advance_yn: string;
+  book_remain_count: number;
+  play_date: string;
+}
+export interface XticketProduct {
+  status_code: string;
+  select_yn: string;
+  product_name: string;
+  product_code: string;
+  [key: string]: unknown;
+}
+
+export interface XticketGroup {
+  product_group_code: string;
+  product_group_name: string;
+  [key: string]: unknown;
+}
+
+/** 기록한 상품군 응답(2026-10-12 달서, 나정). 다른 시설의 값은 기록하지 않았으므로 달서 것을 쓴다. */
+export const xticketGroups = (_form: URLSearchParams, shopEncode: string): XticketGroup[] =>
+  JSON.parse(fixture(`xticket-GetBookProductGroup-${shopEncode === XTICKET_NAJEONG ? "najeong" : "dalseo"}.json`)).data.bookProductGroupList;
+
+/** 기록한 응답(2026-10-12)의 날짜 목록. 202610은 10/12~10/31, 202611은 11/01~11/30이다. */
+export const xticketPlayDates = (month: string): XticketPlayDate[] =>
+  month === "202610" || month === "202611" ? JSON.parse(fixture(`xticket-GetBookPlayDate-${month}.json`)).data.bookPlayDateList : [];
+
+/** 기록한 카라반(0001) 1015 응답의 자리 목록. 선택가능은 카라반-11, 카라반-13이다. */
+export const xticketProducts = (): XticketProduct[] => JSON.parse(fixture("xticket-GetBookProduct010001-0001-20261015.json")).data.bookProductList;
+
+/**
+ * 가짜 xticket 서버. 기록한 흐름을 그대로 흉내 낸다: /web/main은 쿠키가 없으면 302 두 번(Set-Cookie JSESSIONID),
+ * POST는 form 본문이고 쿠키·Referer·Origin이 없으면 실제 응답처럼 세션 만료 JSON(200)이나 `{}`(200)를 준다.
+ */
+export function xticketServer(
+  opts: {
+    /** 달(YYYYMM)의 날짜 목록. 기본은 기록한 응답이다. */
+    playDates?: (month: string, shopEncode: string) => XticketPlayDate[];
+    /** 자리 목록. 기본은 기록한 응답(카라반-11, 카라반-13이 선택가능)이다. */
+    products?: (form: URLSearchParams, shopEncode: string) => XticketProduct[];
+    /** 날짜의 상품군 목록(GetBookProductGroup.json). 기본은 시설마다 기록한 응답(달서 4개, 나정 2개)이다. */
+    groups?: (form: URLSearchParams, shopEncode: string) => XticketGroup[];
+    /** 모든 요청에 앞서 응답을 가로챈다. */
+    intercept?: (req: TransportRequest) => TransportResponse | undefined;
+  } = {},
+) {
+  const sessions = new Map<string, string>(); // JSESSIONID -> shopEncode
+  const opened: string[] = []; // /web/main이 새 세션을 연 shopEncode
+  const json = (body: unknown): TransportResponse => ({ status: 200, body: JSON.stringify(body) });
+  const respond = (req: TransportRequest): TransportResponse => {
+    const hijacked = opts.intercept?.(req);
+    if (hijacked) return hijacked;
+    const url = new URL(req.url);
+    if (url.hostname !== "camp.xticket.kr") return { status: 404, body: "" };
+    const cookie = /JSESSIONID=([^;]+)/.exec(req.headers.Cookie ?? "")?.[1];
+    const shop = cookie ? sessions.get(cookie) : undefined;
+    if (url.pathname === "/web/main") {
+      const value = url.searchParams.get("shopEncode") ?? "";
+      if (shop === value) return { status: 200, body: `<html><script>var shopEncode = "${value}";</script></html>` };
+      const id = `sess${sessions.size + 1}`;
+      sessions.set(id, value);
+      opened.push(value);
+      return { status: 302, body: "", location: `/Web/Reservation?shop_encode=${value}`, setCookie: [`JSESSIONID=${id}; Path=/; Secure; HttpOnly`] };
+    }
+    if (url.pathname === "/Web/Reservation") {
+      return { status: 302, body: "", location: `/web/main?shopEncode=${url.searchParams.get("shop_encode")}` };
+    }
+    const post = req.method === "POST" && url.pathname.startsWith("/Web/Book/");
+    if (!post) return { status: 404, body: "" };
+    if (req.headers["Content-Type"] !== "application/x-www-form-urlencoded; charset=UTF-8") return { status: 400, body: "" };
+    if (!req.headers.Referer || !req.headers.Origin) return json({});
+    if (!shop) return json({ error: { message: "세션이 만료되었습니다. 다시 시도 부탁드립니다." }, returnUrl: "main?shopEncode=", redirect: true });
+    const form = new URLSearchParams(req.body ?? "");
+    if (url.pathname === "/Web/Book/GetBookPlayDate.json") {
+      return json({ data: { bookPlayDateList: (opts.playDates ?? xticketPlayDates)(form.get("play_month") ?? "", shop) } });
+    }
+    if (url.pathname === "/Web/Book/GetBookProductGroup.json") {
+      return json({ data: { bookProductGroupList: (opts.groups ?? xticketGroups)(form, shop) } });
+    }
+    if (url.pathname === "/Web/Book/GetBookProduct010001.json") {
+      return json({ data: { bookProductList: (opts.products ?? xticketProducts)(form, shop) } });
+    }
+    return { status: 404, body: "" };
+  };
+  return Object.assign(respond, { opened });
 }

@@ -1,0 +1,18 @@
+HTTP/1.1 200 OK
+Access-Control-Allow-Headers: x-requested-with
+Access-Control-Allow-Methods: GET, POST
+Access-Control-Allow-Origin: *
+Access-Control-Max-Age: 3600
+Content-Language: ko,ko-kr
+Content-Security-Policy: frame-ancestors 'self' https://apis.google.com
+Content-Type: text/html;charset=UTF-8
+Date: Mon, 12 Oct 2026 09:18:24 GMT
+Server: Apache
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Vary: Accept-Encoding,User-Agent
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1
+Content-Length: 23911
+Connection: keep-alive
+

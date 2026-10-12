@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { renderCatalog, renderFacilities } from "./catalog.js";
 import { renderLiveDiff } from "./catalog-live.js";
+import { defaultFacility } from "./facility.js";
 import type { Command } from "./cli.js";
 import { ConfigError, loadConfig, type Config } from "./config.js";
 import { TelegramError, chatsFromUpdates, type TelegramSink } from "./telegram.js";
@@ -34,7 +35,7 @@ export async function runCatalog(command: Extract<Command, { kind: "catalog" }>,
     return 1;
   }
   // 시설을 안 골랐을 때 시설이 하나면 그 시설이다. 둘 이상이면 목록만 보이고, --live는 요청 없이 거부한다.
-  const facility = command.facility ?? (facilities.length === 1 ? facilities[0]!.code : undefined);
+  const facility = command.facility ?? defaultFacility(adapter.describe())?.code;
   if (facility === undefined) {
     if (command.live) {
       deps.err(`시설을 골라야 한다. 쓸 수 있는 값: ${codes}\n`);

@@ -325,6 +325,8 @@ export function knpsServer(
     list?: (form: URLSearchParams) => string;
     /** 대기열 5101/5002 응답 줄을 바꾼다. 액션(aid)과 그 액션의 몇 번째 요청인지를 받는다. 기본은 바로 통과다. */
     queue?: (aid: string, nth: number) => string | undefined;
+    /** selectCampLottery.do 응답. 기본은 기록한 화면의 발췌(6차, 야영장 0 개소)다. */
+    lottery?: () => TransportResponse;
   } = {},
 ) {
   const calls = { keys: 0, queue: new Map<string, number>() };
@@ -343,6 +345,9 @@ export function knpsServer(
     if (url.hostname !== "reservation.knps.or.kr") return { status: 404, body: "" };
     if (url.pathname === "/reservation/searchSimpleCampReservation.do") {
       return { status: 200, body: fixture("knps-searchSimpleCampReservation.htm"), setCookie: ["JSESSIONID=sess1; Path=/; HttpOnly"] };
+    }
+    if (url.pathname === "/reservation/selectCampLottery.do") {
+      return opts.lottery ? opts.lottery() : { status: 200, body: fixture("knps-selectCampLottery.htm") };
     }
     if (url.pathname === "/reservation/campsiteList.do") {
       const form = new URLSearchParams(req.body ?? "");

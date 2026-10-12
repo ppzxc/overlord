@@ -9,12 +9,15 @@ import {
 } from "../types.js";
 import { facilities } from "../catalogs/knps.js";
 import { resolveFacility } from "../facility.js";
+import { isLotteryHeld, parseLottery, type LotterySchedule } from "../knps-lottery.js";
+import { kstDate } from "../schedule.js";
 import { completeQueue, enterQueue, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "reservation.knps.or.kr";
 const ORIGIN = `https://${HOST}`;
 const PAGE = `${ORIGIN}/reservation/searchSimpleCampReservation.do`;
 const LIST = `${ORIGIN}/reservation/campsiteList.do`;
+const LOTTERY = `${ORIGIN}/reservation/selectCampLottery.do`;
 /** 대기열 서버는 `netfunnel.js` 2.2.19의 `TS_HOST`다. `sid`는 `TS_SERVICE_ID`다. */
 const NF_URL = "https://netfunnel.knps.or.kr/ts.wseq";
 const LANDING: NetFunnelQueue = { tsUrl: NF_URL, sid: "service_1", aid: "landingCamp" };
@@ -116,12 +119,40 @@ async function readFacility(facility: string, ctx: AdapterContext): Promise<Grid
   return grid;
 }
 
+/** 추첨 일정을 읽은 날(KST)과 그 결과. 예약처 루프(HTTP 클라이언트) 하나마다 둔다. 읽지 못했으면 일정이 없다. */
+const lotteryState = new WeakMap<object, { day: string; schedule?: LotterySchedule }>();
+
+/** KST 날짜가 바뀐 뒤 첫 바퀴에 추첨 화면을 읽는다. 하루에 한 번만 보내고, 실패는 경고만 남기고 일정 없음(달력대로)으로 둔다. */
+async function lotteryFor(ctx: AdapterContext): Promise<LotterySchedule | undefined> {
+  const day = kstDate(ctx.clock.now());
+  const known = lotteryState.get(ctx.http);
+  if (known?.day === day) return known.schedule;
+  let schedule: LotterySchedule | undefined;
+  try {
+    const res = await ctx.http.get(LOTTERY);
+    if (res.status !== 200) throw new AdapterError("unrecognized", `selectCampLottery.do: HTTP ${res.status}`);
+    schedule = parseLottery(res.body);
+    ctx.log?.("knps lottery schedule", { from: schedule.from, to: schedule.to, openAt: new Date(schedule.openAt).toISOString(), campCount: schedule.campCount });
+  } catch (err) {
+    if (ctx.signal?.aborted) throw err;
+    ctx.log?.("knps lottery schedule unreadable", { message: err instanceof Error ? err.message : String(err) });
+  }
+  lotteryState.set(ctx.http, { day, schedule });
+  return schedule;
+}
+
 /** 한 바퀴. 화면을 열고(`landingCamp`) 시설마다 한 번씩 읽는다. 첫 실패는 그대로 던진다. */
 async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>> {
   const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
   const byFacility = new Map<string, AvailabilityQuery[]>();
+  const lottery = units.length > 0 ? await lotteryFor(ctx) : undefined;
   for (const q of units) {
     if (q.nights !== 1) throw new Error(`knps는 아직 1박만 읽는다(${q.nights}박)`);
+    // 추첨 대상 기간이고 빈자리 접수 전이면 조회하지 않고 빈자리 없음으로 친다.
+    if (isLotteryHeld(lottery, q, ctx.clock.now())) {
+      results.set(q, []);
+      continue;
+    }
     byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
   }
   if (byFacility.size === 0) return results;

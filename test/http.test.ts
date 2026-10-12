@@ -182,6 +182,32 @@ describe("간격 큐 밖 요청", () => {
   });
 });
 
+describe("쿠키 단지에 값 넣기", () => {
+  it("setCookie로 넣은 값은 그 호스트로 가는 다음 요청에 실리고 받은 쿠키와 함께 간다", async () => {
+    const { requests, transport } = recording((req) => ({ status: 200, body: "", setCookie: req.url.endsWith("/set") ? ["SID=1"] : undefined }));
+    const http = client(transport);
+    http.setCookie("www.camp.kr", "NetFunnel_ID", "5002%3A200");
+    await http.get("https://www.camp.kr/set");
+    await http.get("https://www.camp.kr/a");
+    await http.get("https://other.kr/b");
+    expect(requests[0]!.headers.Cookie).toBe("NetFunnel_ID=5002%3A200");
+    expect(requests[1]!.headers.Cookie).toBe("NetFunnel_ID=5002%3A200; SID=1");
+    expect(requests[2]!.headers.Cookie).toBeUndefined();
+  });
+
+  it("같은 이름을 다시 넣으면 덮고, cookieSession이 꺼져 있어도 싣고, clearSession이 지운다", async () => {
+    const { requests, transport } = recording();
+    const http = client(transport, { cookieSession: false });
+    http.setCookie("www.camp.kr", "K", "1");
+    http.setCookie("www.camp.kr", "K", "2");
+    await http.get("https://www.camp.kr/a");
+    http.clearSession();
+    await http.get("https://www.camp.kr/b");
+    expect(requests[0]!.headers.Cookie).toBe("K=2");
+    expect(requests[1]!.headers.Cookie).toBeUndefined();
+  });
+});
+
 describe("호스트별 쿠키", () => {
   const respondBy = (byHost: Record<string, string[]>) =>
     recording((req) => ({ status: 200, body: "", setCookie: req.url.endsWith("/set") ? byHost[new URL(req.url).hostname] : undefined }));

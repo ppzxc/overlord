@@ -181,6 +181,7 @@ export const fakeHttp = (get: (url: string) => Promise<TransportResponse>): Http
   post: async (url) => {
     throw new Error(`POST는 흉내 내지 않는다: ${url}`);
   },
+  setCookie: () => {},
   clearSession: () => {},
 });
 

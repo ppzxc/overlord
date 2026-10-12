@@ -43,6 +43,8 @@ export interface HttpClient {
   get(url: string, opts?: RequestOptions): Promise<TransportResponse>;
   /** form이 문자열이면 그대로 본문으로 보낸다. */
   post(url: string, form: Record<string, string> | string, opts?: RequestOptions): Promise<TransportResponse>;
+  /** 호스트 쿠키 하나를 직접 넣는다(경로 `/`). 같은 이름은 덮고, 쿠키 세션 설정과 무관하게 다음 요청부터 싣는다. */
+  setCookie(host: string, name: string, value: string): void;
   /** 들고 있던 쿠키를 모두 버린다. */
   clearSession(): void;
 }

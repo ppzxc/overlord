@@ -42,6 +42,12 @@ export class CookieJar {
     }
   }
 
+  /** 받은 응답과 무관하게 호스트 쿠키 하나를 직접 넣는다. 같은 이름은 덮는다. */
+  set(host: string, name: string, value: string): void {
+    const cookie: Cookie = { name, value, domain: host, hostOnly: true };
+    this.cookies.set(cookieKey(cookie), cookie);
+  }
+
   /** host로 보낼 Cookie 헤더 값. 없으면 빈 문자열. */
   header(host: string): string {
     return [...this.cookies.values()]

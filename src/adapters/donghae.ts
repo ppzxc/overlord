@@ -12,10 +12,11 @@ import {
 
 import { facilities } from "../catalogs/donghae.js";
 import { resolveFacility } from "../facility.js";
+import { acquireKey, forgetKey, releaseKey, type NetFunnelQueue, type QueuePass } from "../netfunnel.js";
 
 const WWW = "https://www.campingkorea.or.kr";
 const RESERVATION = `${WWW}/user/reservation`;
-const NF_URL = "https://nf.campingkorea.or.kr/ts.wseq";
+const NF: NetFunnelQueue = { tsUrl: "https://nf.campingkorea.or.kr/ts.wseq", sid: "service_1", aid: "reserve" };
 
 /** 동해시 예약처의 관광지 코드는 카탈로그가 시설 ref로 갖고 있다. 카탈로그에 없는 시설은 요청 전에 던진다. */
 function trrsrtCodeOf(facility: string): string {
@@ -24,8 +25,6 @@ function trrsrtCodeOf(facility: string): string {
   throw new Error(`donghae 시설 ${facility}에 trrsrtCode가 없다`);
 }
 
-/** 5002 재확인을 서버가 준 간격대로 반복하되, 이만큼 넘게 기다리면 그 바퀴를 포기한다. */
-const MAX_WAIT_MS = 120_000;
 /** 예약처가 정한 키 수명. 이 안에서만 같은 세션이 키를 다시 쓴다. */
 const KEY_TTL_MS = 2 * 60 * 60 * 1000;
 /** 페이지의 5분 타이머. 진입 뒤 이 시간이 지난 첫 시점에 setComplete(5004)를 한 번 보낸다. */
@@ -93,54 +92,6 @@ async function fetchOk(res: Promise<{ status: number; body: string }>, what: str
   return r.body;
 }
 
-/** `NetFunnel.gControl.result='5002:200:key=…&nwait=0&ttl=0…'`에서 코드와 필드를 읽는다. */
-function parseNf(body: string): { code: number; fields: URLSearchParams } {
-  const m = /NetFunnel\.gControl\.result='(\d+):(\d+):([^']*)'/.exec(body);
-  if (!m) throw new AdapterError("transient", "대기열 응답을 읽지 못했다");
-  return { code: Number(m[2]), fields: new URLSearchParams(m[3]) };
-}
-
-// 5101은 기록으로 확인했다. 5002의 URL 형태는 기록에 없어 표준 NetFunnel 형식을 따른 것이며 미검증이다.
-const nfUrl = (opcode: number, now: number, key?: string) =>
-  `${NF_URL}?opcode=${opcode}&nfid=0&prefix=NetFunnel.gRtype=${opcode};&sid=service_1&aid=reserve&js=yes${key ? `&key=${encodeURIComponent(key)}` : ""}&${now}`;
-
-/** 대기열을 통과해 받은 키와 기다린 시간(ms). */
-interface QueuePass {
-  key: string;
-  waitedMs: number;
-}
-
-/** 대기열에 참여해 키와 기다린 시간(ms)을 받는다. 대기열 서버 요청은 간격 큐 밖에서 보낸다. */
-async function enterQueue(ctx: AdapterContext): Promise<QueuePass> {
-  const started = ctx.clock.now().getTime();
-  let opcode = 5101;
-  let key: string | undefined;
-  for (;;) {
-    let body: string;
-    try {
-      const res = await ctx.http.get(nfUrl(opcode, ctx.clock.now().getTime(), key), { unpaced: true });
-      if (res.status !== 200) throw new AdapterError("transient", `대기열 HTTP ${res.status}`);
-      body = res.body;
-    } catch (e) {
-      if (e instanceof AdapterError) throw e;
-      throw new AdapterError("transient", `대기열 서버에 연결하지 못했다: ${(e as Error).message}`);
-    }
-    const { code, fields } = parseNf(body);
-    if (code === 301 || code === 302) throw new AdapterError("blocked", `대기열이 차단 신호(${code})를 줬다`);
-    key = fields.get("key") ?? key;
-    if (code === 200) {
-      if (!key) throw new AdapterError("transient", "대기열이 키를 주지 않았다");
-      return { key, waitedMs: ctx.clock.now().getTime() - started };
-    }
-    if (code !== 201 || !key) throw new AdapterError("transient", `대기열이 예상 밖 코드(${code})를 줬다`);
-    const waited = ctx.clock.now().getTime() - started;
-    const ttlMs = Math.max(1, Number(fields.get("ttl")) || 1) * 1000;
-    if (waited + ttlMs > MAX_WAIT_MS) throw new AdapterError("transient", "대기가 상한(120초)을 넘었다");
-    opcode = 5002;
-    await ctx.clock.sleep(ttlMs, ctx.signal);
-  }
-}
-
 /**
  * 대기열을 통과한 진입 응답이 갖춰야 하는 표식. 브라우저로 기록한 실제 응답은 이번 달 달력 화면이다(실측).
  * 표식이 없으면 대기 페이지가 돌아온 것이거나 예약처 구조가 바뀐 것이다.
@@ -172,28 +123,6 @@ async function warnNetfunnelDrift(ctx: AdapterContext): Promise<void> {
   }
 }
 
-/** 세션(HttpClient)이 들고 있는 대기열 키. 세션 사이로 옮기지 않으려고 HttpClient에 묶는다. */
-interface KeyState {
-  key: string;
-  issuedAt: number;
-  enteredAt: number;
-  reduced: Map<string, number>;
-  completed: boolean;
-  /** 이 키를 받으려고 대기열에서 기다린 시간(ms). */
-  waitedMs: number;
-}
-const sessions = new WeakMap<HttpClient, KeyState>();
-
-/** 페이지처럼 setComplete(5004)를 한 번 보낸다. 응답과 실패는 바퀴에 영향을 주지 않는다. */
-async function sendComplete(ctx: AdapterContext, state: KeyState, ignoreAbort = false): Promise<void> {
-  state.completed = true;
-  try {
-    await ctx.http.get(nfUrl(5004, ctx.clock.now().getTime(), state.key), { unpaced: true, ignoreAbort });
-  } catch {
-    // 마무리 알림이라 실패해도 조회는 계속한다.
-  }
-}
-
 /** `ND_checkNfKeyAvail.do`로 서버가 키를 아직 받아 주는지 묻는다. */
 async function keyAvailable(ctx: AdapterContext, key: string): Promise<boolean> {
   const body = await fetchOk(ctx.http.post(`${RESERVATION}/ND_checkNfKeyAvail.do`, { netfunnel_key: key }, { headers: PAGE_HEADERS }), "키 확인");
@@ -207,10 +136,8 @@ async function keyAvailable(ctx: AdapterContext, key: string): Promise<boolean> 
   return !message.includes("NOT Available");
 }
 
-/** 대기열에 서서 키를 받고 서버 세션에 등록한 뒤 예약 화면에 진입한다. */
-async function enterSession(ctx: AdapterContext): Promise<KeyState> {
-  const pass = await enterQueue(ctx);
-  const issuedAt = ctx.clock.now().getTime();
+/** 키를 서버 세션에 등록하고 예약 화면에 진입해 임시 중단 호실 표를 읽는다. */
+async function enterSession(ctx: AdapterContext, pass: QueuePass): Promise<Map<string, number>> {
   await fetchOk(
     ctx.http.post(`${RESERVATION}/ND_setNfKey.do`, pass.key, { contentType: "application/json", headers: PAGE_HEADERS }),
     "키 등록",
@@ -229,41 +156,19 @@ async function enterSession(ctx: AdapterContext): Promise<KeyState> {
   for (const { pattern, label } of ENTRY_MARKERS) {
     if (!pattern.test(entry)) throw new AdapterError("unrecognized", `예약 화면 흐름 문자열이 사라졌다: ${label}`);
   }
-  const state: KeyState = {
-    key: pass.key,
-    issuedAt,
-    enteredAt: ctx.clock.now().getTime(),
-    reduced: parseReduced(entry),
-    completed: false,
-    waitedMs: pass.waitedMs,
-  };
-  sessions.set(ctx.http, state);
+  const reduced = parseReduced(entry);
   scriptChecked.delete(ctx.http);
-  return state;
+  return reduced;
 }
 
-/**
- * 이 세션이 쓸 키를 정한다. 2시간 안의 키는 서버 확인을 거쳐 다시 쓰고, 아니면 새로 진입한다.
- * 다시 쓰려던 키가 거절되면 실패가 아니라 새 진입이다. 새 키까지 곧바로 거절되면 구조 변경이다.
- */
-async function acquireSession(ctx: AdapterContext): Promise<{ state: KeyState; pass: QueuePass }> {
-  let state = sessions.get(ctx.http);
-  const now = ctx.clock.now().getTime();
-  if (state && !state.completed && now - state.enteredAt >= COMPLETE_AFTER_MS) await sendComplete(ctx, state);
-  if (state && now - state.issuedAt >= KEY_TTL_MS) state = undefined;
-  let rejected = false;
-  if (state) {
-    if (await keyAvailable(ctx, state.key)) return { state, pass: { key: state.key, waitedMs: 0 } };
-    rejected = true;
-  }
-  sessions.delete(ctx.http);
-  const fresh = await enterSession(ctx);
-  if (rejected && !(await keyAvailable(ctx, fresh.key))) {
-    sessions.delete(ctx.http);
-    throw new AdapterError("unrecognized", "새로 받은 키를 서버가 곧바로 거절했다(NOT Available)");
-  }
-  return { state: fresh, pass: { key: fresh.key, waitedMs: fresh.waitedMs } };
-}
+/** 이 세션이 쓸 키를 정한다. 키 재사용·재확인·5004 흐름은 공용 모듈이 맡는다. */
+const acquireSession = (ctx: AdapterContext) =>
+  acquireKey(ctx, NF, {
+    ttlMs: KEY_TTL_MS,
+    completeAfterMs: COMPLETE_AFTER_MS,
+    confirm: (key) => keyAvailable(ctx, key),
+    enter: (pass) => enterSession(ctx, pass),
+  });
 
 /** 진입 응답의 `temporaryReducedCounts = { '이름' : 20 }`을 읽는다. 상수가 없으면 구조 변경이다. */
 function parseReduced(html: string): Map<string, number> {
@@ -422,8 +327,8 @@ async function runBatch(
   if (trrsrtCodes.size > 1) throw new Error("한 번에 시설 하나만 조회할 수 있다");
   const [trrsrtCode] = trrsrtCodes;
   if (trrsrtCode === undefined) return results;
-  const { state, pass } = await acquireSession(ctx);
-  const reduced = state.reduced;
+  const { lease, pass } = await acquireSession(ctx);
+  const reduced = lease.extra;
 
   const allDates = [...new Set(units.flatMap(nightsOf))].sort();
   const months = new Set(allDates.map((d) => d.slice(0, 7)));
@@ -468,12 +373,12 @@ async function withNoPassRetry<T>(ctx: AdapterContext, run: () => Promise<T>): P
     if (!(e instanceof NoPassError)) throw e;
   }
   ctx.log?.("donghae NOPASS, re-entering", {});
-  sessions.delete(ctx.http);
+  forgetKey(ctx);
   ctx.http.clearSession();
   try {
     return await run();
   } catch (e) {
-    if (e instanceof NoPassError) sessions.delete(ctx.http);
+    if (e instanceof NoPassError) forgetKey(ctx);
     throw e;
   }
 }
@@ -509,8 +414,7 @@ export const donghaeAdapter: ProviderAdapter = {
   },
 
   async close(ctx) {
-    const state = sessions.get(ctx.http);
-    if (state && !state.completed) await sendComplete(ctx, state, true);
+    await releaseKey(ctx, NF);
   },
 
   deepLink: () => `${RESERVATION}/BD_reservation.do`,

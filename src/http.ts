@@ -111,6 +111,7 @@ export function createHttpClient(opts: {
     get: (url, reqOpts) => request("GET", url, undefined, reqOpts),
     post: (url, form, reqOpts) =>
       request("POST", url, typeof form === "string" ? form : new URLSearchParams(form).toString(), reqOpts),
+    setCookie: (host, name, value) => jar.set(host, name, value),
     clearSession: () => jar.clear(),
   };
 }

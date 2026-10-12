@@ -43,6 +43,8 @@ export interface HttpClient {
   get(url: string, opts?: RequestOptions): Promise<TransportResponse>;
   /** form이 문자열이면 그대로 본문으로 보낸다. */
   post(url: string, form: Record<string, string> | string, opts?: RequestOptions): Promise<TransportResponse>;
+  /** 호스트 쿠키 하나를 직접 넣는다(경로 `/`). 같은 이름은 덮고, 쿠키 세션 설정과 무관하게 다음 요청부터 싣는다. */
+  setCookie(host: string, name: string, value: string): void;
   /** 들고 있던 쿠키를 모두 버린다. */
   clearSession(): void;
 }
@@ -113,6 +115,8 @@ export interface AvailabilityQuery {
   zone: string;
   checkIn: string; // YYYY-MM-DD
   nights: number;
+  /** 이 조회 단위를 쓰는 감시 조건들이 `seats:`로 고른 자리 필터(토큰) 합집합. 어댑터가 관심 자리가 응답에서 사라졌는지 알아보는 데만 쓴다. 필터가 없으면 생략한다. */
+  seats?: string[];
 }
 
 export interface AvailableSite {
@@ -128,6 +132,16 @@ export interface AvailableSite {
 export interface ZoneObservation {
   zones: string[];
   unknown: { zone: string; value: string }[];
+}
+
+/** 예약처 응답 하나로 본 시설의 구역과 자리. 구역마다 응답이 따로 필요 없는 예약처용이다. */
+export interface FacilityObservation {
+  zones: {
+    name: string;
+    /** 응답이 그 구역의 칸에 실은 구역 코드. 칸이 모두 닫혀 있으면 비어 있다. */
+    codes: string[];
+    seats: string[];
+  }[];
 }
 
 export class AdapterError extends Error {
@@ -166,4 +180,9 @@ export interface ProviderAdapter {
    * 모르는 값은 실패가 아니라 관찰 결과에 담는다.
    */
   listZones?(q: AvailabilityQuery, ctx: AdapterContext): Promise<ZoneObservation>;
+  /**
+   * 시설 하나의 모든 구역·자리를 한 번의 조회로 돌려준다. catalog --live가 구역 코드와 자리를 고정 목록과 비교한다.
+   * 구현하면 구역마다 listSeats를 부르지 않는다.
+   */
+  observeFacility?(facility: string, ctx: AdapterContext): Promise<FacilityObservation>;
 }

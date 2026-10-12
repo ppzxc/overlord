@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { donghaeAdapter } from "../src/adapters/donghae.js";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
+import { knpsAdapter } from "../src/adapters/knps.js";
 import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
 import { loadConfig } from "../src/config.js";
 import { Liveness } from "../src/liveness.js";
@@ -138,7 +139,7 @@ export function startPoller(
   const done = runPoller(
     {
       config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV, opts.adapters),
-      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter },
+      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter },
       transport,
       clock,
       sink,
@@ -181,6 +182,7 @@ export const fakeHttp = (get: (url: string) => Promise<TransportResponse>): Http
   post: async (url) => {
     throw new Error(`POST는 흉내 내지 않는다: ${url}`);
   },
+  setCookie: () => {},
   clearSession: () => {},
 });
 
@@ -311,4 +313,56 @@ export function twoFacilityAdapter(): { adapter: ProviderAdapter; calls: Availab
     deepLink: (q) => `https://multi.example/${q.facility}/${q.zone}/${q.checkIn}`,
   };
   return { adapter, calls };
+}
+
+/**
+ * 가짜 국립공원 서버. 대기열 서버(netfunnel.knps.or.kr)와 예약처(reservation.knps.or.kr)를 함께 흉내 낸다.
+ * campsiteList.do는 기록한 갓바위 응답의 축소본을 그대로 돌려준다.
+ */
+export function knpsServer(
+  opts: {
+    /** campsiteList.do 본문. 기본은 기록한 축소본(자리 A01·A04·A08 x 10/13~10/22)이다. */
+    list?: (form: URLSearchParams) => string;
+    /** 대기열 5101/5002 응답 줄을 바꾼다. 액션(aid)과 그 액션의 몇 번째 요청인지를 받는다. 기본은 바로 통과다. */
+    queue?: (aid: string, nth: number) => string | undefined;
+    /** campsiteList.do의 HTTP 상태. 기본은 200이다. */
+    listStatus?: number;
+    /** `/assets/js/lib/netfunnel.js` 본문. 기본은 기록한 버전(2.2.19)과 `TS_HOST`다. */
+    script?: string;
+    /** selectCampLottery.do 응답. 기본은 기록한 화면의 발췌(6차, 야영장 0 개소)다. */
+    lottery?: () => TransportResponse;
+    /** searchSimpleCampReservation.do(예약 화면) 응답. 기본은 기록한 화면이다. */
+    page?: () => TransportResponse;
+  } = {},
+) {
+  const calls = { keys: 0, queue: new Map<string, number>() };
+  const NF_TAIL = "&nwait=0&nnext=0&tps=0.000000&ttl=0&ip=netfunnel.knps.or.kr&port=443";
+  return (req: TransportRequest): TransportResponse => {
+    const url = new URL(req.url);
+    if (url.hostname === "netfunnel.knps.or.kr") {
+      const opcode = url.searchParams.get("opcode");
+      if (opcode === "5004") return { status: 200, body: `NetFunnel.gRtype=5004;NetFunnel.gControl.result='5004:200:msg="Success"'; NetFunnel.gControl._showResult();` };
+      const aid = url.searchParams.get("aid") ?? "";
+      const nth = calls.queue.get(aid) ?? 0;
+      calls.queue.set(aid, nth + 1);
+      const line = opts.queue?.(aid, nth) ?? `5002:200:key=KEY${++calls.keys}${NF_TAIL}`;
+      return { status: 200, body: `NetFunnel.gRtype=${opcode};NetFunnel.gControl.result='${line}'; NetFunnel.gControl._showResult();` };
+    }
+    if (url.hostname !== "reservation.knps.or.kr") return { status: 404, body: "" };
+    if (url.pathname === "/reservation/searchSimpleCampReservation.do") {
+      if (opts.page) return opts.page();
+      return { status: 200, body: fixture("knps-searchSimpleCampReservation.htm"), setCookie: ["JSESSIONID=sess1; Path=/; HttpOnly"] };
+    }
+    if (url.pathname === "/reservation/selectCampLottery.do") {
+      return opts.lottery ? opts.lottery() : { status: 200, body: fixture("knps-selectCampLottery.htm") };
+    }
+    if (url.pathname === "/reservation/campsiteList.do") {
+      const form = new URLSearchParams(req.body ?? "");
+      return { status: opts.listStatus ?? 200, body: opts.list ? opts.list(form) : fixture("knps-gatbawi-campsiteList.htm") };
+    }
+    if (url.pathname === "/assets/js/lib/netfunnel.js") {
+      return { status: 200, body: opts.script ?? "/*\n * Version 2.2.19\n */\nNetFunnel.TS_HOST = 'netfunnel.knps.or.kr';\n" };
+    }
+    return { status: 404, body: "" };
+  };
 }

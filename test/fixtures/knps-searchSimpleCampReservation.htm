@@ -1,0 +1,30 @@
+<!-- searchSimpleCampReservation.do 응답 원문(2026-10-12)에서 대기열 스크립트와 load 핸들러만 남긴 축소본 -->
+<html><body>
+<script src="/assets/js/lib/netfunnel.js"></script>
+<script src="/assets/js/lib/knps_netfunnel.js"></script>
+<script>
+window.addEventListener("load", function (event) {
+	//Netfunnel 자원 사용 요청
+	NetFunnel_Action({action_id:'landingCamp',use_mobile_ui:"true", skin_id:"knps_skin"},{
+		success:function(ev,ret){
+			
+		},
+		block:function(ev,ret){
+			NetFunnel.PopupSetup("alert", ret, "blockSkin");
+			location.href='/index.do';
+			return false;
+		},
+		ipblock:function(ev,ret){
+			NetFunnel.PopupSetup("alert", ret, "ipBlockSkin");
+			location.href='/index.do';
+			return false;
+		},
+		stop:function(ev,ret){
+			location.href='/index.do';
+			return false;
+		},
+	});
+	
+	});
+</script>
+</body></html>

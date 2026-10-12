@@ -2,7 +2,7 @@ import { compact } from "./catalog.js";
 import { resolveFacility } from "./facility.js";
 import { createHttpClient } from "./http.js";
 import { addDays, kstDate } from "./schedule.js";
-import { AdapterError, type AdapterContext, type Clock, type ProviderAdapter, type Transport, type FacilityInfo, type ZoneObservation } from "./types.js";
+import { AdapterError, type AdapterContext, type Clock, type ProviderAdapter, type Transport, type FacilityInfo, type FacilityObservation, type ZoneObservation } from "./types.js";
 
 export interface LiveOptions {
   transport: Transport;
@@ -47,6 +47,7 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
 }
 
 async function compareLive(adapter: ProviderAdapter, facility: FacilityInfo, checkIn: string, ctx: AdapterContext): Promise<LiveResult> {
+  if (adapter.observeFacility) return renderFacilityDiff(adapter.observeFacility.bind(adapter), facility, ctx);
   if (adapter.listZones) return renderZoneDiff(adapter.listZones.bind(adapter), facility, checkIn, ctx);
   if (!adapter.listSeats) {
     return { text: `${adapter.describe().id}는 자리 단위로 보지 않는 예약처라 비교할 자리 목록이 없다\n`, failed: false };
@@ -87,6 +88,51 @@ async function compareLive(adapter: ProviderAdapter, facility: FacilityInfo, che
   if (differences > 0) lines.push(`차이 있는 구역 ${differences}곳: 어댑터의 고정 목록을 갱신해야 한다`);
   if (failures === 0 && differences === 0) lines.push("차이 없음");
   return { text: `${lines.join("\n")}\n`, failed: failures > 0 };
+}
+
+/** 시설 하나를 한 번 조회해서 구역마다 코드와 자리를 고정 목록과 비교한다. */
+async function renderFacilityDiff(observe: NonNullable<ProviderAdapter["observeFacility"]>, facility: FacilityInfo, ctx: AdapterContext): Promise<LiveResult> {
+  let seen: FacilityObservation;
+  try {
+    seen = await observe(facility.code, ctx);
+  } catch (e) {
+    if (!(e instanceof AdapterError)) throw e;
+    return { text: `조회 실패(${e.kind}): ${e.message}\n`, failed: true };
+  }
+  const lines: string[] = [];
+  let differences = 0;
+  for (const zone of facility.zones) {
+    const actual = seen.zones.find((z) => z.name === zone.name);
+    if (!actual) {
+      differences++;
+      lines.push(`${zone.code}: 예약처 응답에 구역이 없다(${zone.name})`);
+      continue;
+    }
+    if (actual.codes.length > 0 && !actual.codes.includes(zone.code)) {
+      differences++;
+      lines.push(`${zone.code}: 구역 코드가 다르다(카탈로그 ${zone.code}, 예약처 ${actual.codes.join(", ")})`);
+    }
+    if (!zone.seats) {
+      lines.push(`${zone.code}: 고정 목록이 없다. 실제 ${actual.seats.length}자리: ${compact(actual.seats)}`);
+      continue;
+    }
+    const missing = zone.seats.filter((s) => !actual.seats.includes(s));
+    const added = actual.seats.filter((s) => !zone.seats!.includes(s));
+    if (missing.length === 0 && added.length === 0) {
+      lines.push(`${zone.code}: 일치 (${actual.seats.length}자리)`);
+      continue;
+    }
+    differences++;
+    if (missing.length) lines.push(`${zone.code}: 예약처에서 사라진 자리 ${compact(missing)}`);
+    if (added.length) lines.push(`${zone.code}: 예약처에 새로 생긴 자리 ${compact(added)}`);
+  }
+  for (const z of seen.zones.filter((a) => !facility.zones.some((f) => f.name === a.name))) {
+    differences++;
+    lines.push(`예약처에 새로 생긴 구역 ${z.name}(${z.codes.join(", ") || "코드 미확인"}): ${z.seats.length}자리`);
+  }
+  if (differences > 0) lines.push(`차이 있는 구역 ${differences}곳: 카탈로그를 갱신해야 한다`);
+  else lines.push("차이 없음");
+  return { text: `${lines.join("\n")}\n`, failed: false };
 }
 
 /** 구역 이름 집합만 알 수 있는 예약처: 한 번 조회해서 고정 구역과 비교한다. */

@@ -1,9 +1,9 @@
 import type { ProviderAdapter, ZoneInfo } from "./types.js";
 import { resolveFacility } from "./facility.js";
 
-/** A01,A02,A03,A05 → "A01-A03, A05". 번호가 연속인 것만 묶는다. */
+/** A01,A02,A03,A05 → "A01-A03, A05". 번호가 연속인 것만 묶는다. 번호만(1,2,3)인 이름도 묶는다. */
 export function compact(ids: string[]): string {
-  const parsed = ids.map((id) => /^(\D+)(\d+)$/.exec(id));
+  const parsed = ids.map((id) => /^(\D*)(\d+)$/.exec(id));
   if (parsed.some((m) => !m)) return ids.join(", ");
   const parts: string[] = [];
   let start = 0;

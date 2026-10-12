@@ -389,6 +389,50 @@ describe("ulju 신호 분류", () => {
     await p.stop();
   });
 
+  it("자리 목록이 있는 시설(대운산하늘숲)은 쓰지 않는 자리가 사라지거나 새로 생겨도 경고만 한 번 남기고 감시를 계속한다", async () => {
+    // 감시 구역은 F0000015(A5~A14). 같은 구역의 A6이 사라지고 A21이 생기고, 다른 구역 F0000008의 A16도 사라진다.
+    const server = uljuServer({
+      day: (date, classes) => {
+        const rows = uljuRows(classes).filter((r) => r.NAME !== "A6" && r.NAME !== "A16");
+        return ok(uljuRowsFor(date, [...rows, { ...rows.find((r) => r.FACILITY_ID === "F0000015")!, CAMP_ID: "N21", NAME: "A21" }]));
+      },
+    });
+    const p = run({ from: "2026-10-16" }, { server, facility: "daeunsan", zones: ["F0000015"] });
+    await settle();
+    await p.clock.advance(150_000);
+    await settle();
+    expect(failedKinds(p)).toEqual([]);
+    expect(p.allRequests).toHaveLength(2); // 두 바퀴 모두 계속 조회한다.
+    const warns = p.logs.filter((l) => l.msg === "ulju seat drift").map((l) => `${l.fields?.change}:${l.fields?.zone}:${l.fields?.seat}`);
+    expect(warns.sort()).toEqual(["gone:F0000008:A16", "gone:F0000015:A6", "new:F0000015:A21"]); // 두 바퀴에도 한 번씩만
+    expect(p.logs.some((l) => l.msg === "ulju zone drift")).toBe(false); // 구역은 그대로다.
+    await p.stop();
+  });
+
+  it("자리 목록이 없는 시설은 자리가 늘거나 줄어도 자리 차이 경고를 남기지 않는다", async () => {
+    const server = uljuServer({
+      day: (date, classes) => {
+        const rows = uljuRows(classes).filter((r) => r.NAME !== "별빛야영장2");
+        return ok(uljuRowsFor(date, [...rows, { ...rows[0]!, CAMP_ID: "N1", NAME: "별빛야영장99" }]));
+      },
+    });
+    const p = run({ from: "2026-10-16" }, { server });
+    await settle();
+    expect(failedKinds(p)).toEqual([]);
+    expect(p.logs.filter((l) => l.msg.includes("drift"))).toEqual([]);
+    await p.stop();
+  });
+
+  it("구역이 통째로 사라지면 자리마다 경고하지 않고 구역 경고만 남긴다", async () => {
+    const server = uljuServer({ day: (date, classes) => ok(uljuRowsFor(date, uljuRows(classes).filter((r) => r.FACILITY_ID !== "F0000014"))) });
+    const p = run({ from: "2026-10-16" }, { server, facility: "daeunsan", zones: ["F0000015"] });
+    await settle();
+    expect(failedKinds(p)).toEqual([]);
+    expect(p.logs.filter((l) => l.msg === "ulju zone drift").map((l) => l.fields?.zone)).toEqual(["F0000014"]);
+    expect(p.logs.filter((l) => l.msg === "ulju seat drift")).toEqual([]);
+    await p.stop();
+  });
+
   it.each([
     ["HTTP 503", { status: 503, body: "" }, "transient"],
     ["HTTP 502", { status: 502, body: "" }, "transient"],

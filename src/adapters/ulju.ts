@@ -124,20 +124,31 @@ async function fetchNight(classes: string, date: string, ctx: AdapterContext): P
 /** 세션마다 이미 경고한 구역 차이. 같은 차이는 한 번만 남긴다. */
 const warnedDrift = new WeakMap<HttpClient, Set<string>>();
 
-/** 카탈로그와 다른 구역(응답에만 있거나 응답에서 빠진 구역)은 경고만 남긴다. 감시 조건이 쓰는 구역이 빠진 것은 조회 단위 판정이 실패로 처리한다. */
-function warnZoneDrift(facility: string, rows: Row[], ctx: AdapterContext): void {
-  const known = new Set(facilities.find((f) => f.code === facility)?.zones.map((z) => z.code));
+/**
+ * 카탈로그와 다른 구역(응답에만 있거나 응답에서 빠진 구역)과, 자리 목록이 있는 구역의 자리 차이는 경고만 남긴다.
+ * 감시 조건이 쓰는 구역이 빠진 것은 조회 단위 판정이 실패로 처리한다. 자리는 실패로 치지 않는다.
+ * 자리 목록이 없는 시설·구역은 자리를 비교하지 않고, 응답에서 통째로 빠진 구역은 구역 경고 하나로 갈음한다.
+ */
+function warnDrift(facility: string, rows: Row[], ctx: AdapterContext): void {
+  const zones = facilities.find((f) => f.code === facility)?.zones ?? [];
+  const known = new Set(zones.map((z) => z.code));
   const seen = new Set(rows.map((r) => r.FACILITY_ID));
   const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
   warnedDrift.set(ctx.http, warned);
-  const drift = [
-    ...[...seen].filter((z) => !known.has(z)).map((z) => ["new", z] as const),
-    ...[...known].filter((z) => !seen.has(z)).map((z) => ["gone", z] as const),
-  ];
-  for (const [change, zone] of drift) {
-    if (warned.has(`${facility}:${change}:${zone}`)) continue;
-    warned.add(`${facility}:${change}:${zone}`);
-    ctx.log?.("ulju zone drift", { facility, change, zone });
+  const once = (msg: string, fields: { change: string; zone: string; seat?: string }) => {
+    const key = `${msg}:${facility}:${fields.change}:${fields.zone}:${fields.seat ?? ""}`;
+    if (warned.has(key)) return;
+    warned.add(key);
+    ctx.log?.(msg, { facility, ...fields });
+  };
+  for (const z of seen) if (!known.has(z)) once("ulju zone drift", { change: "new", zone: z });
+  for (const z of known) if (!seen.has(z)) once("ulju zone drift", { change: "gone", zone: z });
+  for (const zone of zones) {
+    if (!zone.seats || !seen.has(zone.code)) continue;
+    const listed = new Set(zone.seats);
+    const actual = new Set(rows.filter((r) => r.FACILITY_ID === zone.code).map((r) => r.NAME));
+    for (const seat of actual) if (!listed.has(seat)) once("ulju seat drift", { change: "new", zone: zone.code, seat });
+    for (const seat of listed) if (!actual.has(seat)) once("ulju seat drift", { change: "gone", zone: zone.code, seat });
   }
 }
 
@@ -158,7 +169,7 @@ async function queryBatch(units: AvailabilityQuery[], ctx: AdapterContext) {
     if (nights.has(key)) return nights.get(key)!;
     if (stopped) throw stopped;
     const rows = await fetchNight(classesOf(facility), date, ctx); // 직렬: 요청은 HTTP 층이 한 줄로 보낸다.
-    if (rows) warnZoneDrift(facility, rows, ctx);
+    if (rows) warnDrift(facility, rows, ctx);
     nights.set(key, rows);
     return rows;
   };

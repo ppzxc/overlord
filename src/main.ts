@@ -9,20 +9,13 @@ import { checkHealthz, startHealthz } from "./healthz.js";
 import { Liveness, startWatchdog } from "./liveness.js";
 import { runPoller } from "./poller.js";
 import { TelegramError, type TelegramSink } from "./telegram.js";
-import type { Transport } from "./types.js";
+import { createTransport, loadExtraCa } from "./transport.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
 
-const transport: Transport = async ({ method, url, headers, body, timeoutMs, redirect }) => {
-  const res = await fetch(url, { method, headers, body, redirect: redirect ?? "follow", signal: AbortSignal.timeout(timeoutMs) });
-  return {
-    status: res.status,
-    body: await res.text(),
-    // headers.get("set-cookie")는 여러 값을 쉼표로 이어 붙여 Expires의 쉼표와 섞인다.
-    setCookie: res.headers.getSetCookie(),
-    location: res.headers.get("location") ?? undefined,
-  };
-};
+// 서버가 중간 인증서를 보내지 않는 예약처용 중간 인증서(certs/)를 기본 루트에 더한다. 검증은 끄지 않는다.
+// dist/main.js와 src/main.ts 모두 저장소(이미지) 루트의 certs/를 가리킨다.
+const transport = createTransport({ extraCa: loadExtraCa(new URL("../certs/", import.meta.url)) });
 
 const TELEGRAM_TIMEOUT_MS = 15_000;
 

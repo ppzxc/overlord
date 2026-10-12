@@ -19,6 +19,8 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+# 서버가 중간 인증서를 보내지 않는 예약처용 중간 인증서. dist/main.js가 ../certs를 읽어 신뢰 목록에 더한다.
+COPY certs ./certs
 COPY package.json ./
 USER node
 # 설정 파일의 healthz.bind를 읽어 그 주소를 찌른다. 바인드를 바꿔도 여기는 그대로다.

@@ -107,6 +107,8 @@ export interface ProviderInfo {
   blockedPaths: string[];
   /** 받은 쿠키를 들고 다음 요청에 싣는다. 세션이 필요한 예약처만 켠다. */
   cookieSession: boolean;
+  /** 켜면 시설이 하나뿐이어도 감시 조건이 `facility`를 골라야 하고, `catalog <예약처>`는 시설 목록을 먼저 보인다. 시설이 늘어날 예약처용이다. */
+  facilityRequired?: boolean;
 }
 
 export interface AvailabilityQuery {

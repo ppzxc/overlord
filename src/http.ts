@@ -44,7 +44,9 @@ export function createHttpClient(opts: {
 
   const assertAllowed = (url: string) => {
     const { pathname } = new URL(url);
-    const blocked = opts.blockedPaths.find((p) => pathname.startsWith(p));
+    // 서버가 경로의 대소문자를 가리지 않는 예약처(xticket의 /Web과 /web)도 있어 대소문자 없이 견준다.
+    const lower = pathname.toLowerCase();
+    const blocked = opts.blockedPaths.find((p) => lower.startsWith(p.toLowerCase()));
     if (blocked) throw new Error(`접근 금지 경로(${blocked})는 호출하지 않는다: ${url}`);
   };
 

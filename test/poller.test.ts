@@ -527,9 +527,9 @@ describe("고래불 실제 캘린더 fixture", () => {
     const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
     const seen: string[] = [];
     const units = [
-      { zone: "DKA", checkIn: "2026-09-29", nights: 1 }, // (34)
-      { zone: "PEA", checkIn: "2026-09-29", nights: 1 }, // 캘린더에 없는 구역
-      { zone: "DKA", checkIn: "2026-09-15", nights: 1 }, // 지난 날짜(td.not)
+      { facility: "goraebul", zone: "DKA", checkIn: "2026-09-29", nights: 1 }, // (34)
+      { facility: "goraebul", zone: "PEA", checkIn: "2026-09-29", nights: 1 }, // 캘린더에 없는 구역
+      { facility: "goraebul", zone: "DKA", checkIn: "2026-09-15", nights: 1 }, // 지난 날짜(td.not)
     ];
     const res = await goraebulAdapter.queryAvailabilityBatch!(
       units,
@@ -543,7 +543,7 @@ describe("고래불 실제 캘린더 fixture", () => {
 
   it("캘린더 구조를 읽지 못하면 unrecognized로 실패한다", async () => {
     const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
-    const unit = { zone: "DKA", checkIn: "2026-09-29", nights: 1 };
+    const unit = { facility: "goraebul", zone: "DKA", checkIn: "2026-09-29", nights: 1 };
     const res = await goraebulAdapter.queryAvailabilityBatch!(
       [unit],
       ctxFor("<html></html>"),
@@ -556,6 +556,7 @@ describe("캘린더 실패 격리", () => {
   const run = async (body: string, months: string[]) => {
     const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
     const units = months.map((m) => ({
+      facility: "goraebul",
       zone: "DKA",
       checkIn: `${m}-29`,
       nights: 1,

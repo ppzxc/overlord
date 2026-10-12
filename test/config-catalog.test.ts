@@ -117,7 +117,7 @@ describe("catalog", () => {
 
   // 요소 id(dka_2)의 번호를 고정 목록에서 뽑아 응답을 만든다.
   const fixedLayout = (zone: string) => {
-    const seats = goraebulAdapter.describe().zones.find((z) => z.code === zone)!.seats!;
+    const seats = goraebulAdapter.describe().facilities[0]!.zones.find((z) => z.code === zone)!.seats!;
     return layout(zone, seats.map((id) => +/(\d+)$/.exec(id)![1]!));
   };
 

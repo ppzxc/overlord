@@ -8,13 +8,15 @@ import {
   type ProviderAdapter,
   type ProviderInfo,
   type ZoneObservation,
-  type ZoneInfo,
 } from "../types.js";
+
+import { facilities } from "../catalogs/donghae.js";
 
 const WWW = "https://www.campingkorea.or.kr";
 const RESERVATION = `${WWW}/user/reservation`;
 const NF_URL = "https://nf.campingkorea.or.kr/ts.wseq";
-const TRRSRT_CODE = "1000";
+// 동해시 예약처의 관광지 코드는 카탈로그가 시설 ref로 갖고 있다.
+const TRRSRT_CODE = (facilities[0]!.ref as { trrsrtCode: string }).trrsrtCode;
 
 /** 5002 재확인을 서버가 준 간격대로 반복하되, 이만큼 넘게 기다리면 그 바퀴를 포기한다. */
 const MAX_WAIT_MS = 120_000;
@@ -23,29 +25,9 @@ const KEY_TTL_MS = 2 * 60 * 60 * 1000;
 /** 페이지의 5분 타이머. 진입 뒤 이 시간이 지난 첫 시점에 setComplete(5004)를 한 번 보낸다. */
 const COMPLETE_AFTER_MS = 5 * 60 * 1000;
 
-// 구역 코드와 이름은 모두 응답의 표시 이름이다(2026-09-29 확인). 구역 이름 앞의 분류는 넓은 분류일 뿐이고 든바다·난바다·허허바다는 확인하지 못했다. 정원은 확인한 구역만 적는다.
-const zone = (name: string, type: string, capacity?: number): ZoneInfo => ({
-  code: name,
-  name,
-  type,
-  ...(capacity ? { capacity } : {}),
-});
-const ZONES: ZoneInfo[] = [
-  zone("전통한옥", "한옥"),
-  zone("캐빈하우스", "캐빈", 4),
-  zone("든바다", "미확인"),
-  zone("난바다", "미확인"),
-  zone("허허바다", "미확인"),
-  zone("자동차캠핑장", "오토캠핑", 4),
-  zone("캐라반", "카라반", 6),
-  zone("글램핑(4인)", "글램핑", 4),
-  zone("글램핑(2인)", "글램핑", 2),
-];
-
 const INFO: ProviderInfo = {
   id: "donghae",
-  facility: "mangsang",
-  zones: ZONES,
+  facilities,
   maxNights: 3,
   // 하루 뒤 입실부터 받으므로 당일 마감은 00:00이다.
   openingRule: { openDaysBefore: 30, openTime: "11:00", sameDayCutoff: "00:00" },
@@ -286,7 +268,7 @@ function parseReduced(html: string): Map<string, number> {
   return reduced;
 }
 
-const KNOWN_ZONES = new Set(ZONES.map((z) => z.name));
+const KNOWN_ZONES = new Set(facilities.flatMap((f) => f.zones).map((z) => z.name));
 /** 세션(HttpClient)마다 이미 경고한 구역 차이. 같은 차이는 한 번만 남긴다. */
 const warnedDrift = new WeakMap<HttpClient, Set<string>>();
 

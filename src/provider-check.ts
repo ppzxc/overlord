@@ -24,26 +24,34 @@ export function checkAgainstProviders(config: Config, adapters: Record<string, P
       return;
     }
     const info = adapter.describe();
-    if (w.facility !== undefined && w.facility !== info.facility) {
-      problems.push({ path: at("facility"), message: `없는 시설 "${w.facility}"다. 쓸 수 있는 값: ${info.facility}` });
+    const facilityCodes = info.facilities.map((f) => f.code).join(", ");
+    // 시설이 하나면 생략할 수 있다. 둘 이상이면 어느 시설인지 골라야 한다.
+    const facility = w.facility === undefined ? (info.facilities.length === 1 ? info.facilities[0] : undefined) : info.facilities.find((f) => f.code === w.facility);
+    if (w.facility === undefined && !facility) {
+      problems.push({ path: at("facility"), message: `시설을 골라야 한다. 쓸 수 있는 값: ${facilityCodes}` });
+    } else if (w.facility !== undefined && !facility) {
+      problems.push({ path: at("facility"), message: `없는 시설 "${w.facility}"다. 쓸 수 있는 값: ${facilityCodes}` });
     }
     if (w.nights > info.maxNights) {
       problems.push({ path: at("nights"), message: `${w.provider}는 최대 ${info.maxNights}박까지 예약할 수 있다(설정값 ${w.nights})` });
     }
-    const codes = info.zones.map((z) => z.code);
+    // 시설이 정해지지 않았으면 구역·자리는 확인할 수 없다.
+    if (!facility) return;
+    const zones = facility.zones;
+    const codes = zones.map((z) => z.code);
     for (const z of w.zones) {
       if (!codes.includes(z)) problems.push({ path: at("zones"), message: `없는 구역 "${z}"다. 쓸 수 있는 값: ${codes.join(", ")}` });
     }
     // 자리 목록이 없는 구역은 자리로 거를 수 없다.
     if (w.seats) {
-      const noSeats = info.zones.filter((z) => w.zones.includes(z.code) && !z.seats).map((z) => z.code);
+      const noSeats = zones.filter((z) => w.zones.includes(z.code) && !z.seats).map((z) => z.code);
       if (noSeats.length > 0) {
         problems.push({ path: at("seats"), message: `${noSeats.join(", ")}은(는) 자리를 볼 수 없어 seats를 쓸 수 없다` });
         return;
       }
     }
     // 구역 코드가 틀렸으면 구역 오류만 알린다. 자리 번호는 구역이 맞아야 확인할 수 있다.
-    const requested = info.zones.filter((z) => w.zones.includes(z.code));
+    const requested = zones.filter((z) => w.zones.includes(z.code));
     if (w.seats && requested.length === w.zones.length && requested.every((z) => z.seats)) {
       const allSeats = requested.flatMap((z) => z.seats!);
       for (const token of w.seats) {

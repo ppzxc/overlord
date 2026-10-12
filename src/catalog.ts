@@ -26,7 +26,7 @@ export function renderCatalog(adapter: ProviderAdapter): string {
   const info = adapter.describe();
   const rows = [
     ["코드", "이름", "유형", "정원", "자리"],
-    ...info.zones.map((z) => [z.code, z.name, z.type, z.capacity ? `${z.capacity}인` : "-", seatsText(z)]),
+    ...info.facilities[0]!.zones.map((z) => [z.code, z.name, z.type, z.capacity ? `${z.capacity}인` : "-", seatsText(z)]),
   ];
   const widths = [0, 1, 2, 3].map((c) => Math.max(...rows.map((r) => visualWidth(r[c]!))));
   const lines = rows.map((r) =>

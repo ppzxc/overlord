@@ -81,10 +81,20 @@ export interface OpeningRush {
   to: string;
 }
 
+/** 예약처 안의 캠핑장·휴양림 한 곳. */
+export interface FacilityInfo {
+  /** 사람이 읽는 slug. 설정의 `facility`가 쓴다. 예: goraebul, mangsang */
+  code: string;
+  name: string;
+  /** 예약처가 시설을 가리키는 값. 예약처마다 모양이 달라 문자열 하나 또는 작은 레코드다. 없으면 비운다. */
+  ref?: string | Record<string, string>;
+  zones: ZoneInfo[];
+}
+
 export interface ProviderInfo {
   id: string;
-  facility: string;
-  zones: ZoneInfo[];
+  /** 예약처 안의 시설. 하나 이상이다. */
+  facilities: FacilityInfo[];
   maxNights: number;
   openingRule: OpeningRule;
   /** 오픈 경쟁 시간의 기본값. 설정의 `providers.<id>.openingRush`가 덮어쓴다. 없으면 쉬지 않는다. */
@@ -96,6 +106,8 @@ export interface ProviderInfo {
 }
 
 export interface AvailabilityQuery {
+  /** 시설 코드. 어댑터가 카탈로그에서 ref를 찾는 데 쓴다. */
+  facility: string;
   zone: string;
   checkIn: string; // YYYY-MM-DD
   nights: number;

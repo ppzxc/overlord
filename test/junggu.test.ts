@@ -197,10 +197,10 @@ describe("중구 폴러", () => {
   });
 
   describe("요청 흐름", () => {
-    it("순서는 5101(main) → pageCont.do → ajaxGetMonthlyMap.do → ajaxGetSiteList.do이고 5004는 나가지 않는다", async () => {
+    it("순서는 5101(main) → pageCont.do → ajaxGetMonthlyMap.do → ajaxGetSiteList.do이고 5004는 나가지 않는다(netfunnel.js 확인은 첫 조회가 끝난 뒤 한 번)", async () => {
       const p = run({ from: "2026-10-20" });
       await settle();
-      expect(p.allRequests.map(label)).toEqual(["nf:5101:main", "GET pageCont.do", "POST ajaxGetMonthlyMap.do", "POST ajaxGetSiteList.do"]);
+      expect(p.allRequests.map(label)).toEqual(["nf:5101:main", "GET pageCont.do", "POST ajaxGetMonthlyMap.do", "POST ajaxGetSiteList.do", "GET netfunnel.js"]);
       const nf = new URL(p.allRequests[0]!.url);
       expect(`${nf.origin}${nf.pathname}`).toBe("https://campwait.junggu.ulsan.kr/ts.wseq");
       expect(nf.searchParams.get("sid")).toBe("service_1");
@@ -266,7 +266,7 @@ describe("중구 폴러", () => {
     it("접근 금지 경로로는 요청이 나가지 않는다", async () => {
       const p = run({ from: "2026-10-20" });
       await settle();
-      const forbidden = ["/camping/ajaxSelecteSite.do", "/camping/ajaxChangeStayGigan.do", "/camping/iphwa_auto2/insert.do"];
+      const forbidden = ["/camping/ajaxSelecteSite.do", "/camping/ajaxChangeStayGigan.do", "/camping/iphwa_auto2/insert.do", "/camping/hwangbang/insert.do", "/camping/taehwa/insert.do"];
       for (const r of p.allRequests) {
         const u = new URL(r.url);
         expect(forbidden.some((f) => u.pathname.startsWith(f))).toBe(false);
@@ -289,6 +289,8 @@ describe("중구 폴러", () => {
         "/camping/ajaxSelecteSite.do",
         "/camping/ajaxChangeStayGigan.do",
         "/camping/iphwa_auto2/insert.do",
+        "/camping/hwangbang/insert.do",
+        "/camping/taehwa/insert.do",
         "/camping/pageCont.do?menuNo=5010000", // 로그인
         "/camping/pageCont.do?menuNo=5020000", // 회원가입
         "/camping/pageCont.do?menuNo=5030000", // 아이디/비밀번호 찾기
@@ -481,7 +483,7 @@ ${lines}
   });
 
   it("facility 없는 감시 조건은 위치와 쓸 수 있는 시설 코드와 함께 거부된다", () => {
-    expect(problems(block(`    zones: [${ZONE_LARGE}]`))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: iphwa-auto2$/);
+    expect(problems(block(`    zones: [${ZONE_LARGE}]`))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: iphwa-auto2, hwangbang, taehwayeon$/);
   });
 
   it("없는 구역은 위치와 쓸 수 있는 구역 코드와 함께 거부된다", () => {
@@ -490,9 +492,9 @@ ${lines}
     );
   });
 
-  it("2박은 최대 박수와 함께 위치를 짚어 거부한다", () => {
-    expect(problems(block(`    facility: iphwa-auto2\n    zones: [${ZONE_LARGE}]\n    nights: 2`))).toMatch(
-      /\d+번째 줄 watches\.0\.nights: junggu는 최대 1박까지 예약할 수 있다\(설정값 2\)/,
+  it("3박은 최대 박수와 함께 위치를 짚어 거부한다", () => {
+    expect(problems(block(`    facility: iphwa-auto2\n    zones: [${ZONE_LARGE}]\n    nights: 3`))).toMatch(
+      /\d+번째 줄 watches\.0\.nights: junggu는 최대 2박까지 예약할 수 있다\(설정값 3\)/,
     );
   });
 });
@@ -522,13 +524,14 @@ describe("catalog junggu", () => {
     const r = await catalog();
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/^iphwa-auto2\s+입화산 제2오토야영장\s+5곳$/m);
+    expect(r.out).toMatch(/^hwangbang\s+/m);
     expect(r.requests).toEqual([]);
   });
 
-  it("입화산 제2오토는 최대 1박과 csId 구역 다섯 곳을 보인다", async () => {
+  it("입화산 제2오토는 최대 2박과 csId 구역 다섯 곳을 보인다", async () => {
     const r = await catalog("iphwa-auto2");
     expect(r.code).toBe(0);
-    expect(r.out).toMatch(/^junggu \(최대 1박\)$/m);
+    expect(r.out).toMatch(/^junggu \(최대 2박\)$/m);
     for (const z of [
       "CP_SPEC_000000000031 입화산 제2오토A(대형)",
       "CP_SPEC_000000000033 입화산 제2오토A(소형)",

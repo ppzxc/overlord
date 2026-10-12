@@ -27,3 +27,30 @@ TLS는 검증을 끄지 않고 Node 기본 루트에 `certs/`의 Sectigo 중간 
 
 보내지 않은 것: `ajaxSelecteSite.do`, `ajaxChangeStayGigan.do`, `iphwa_auto2/insert.do`, 로그인(`menuNo=5010000`)·회원가입(`5020000`)·아이디/비밀번호 찾기(`5030000`)·마이페이지(`5040100`, 예약확인·취소), 결제(토스페이먼츠 `xpay.tosspayments.com`).
 다른 구역(`32`, `33`, `35`, `36`)은 브라우저처럼 `intro.do?searchCsId=…` 화면을 거치지 않고 같은 `ajaxGetSiteList.do`에 `csId`만 바꿔 보냈다.
+
+# 황방산(cpId=hwangbang)·태화연(cpId=taehwa) 기록 (#79)
+
+2026-10-12 20:36~20:40 KST, 위와 같은 원칙(UA `overlord-availability-poller/0.1 (ADR0002 one-time recording)`, 요청마다 앞에서 5초 + 0~3초, 접근 금지 경로 호출 없음, 로그인·captcha·봇 탐지 호출 없음)과 같은 TLS 방식(Node 기본 루트에 `certs/`의 중간 인증서)으로 시설마다 브라우저 흐름(`main` → 예약 화면 → 월 지도 → 구역마다 자리 목록)을 한 번씩 기록했다. HTTP 요청 12건이다. 시설을 바꿀 때 `main`을 다시 지났다(화면 버튼 `fnRev2`·`fnRev3`의 흐름).
+쿠키 단지 하나, 요청 헤더는 #78과 같다(`X-Requested-With`, `Referer`는 그 시설의 `pageCont.do`, `Origin`). 자리 목록 본문은 이전과 같이 `isExclusive=`(빈 값)이다.
+
+요청 순서(시각은 요청이 끝난 KST):
+1. GET `campwait.junggu.ulsan.kr/ts.wseq?opcode=5101&…&aid=main` -> 200 (20:36:58). 결과 문자열은 #78의 `nf_main_5101.txt`와 같은 모양이라 다시 저장하지 않았다(`key`는 가리는 값).
+2. GET `/camping/pageCont.do?menuNo=1020300` (쿠키 `NetFunnel_ID`) -> 200 (20:37:14) -> `pageCont.do_menuNo-1020300.html`
+3. POST `ajaxGetMonthlyMap.do` `searchDate=2026-10-01&cpId=hwangbang` -> 200 (20:37:53) -> `ajaxGetMonthlyMap.do_hwangbang_2026-10.json`. 10/12~10/31이 `isAbleDate:true`, `isExclusive`는 모두 `false`.
+4. POST `ajaxGetSiteList.do` `searchDate=2026-10-20&cpId=hwangbang&csId=<구역>&isExclusive=` -> 200 (20:38:10~20:38:30). 파일 이름은 `ajaxGetSiteList.do_hwangbang_<csId 끝 두 자리>_2026-10-20.json`이다.
+   - `04` 황방산 오토야영장 18자리, `34` 황방산 차량카라반(소) 1자리, `05` 황방산 카라반야영장 3자리. 세 구역 모두 모든 자리가 `CLOSED`/`N`/`N`/`0`이었다(열린 자리 응답은 이 시설에서 기록하지 못했다).
+5. GET `campwait.junggu.ulsan.kr/ts.wseq?opcode=5101&…&aid=main` -> 200 (20:38:53)
+6. GET `/camping/pageCont.do?menuNo=1030300` -> 200 (20:39:05) -> `pageCont.do_menuNo-1030300.html`
+7. POST `ajaxGetMonthlyMap.do` `searchDate=2026-10-01&cpId=taehwa` -> 200 (20:39:21) -> `ajaxGetMonthlyMap.do_taehwa_2026-10.json`. 황방산과 같은 모양이다(10/12~10/31 선택 가능).
+8. POST `ajaxGetSiteList.do` `searchDate=2026-10-20&cpId=taehwa&csId=<구역>&isExclusive=` -> 200 (20:39:35~20:39:59) -> `ajaxGetSiteList.do_taehwa_<끝 두 자리>_2026-10-20.json`
+   - `06` 태화연 오토캠핑장 47자리(열림 `ACTIVE`/`Y`/`N` 37, `RESERVED` 10), `07` 태화연 오토(소형)캠핑장 4자리(모두 열림), `08` 태화연 오토(이동식카라반) 6자리(모두 열림).
+
+확인한 값: `cpId` 황방산 `hwangbang`, 태화연 `taehwa`(예약 화면의 ajax 호출 값, 폼 action `/camping/hwangbang/insert.do`·`/camping/taehwa/insert.do`). 구역은 예약 화면의 `changeCp(...)` 목록과 자리 목록 응답(`csId`, `csName`, `csType`, `csMaxCapacity`)이 일치한다.
+황방산: `…04` 오토 `AUTO` 6인, `…34` 차량카라반(소) `CARAVAN` 4인, `…05` 카라반 `CARAVAN` 6인. 태화연: `…06`, `…07`, `…08` 모두 `AUTO` 6인.
+세 시설의 화면 JS는 같은 코드다(`rsStay` 1, 2와 "2박 3일, 1박 2일" 주석). 서버가 정한 최대 박수 값은 어느 응답에도 없다(`cpMaxStay: 0`).
+`ajaxGetSiteList.do` 응답의 `ableEndDate`는 세 시설 모두 2026-10-31이다.
+
+값을 가린 곳: 1번과 5번의 `key=`는 저장하지 않았다. `JSESSIONID`는 저장하지 않았다. 자리 목록 응답에는 #78과 같이 운영자 시스템 계정 id(`regId`, `uptId`)가 있고 가리지 않았다.
+봇 탐지: 두 `pageCont.do`와 조회 응답에 `crawlingCheck`, `dynapath`, `botmanager`, `captcha`가 없다.
+
+"입화산 참살이숲야영장": 이 예약처의 메뉴·`changeCp` 목록·응답 어디에도 나오지 않았다. 예약 화면 JS의 배치도 분기에 `cpId` `iphwa`(`plotplan5.png`)와 `iphwa2`(별뜨락의 `menuNo=2010400`)가 있을 뿐이고 `iphwa`는 메뉴에 연결되어 있지 않다. 별도 시설인지, 지금 예약을 받는지는 확인하지 못했다(없는 값으로 요청하지 않았다).

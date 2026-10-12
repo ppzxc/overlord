@@ -516,9 +516,19 @@ export function uljuServer(
 /** 기록한 중구 응답(research/raw/junggu, 2026-10-12)을 읽는다. 변형은 읽은 JSON을 고쳐 만든다. */
 const jungguRaw = (name: string) => readFileSync(new URL(`../research/raw/junggu/${name}`, import.meta.url), "utf8");
 
-/** 기록한 입화산 제2오토 월 지도(2026-10). 10/12~10/31이 선택 가능, 그 앞은 불가이고 중구민 전용일은 없다. */
-export const jungguMonthly = (): { msg: string; monthlyMap: { calendarList: { date: string; isAbleDate: boolean; isExclusive: boolean; isOtherMonth: string }[] } } =>
-  JSON.parse(jungguRaw("ajaxGetMonthlyMap.do_iphwa_auto2_2026-10.json"));
+/** 중구 시설의 예약 화면 `menuNo`와 기록한 파일. 입화산 제2오토는 #78이 기록했고 황방산·태화연은 #79가 기록했다(research/raw/junggu). */
+const JUNGGU_PAGES: Record<string, string> = { "1010300": "pageCont.do_menuNo-1010300.html", "1020300": "pageCont.do_menuNo-1020300.html", "1030300": "pageCont.do_menuNo-1030300.html" };
+/** 입화산 제2오토 파일에는 cpId가 들어 있지 않다(#78 기록). 다른 시설은 파일 이름에 cpId가 있다. */
+const jungguMonthlyFile = (cpId: string) => (cpId === "iphwa_auto2" ? "ajaxGetMonthlyMap.do_iphwa_auto2_2026-10.json" : `ajaxGetMonthlyMap.do_${cpId}_2026-10.json`);
+const jungguSiteListFile = (cpId: string, csId: string, date: string) =>
+  cpId === "iphwa_auto2" ? `ajaxGetSiteList.do_${csId.slice(-2)}_${date}.json` : `ajaxGetSiteList.do_${cpId}_${csId.slice(-2)}_${date}.json`;
+
+/** 기록한 시설 예약 화면. */
+export const jungguPage = (menuNo = "1010300"): string => jungguRaw(JUNGGU_PAGES[menuNo] ?? "");
+
+/** 기록한 월 지도(2026-10). 입화산 제2오토·황방산·태화연 모두 10/12~10/31이 선택 가능, 그 앞은 불가이고 중구민 전용일은 없다. */
+export const jungguMonthly = (cpId = "iphwa_auto2"): { msg: string; monthlyMap: { calendarList: { date: string; isAbleDate: boolean; isExclusive: boolean; isOtherMonth: string }[] } } =>
+  JSON.parse(jungguRaw(jungguMonthlyFile(cpId)));
 
 export interface JungguSite {
   ctId: string;
@@ -537,9 +547,13 @@ export interface JungguSiteList {
   [key: string]: unknown;
 }
 
-/** 기록한 `ajaxGetSiteList.do` 응답. 기록한 (구역 끝 두 자리, 날짜)만 있다: 31은 10/14(CLOSED)·10/17(RESERVED)·10/20(열림), 32·33·35·36은 10/20이다. */
-export const jungguSiteList = (csId: string, date: string): JungguSiteList =>
-  JSON.parse(jungguRaw(`ajaxGetSiteList.do_${csId.slice(-2)}_${date}.json`));
+/**
+ * 기록한 `ajaxGetSiteList.do` 응답. 기록한 (시설, 구역 끝 두 자리, 날짜)만 있다.
+ * 입화산 제2오토: 31은 10/14(CLOSED)·10/17(RESERVED)·10/20(열림), 32·33·35·36은 10/20이다. 황방산·태화연은 모든 구역의 10/20이다.
+ * 황방산 10/20은 전 자리 CLOSED, 태화연 10/20은 `오토 101…`에 열림(ACTIVE)과 RESERVED가 섞여 있고 소형·이동식카라반은 전부 열림이다.
+ */
+export const jungguSiteList = (csId: string, date: string, cpId = "iphwa_auto2"): JungguSiteList =>
+  JSON.parse(jungguRaw(jungguSiteListFile(cpId, csId, date)));
 
 /**
  * 가짜 중구 서버. 대기열 서버(campwait.junggu.ulsan.kr)와 예약처(camping.junggu.ulsan.kr)를 함께 흉내 낸다.
@@ -550,11 +564,13 @@ export function jungguServer(
     /** 대기열 5101/5002 응답 줄을 바꾼다. 액션(aid)과 그 액션의 몇 번째 요청인지를 받는다. 기본은 바로 통과다. */
     queue?: (aid: string, nth: number) => string | undefined;
     /** `ajaxGetMonthlyMap.do`(searchDate는 그 달 1일) 응답을 바꾼다. 기본은 기록한 2026-10 지도다. */
-    monthly?: (searchDate: string) => TransportResponse | undefined;
+    monthly?: (searchDate: string, cpId: string) => TransportResponse | undefined;
     /** `ajaxGetSiteList.do` 응답을 바꾼다. 기본은 기록한 응답이다. */
     siteList?: (form: { searchDate: string; cpId: string; csId: string; isExclusive: string }) => TransportResponse | undefined;
     /** `pageCont.do` 응답을 바꾼다. */
     page?: (menuNo: string) => TransportResponse | undefined;
+    /** `/camping/js/netfunnel.js` 본문을 바꾼다. 기본은 기록한 머리 20줄이다(버전 2.2.19, TS_HOST). */
+    script?: string;
     /** 모든 요청에 앞서 응답을 가로챈다. */
     intercept?: (req: TransportRequest) => TransportResponse | undefined;
   } = {},
@@ -578,22 +594,29 @@ export function jungguServer(
     if (url.hostname !== "camping.junggu.ulsan.kr") return { status: 404, body: "" };
     if (req.method === "GET" && url.pathname === "/camping/pageCont.do") {
       const menuNo = url.searchParams.get("menuNo") ?? "";
-      return opts.page?.(menuNo) ?? { status: 200, body: jungguRaw("pageCont.do_menuNo-1010300.html"), setCookie: ["JSESSIONID=sess1; Path=/camping; Secure; HttpOnly; SameSite=None"] };
+      const recorded = JUNGGU_PAGES[menuNo];
+      return opts.page?.(menuNo) ?? (recorded ? { status: 200, body: jungguRaw(recorded), setCookie: ["JSESSIONID=sess1; Path=/camping; Secure; HttpOnly; SameSite=None"] } : { status: 404, body: "" });
     }
+    if (req.method === "GET" && url.pathname === "/camping/js/netfunnel.js") return opts.script ? { status: 200, body: opts.script } : { status: 200, body: jungguRaw("netfunnel.excerpt.js") };
     if (req.method !== "POST") return { status: 404, body: "" };
     const form = Object.fromEntries(new URLSearchParams(req.body ?? ""));
     forms.push({ path: url.pathname, form });
     if (url.pathname === "/camping/ajaxGetMonthlyMap.do") {
-      const custom = opts.monthly?.(form.searchDate ?? "");
+      const custom = opts.monthly?.(form.searchDate ?? "", form.cpId ?? "");
       if (custom) return custom;
-      return form.searchDate === "2026-10-01" ? { status: 200, body: jungguRaw("ajaxGetMonthlyMap.do_iphwa_auto2_2026-10.json") } : { status: 404, body: "" };
+      if (form.searchDate !== "2026-10-01") return { status: 404, body: "" };
+      try {
+        return { status: 200, body: jungguRaw(jungguMonthlyFile(form.cpId ?? "")) };
+      } catch {
+        return { status: 404, body: "" };
+      }
     }
     if (url.pathname === "/camping/ajaxGetSiteList.do") {
       const args = { searchDate: form.searchDate ?? "", cpId: form.cpId ?? "", csId: form.csId ?? "", isExclusive: form.isExclusive ?? "" };
       const custom = opts.siteList?.(args);
       if (custom) return custom;
       try {
-        return { status: 200, body: jungguRaw(`ajaxGetSiteList.do_${args.csId.slice(-2)}_${args.searchDate}.json`) };
+        return { status: 200, body: jungguRaw(jungguSiteListFile(args.cpId, args.csId, args.searchDate)) };
       } catch {
         return { status: 404, body: "" };
       }

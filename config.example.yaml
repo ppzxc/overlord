@@ -21,11 +21,12 @@ watches:
     weekdays: [fri, sat]
     nights: 1
     notify: [default]
-  # 울산 중구(입화산 제2오토): 시설은 facility, 구역은 예약처 값(csId)이다. 쓸 수 있는 값은 `catalog junggu iphwa-auto2`로 본다. 지금은 1박만 읽는다.
-  # - name: 입화산 제2오토 10월
+  # 울산 중구(입화산 제2오토 iphwa-auto2, 황방산 hwangbang, 태화연 taehwayeon): 시설은 facility, 구역은 예약처 값(csId)이다. 쓸 수 있는 값은 `catalog junggu`와 `catalog junggu <시설>`로 본다.
+  # 최대 2박(화면 JS 근거)이고 두 박 모두 같은 자리가 열려 있어야 알린다. 기본 폴링 간격은 150초다.
+  # - name: 태화연 10월
   #   provider: junggu
-  #   facility: iphwa-auto2
-  #   zones: [CP_SPEC_000000000031]
-  #   checkIn: { from: 2026-10-20, to: 2026-10-31 }
-  #   nights: 1
+  #   facility: taehwayeon
+  #   zones: [CP_SPEC_000000000006, CP_SPEC_000000000007]
+  #   checkIn: { from: 2026-10-20, to: 2026-10-30 }
+  #   nights: 2
   #   notify: [default]

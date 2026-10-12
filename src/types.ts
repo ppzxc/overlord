@@ -155,8 +155,9 @@ export class AdapterError extends Error {
   constructor(
     readonly kind: "transient" | "blocked" | "unrecognized" | "unavailable",
     message: string,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = "AdapterError";
   }
 }

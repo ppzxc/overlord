@@ -54,7 +54,8 @@ export async function enterQueue(ctx: AdapterContext, queue: NetFunnelQueue): Pr
       body = res.body;
     } catch (e) {
       if (e instanceof AdapterError) throw e;
-      throw new AdapterError("transient", `대기열 서버에 연결하지 못했다: ${(e as Error).message}`);
+      // 원인(예: TLS 검증 실패의 cause.code)을 어댑터가 읽을 수 있게 cause로 남긴다.
+      throw new AdapterError("transient", `대기열 서버에 연결하지 못했다: ${(e as Error).message}`, { cause: e });
     }
     const { code, fields, result } = parseNf(body);
     if (code === 301 || code === 302) throw new AdapterError("blocked", `대기열이 차단 신호(${code})를 줬다`);

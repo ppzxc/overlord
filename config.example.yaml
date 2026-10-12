@@ -21,3 +21,11 @@ watches:
     weekdays: [fri, sat]
     nights: 1
     notify: [default]
+  # 울산 중구(입화산 제2오토): 시설은 facility, 구역은 예약처 값(csId)이다. 쓸 수 있는 값은 `catalog junggu iphwa-auto2`로 본다. 지금은 1박만 읽는다.
+  # - name: 입화산 제2오토 10월
+  #   provider: junggu
+  #   facility: iphwa-auto2
+  #   zones: [CP_SPEC_000000000031]
+  #   checkIn: { from: 2026-10-20, to: 2026-10-31 }
+  #   nights: 1
+  #   notify: [default]

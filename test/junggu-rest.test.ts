@@ -548,8 +548,7 @@ describe("catalog junggu --live", () => {
   ])("%s: 바퀴와 같은 흐름(main, 예약 화면, 월 지도)으로 내일 날짜의 구역마다 자리 목록을 한 번씩 보내고 카탈로그와 일치하면 차이 없음 0이다", async (facility, cpId, menuNo, zones) => {
     const s = setup();
     expect(await s.run(facility)).toBe(0);
-    const flowLabels = s.requests.filter((r) => !r.url.endsWith("/js/netfunnel.js")).map(label);
-    expect(flowLabels).toEqual(["nf:5101:main", `GET pageCont.do?${menuNo}`, "POST ajaxGetMonthlyMap.do", ...Array<string>(zones).fill("POST ajaxGetSiteList.do")]);
+    expect(s.requests.map(label)).toEqual(["nf:5101:main", `GET pageCont.do?${menuNo}`, "POST ajaxGetMonthlyMap.do", ...Array<string>(zones).fill("POST ajaxGetSiteList.do")]);
     const posts = s.requests.filter((r) => r.method === "POST").map(bodyOf);
     expect(posts[0]).toEqual({ searchDate: "2026-10-01", cpId });
     expect(posts.slice(1).map((b) => b.searchDate)).toEqual(Array<string>(zones).fill("2026-10-13"));
@@ -571,8 +570,9 @@ describe("catalog junggu --live", () => {
   it("요청은 5초 + 지터 간격으로 한 줄로 나가고 대기열 요청만 간격 큐 밖이다", async () => {
     const s = setup();
     expect(await s.run("hwangbang")).toBe(0);
-    // 예약처 요청(예약 화면, 월 지도, 자리 목록 3건, netfunnel.js)은 앞 요청 뒤 6.5초(5초 + 지터 0.5*3초)를 쉰 뒤 나간다. 첫 요청은 쉬지 않고 대기열 요청은 쉬지 않는다.
-    expect(s.sleeps).toEqual(Array<number>(5).fill(6_500));
+    // 예약처 요청(예약 화면, 월 지도, 자리 목록 3건) 다섯 중 첫 요청을 뺀 넷은 앞 요청 뒤 6.5초(5초 + 지터 0.5*3초)를 쉰 뒤 나간다. 첫 요청과 대기열 요청은 쉬지 않는다.
+    expect(s.sleeps).toEqual(Array<number>(4).fill(6_500));
+    expect(s.requests.some((r) => r.url.endsWith("/js/netfunnel.js"))).toBe(false); // --live는 netfunnel.js를 받지 않는다.
   });
 
   it("시설 없이 --live를 걸면 요청 없이 쓸 수 있는 시설 코드와 함께 1이다", async () => {

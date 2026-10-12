@@ -360,7 +360,7 @@ export const jungguAdapter: ProviderAdapter = {
   queryAvailabilityBatch: (units, ctx) => runBatch(units, ctx),
 
   /**
-   * `catalog --live`: 바퀴와 같은 흐름(대기열, 예약 화면, 월 지도)으로 내일(KST) 밤의 구역마다 자리 목록을 한 번씩 받아 구역과 자리를 읽는다.
+   * `catalog --live`: 바퀴와 같은 흐름(대기열, 예약 화면, 월 지도)으로 내일(KST) 밤의 구역마다 자리 목록을 한 번씩 받아 구역과 자리를 읽는다(netfunnel.js 확인 없이).
    * 내일을 고를 수 없으면(월 지도의 isAbleDate false, 중구민 전용일) 비교할 응답이 없다고 알린다. 실패가 아니다.
    * 예약 화면의 구역 목록에 있는 구역만 조회한다(화면에서 사라진 구역은 응답에 없는 구역으로 보인다).
    */
@@ -376,8 +376,7 @@ export const jungguAdapter: ProviderAdapter = {
       const night = await nightOf(visit, code, date, ctx);
       zones.push({ name: night.csName ?? pageName, codes: [code], seats: [...night.sites.values()].map((s) => s.name) });
     }
-    await warnNetfunnelDrift(ctx);
-    return { zones };
+    return { zones }; // netfunnel.js 확인은 바퀴에서만 한다. --live는 요청을 늘리지 않는다.
   },
 
   deepLink: (q) => pageUrl(ref(q.facility).menuNo),

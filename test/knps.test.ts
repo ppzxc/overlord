@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig } from "../src/config.js";
-import { ENV, configWith, knpsServer, settle, startPoller } from "./harness.js";
+import { ENV, configWith, fixture, knpsServer, settle, startPoller } from "./harness.js";
 import type { TransportRequest } from "../src/types.js";
 
 // 갓바위(B252001)의 기록한 응답 축소본: 자리 A01·A04·A08 x 입실일 10/13~10/22.
@@ -134,6 +134,134 @@ describe("국립공원 폴러", () => {
     await settle();
     expect(p.sent.some((m) => /blocked|차단/.test(m.text))).toBe(true);
     expect(p.allRequests.some((r) => r.url.endsWith("campsiteList.do"))).toBe(false);
+    await p.stop();
+  });
+});
+
+describe("국립공원 신호 분류", () => {
+  const listOf = () => fixture("knps-gatbawi-campsiteList.htm");
+  const failedKinds = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "query failed").map((l) => l.fields?.kind);
+  const pageRounds = (p: ReturnType<typeof run>) => p.allRequests.filter((r) => r.url.endsWith("searchSimpleCampReservation.do")).length;
+  const stopped = (p: ReturnType<typeof run>) => p.sent.some((m) => /구조가 바뀌/.test(m.text));
+
+  it("NetFunnel 302도 곧바로 차단 알림이고 가상 대기에 참여하지 않으며 campsiteList.do는 나가지 않는다", async () => {
+    const p = run("2026-10-15", { server: knpsServer({ queue: (aid) => (aid === "reservation2" ? "5002:302:key=&nwait=0" : undefined) }) });
+    await settle();
+    expect(p.sent.some((m) => /차단/.test(m.text))).toBe(true);
+    expect(p.allRequests.filter((r) => r.url.includes("opcode=5002"))).toHaveLength(0);
+    expect(p.allRequests.some((r) => r.url.endsWith("campsiteList.do"))).toBe(false);
+    await p.stop();
+  });
+
+  it("로그인 화면이 오면 차단 알림이고 그 뒤로 예약처에 요청이 더 나가지 않는다", async () => {
+    const p = run("2026-10-15", { server: knpsServer({ list: () => "<html><body><h1>로그인</h1><form action='/reservation/auth.do'></form></body></html>" }) });
+    await settle();
+    expect(p.sent.some((m) => /차단/.test(m.text))).toBe(true);
+    const before = p.allRequests.length;
+    await p.clock.advance(3_600_000);
+    await settle();
+    expect(p.allRequests).toHaveLength(before);
+    await p.stop();
+  });
+
+  it("칸이 하나도 없으면 첫 바퀴는 알림 없이 넘기고 두 바퀴 연속이면 unrecognized로 멈춘다", async () => {
+    const p = run("2026-10-15", { server: knpsServer({ list: () => listOf().replace(/<i title="[^"]*"\s+class="[^"]*"/g, "<i") }) });
+    await settle();
+    expect(failedKinds(p)).toEqual(["unrecognized"]);
+    expect(stopped(p)).toBe(false);
+    await p.clock.advance(400_000);
+    await settle();
+    expect(failedKinds(p)).toEqual(["unrecognized", "unrecognized"]);
+    expect(stopped(p)).toBe(true);
+    const before = pageRounds(p);
+    await p.clock.advance(3_600_000);
+    await settle();
+    expect(pageRounds(p)).toBe(before);
+    await p.stop();
+  });
+
+  it("모르는 상태 접미(_X)는 빈자리 없음이 아니라 unrecognized로 두 바퀴 연속이면 멈춘다", async () => {
+    const p = run("2026-10-15", { server: knpsServer({ list: () => listOf().replace(/ 20261015_N/g, " 20261015_X") }) });
+    await settle();
+    expect(failedKinds(p)).toEqual(["unrecognized"]);
+    expect(p.sent).toHaveLength(0);
+    await p.clock.advance(400_000);
+    await settle();
+    expect(stopped(p)).toBe(true);
+    await p.stop();
+  });
+
+  it("감시 조건이 쓰는 구역이 응답에서 사라지면 두 바퀴 연속일 때 unrecognized로 멈춘다", async () => {
+    const p = run("2026-10-15", { server: knpsServer({ list: () => listOf().replace("일반(대형)야영지", "다른야영지") }) });
+    await settle();
+    expect(failedKinds(p)).toEqual(["unrecognized"]);
+    await p.clock.advance(400_000);
+    await settle();
+    expect(stopped(p)).toBe(true);
+    await p.stop();
+  });
+
+  it("HTTP 5xx는 transient이고 다음 바퀴까지의 간격이 늘어난다", async () => {
+    const p = run("2026-10-15", { server: knpsServer({ listStatus: 503 }), random: () => 0.5 });
+    await settle();
+    expect(failedKinds(p)).toEqual(["transient"]);
+    await p.clock.advance(350_000); // 기본 간격이면 이미 다음 바퀴가 시작했을 시간이다.
+    await settle();
+    expect(pageRounds(p)).toBe(1);
+    await p.stop();
+  });
+
+  it("대기 상한(120초)을 넘기면 transient이고 간격이 늘어난다", async () => {
+    const p = run("2026-10-15", {
+      server: knpsServer({ queue: (aid) => (aid === "reservation2" ? "5002:201:key=KEYW&nwait=5&nnext=1&tps=1&ttl=130&ip=x&port=443" : undefined) }),
+      random: () => 0.5,
+    });
+    await settle();
+    expect(failedKinds(p)).toEqual(["transient"]);
+    await p.clock.advance(350_000);
+    await settle();
+    expect(pageRounds(p)).toBe(1);
+    await p.stop();
+  });
+
+  it("쓰지 않는 새 구역은 경고만 남기고 알림도 실패도 없다", async () => {
+    const extra = (html: string) => {
+      let n = 0;
+      return html.replace(/<\/tbody>/g, () =>
+        ++n === 1
+          ? '<tr><th rowspan="1" scope="row"><span class="title">신규구역</span></th><th scope="row"><span class="title">Z01</span></th></tr></tbody>'
+          : '<tr><td><i title="Z01 : 2026-10-15" class="icon-x 20261015_R"></i></td></tr></tbody>',
+      );
+    };
+    const p = run("2026-10-15", { server: knpsServer({ list: () => extra(listOf()) }) });
+    await settle();
+    expect(p.logs.some((l) => l.msg === "knps zone drift" && l.fields?.zone === "신규구역")).toBe(true);
+    expect(failedKinds(p)).toEqual([]);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).not.toMatch(/차단|구조가 바뀌/);
+    await p.stop();
+  });
+
+  it("netfunnel.js 버전이나 TS_HOST가 달라지면 경고만 남기고 첫 조회가 끝난 뒤 세션당 한 번만 받는다", async () => {
+    const p = run("2026-10-15", { server: knpsServer({ script: "/* Version 2.3.0 */\nNetFunnel.TS_HOST = 'nf.example.kr';\n" }) });
+    await settle();
+    expect(p.logs.some((l) => l.msg === "knps netfunnel.js version changed" && l.fields?.actual === "2.3.0")).toBe(true);
+    expect(p.logs.some((l) => l.msg === "knps TS_HOST changed" && l.fields?.actual === "nf.example.kr")).toBe(true);
+    const scripts = () => p.allRequests.filter((r) => r.url.endsWith("/assets/js/lib/netfunnel.js"));
+    expect(scripts()).toHaveLength(1);
+    expect(p.allRequests.indexOf(scripts()[0]!)).toBeGreaterThan(p.allRequests.findIndex((r) => r.url.endsWith("campsiteList.do")));
+    expect(p.sent).toHaveLength(1);
+    await p.clock.advance(300_000);
+    await settle();
+    expect(scripts()).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("netfunnel.js가 기록한 값과 같으면 경고가 없다", async () => {
+    const p = run("2026-10-15");
+    await settle();
+    expect(p.allRequests.some((r) => r.url.endsWith("/assets/js/lib/netfunnel.js"))).toBe(true);
+    expect(p.logs.filter((l) => /changed|drift/.test(l.msg))).toEqual([]);
     await p.stop();
   });
 });

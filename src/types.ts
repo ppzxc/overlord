@@ -166,9 +166,12 @@ export interface ProviderAdapter {
   describe(): ProviderInfo;
   queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]>;
   /**
-   * 조회 단위 여러 개를 한 번에 묻는다. 예약처의 요약 화면으로 먼저 거를 수 있는 어댑터만 구현한다.
+   * 조회 단위 여러 개를 한 번에 묻는다. 요약 화면으로 먼저 거르거나, 같은 응답·세션을 단위끼리 나눠 쓸 수 있는 어댑터만 구현한다.
    * 없으면 코어가 조회 단위마다 queryAvailability를 따로 호출한다.
-   * 결과 키는 넘겨받은 조회 단위 객체다. 단위 하나만 실패하면 그 값에 AdapterError를 담고, 차단처럼 전체가 실패하면 던진다.
+   * 결과 키는 넘겨받은 조회 단위 객체다. 실패는 두 방식 가운데 어댑터가 고른다.
+   * 단위별 값에 AdapterError를 담아 돌려주면 코어가 그 단위만 실패로 치고 나머지 결과는 쓴다(울주는 차단도 이렇게 값으로 돌려준다).
+   * 던지면 코어가 모든 단위를 그 오류로 실패 처리한다(고래불·xticket은 차단을 던진다).
+   * 어느 쪽이든 바퀴의 실패 종류는 가장 무거운 오류로 정해진다. 어댑터마다 다르니 차단이 던져진다고 가정하지 않는다.
    */
   queryAvailabilityBatch?(
     units: AvailabilityQuery[],

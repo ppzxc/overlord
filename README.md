@@ -36,4 +36,4 @@ docker compose up -d --build
 
 `npm run typecheck`, `npm run lint`, `npm test`.
 
-예약처 카탈로그: `node dist/main.js catalog <예약처> [--live] [--config config.yaml]`
+예약처 카탈로그: `node dist/main.js catalog <예약처> [<시설>] [--live] [--config config.yaml]`

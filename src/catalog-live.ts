@@ -10,6 +10,8 @@ export interface LiveOptions {
   /** 요청 사이 간격(5초 + 0~3초 지터)을 지키는 데 쓰는 시계와 난수. 폴러와 같은 원칙이다. */
   clock: Clock;
   random: () => number;
+  /** 대조할 시설 코드. 없으면 첫 시설이다(시설이 하나인 예약처용). */
+  facility?: string;
 }
 
 export interface LiveResult {
@@ -36,7 +38,7 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
     }),
   };
   try {
-    return await compareLive(adapter, info.facilities[0]!, addDays(kstDate(opts.now), 1), ctx);
+    return await compareLive(adapter, info.facilities.find((f) => f.code === opts.facility) ?? info.facilities[0]!, addDays(kstDate(opts.now), 1), ctx);
   } finally {
     // 대기열에 들어갔던 예약처는 종료할 때 마무리 신호를 보낸다.
     await adapter.close?.(ctx);

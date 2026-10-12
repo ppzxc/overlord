@@ -326,6 +326,12 @@ describe("북구 폴러", () => {
       const gone = run({ from: "2026-10-14" }, { server: respond(withoutZone("line_yellow")) }); // 일반데크 감시
       await settle();
       expect(failedKinds(gone)).toEqual(["unrecognized"]);
+      expect(gone.sent).toHaveLength(0); // 첫 바퀴는 아직 알리지 않는다.
+      await gone.clock.advance(150_000);
+      await settle();
+      expect(failedKinds(gone)).toEqual(["unrecognized", "unrecognized"]);
+      expect(gone.sent).toHaveLength(1);
+      expect(gone.sent[0]!.text).toMatch(/구조가 바뀌/);
       await gone.stop();
       const unused = run({ from: "2026-10-14" }, { server: respond(withoutZone("line_sky")) }); // 필로티가 사라졌지만 일반데크를 감시
       await settle();
@@ -452,6 +458,11 @@ describe("북구 폴러: 추첨 대상 날짜", () => {
       expect(kinds(p)).toEqual(["unrecognized"]);
       expect(p.sent).toHaveLength(0);
       expect(p.allRequests.filter((r) => r.method === "POST")).toEqual([]);
+      await p.clock.advance(150_000); // 두 바퀴 연속이면 멈추고 알린다
+      await settle();
+      expect(kinds(p)).toEqual(["unrecognized", "unrecognized"]);
+      expect(p.sent).toHaveLength(1);
+      expect(p.sent[0]!.text).toMatch(/구조가 바뀌/);
       await p.stop();
     });
 

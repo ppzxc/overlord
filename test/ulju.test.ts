@@ -3,7 +3,7 @@ import { adapters } from "../src/adapters/index.js";
 import { runCatalog } from "../src/commands.js";
 import { ConfigError, loadConfig } from "../src/config.js";
 import { createHttpClient } from "../src/http.js";
-import { ENV, settle, configWith, startPoller, uljuRowsFor, uljuServer } from "./harness.js";
+import { ENV, settle, configWith, startPoller, uljuRows, uljuRowsFor, uljuServer } from "./harness.js";
 import type { UljuRow } from "./harness.js";
 import type { TransportRequest, TransportResponse } from "../src/types.js";
 
@@ -14,25 +14,22 @@ const ZONE_4X4 = "F0000004"; // 야영데크(4*4)
 const ZONE_6X4 = "F0000016"; // 야영데크(6*4)
 const ZONE_CABIN = "F0000005"; // 캐빈하우스: 10/16에는 모두 N이다.
 
-const watch = (checkIn: { from: string; to?: string }, zones: string[] = [ZONE_4X4], extra = "") => `
-  - name: 별빛 ${zones.join("+")} ${checkIn.from}
+const watch = (checkIn: { from: string; to?: string }, zones: string[] = [ZONE_4X4], extra = "", facility = "jakcheon-byeolbit", nights = 1) => `
+  - name: ${facility} ${zones.join("+")} ${checkIn.from} ${nights}박
     provider: ulju
-    facility: jakcheon-byeolbit
+    facility: ${facility}
     zones: [${zones.join(", ")}]
     checkIn: { from: ${checkIn.from}, to: ${checkIn.to ?? checkIn.from} }
-    nights: 1
+    nights: ${nights}
     notify: [default]${extra}`;
+
+const start = (watches: string, opts: { server?: ReturnType<typeof uljuServer>; random?: () => number; now?: string } = {}) =>
+  startPoller(() => ({ status: 404, body: "" }), { yaml: configWith(watches), server: opts.server ?? uljuServer(), random: opts.random, now: opts.now });
 
 const run = (
   checkIn: { from: string; to?: string },
-  opts: { server?: ReturnType<typeof uljuServer>; zones?: string[]; random?: () => number; now?: string; extra?: string } = {},
-) =>
-  startPoller(() => ({ status: 404, body: "" }), {
-    yaml: configWith(watch(checkIn, opts.zones, opts.extra)),
-    server: opts.server ?? uljuServer(),
-    random: opts.random,
-    now: opts.now,
-  });
+  opts: { server?: ReturnType<typeof uljuServer>; zones?: string[]; random?: () => number; now?: string; extra?: string; facility?: string; nights?: number } = {},
+) => start(watch(checkIn, opts.zones, opts.extra, opts.facility, opts.nights), opts);
 
 const path = (r: TransportRequest) => new URL(r.url).pathname;
 const DAY = "/ujcamping/campsite/get_cal_day_data_list";
@@ -258,6 +255,171 @@ describe("ulju 폴러", () => {
   });
 });
 
+describe("ulju 여러 박과 여러 시설", () => {
+  /** 기록한 10/16 응답에서 자리 이름이 맞는 행만 N으로 바꾼 응답. */
+  const closing = (names: string[]) => (date: string, classes: string) =>
+    ok(uljuRowsFor(date, uljuRows(classes).map((r) => (names.includes(r.NAME) ? { ...r, ISRESERVABLE: "N" } : r))));
+  const mentions = (text: string, seat: string) => new RegExp(`${seat}(?!\\d)`).test(text);
+
+  it("2박 조회 단위는 두 밤 모두 Y인 자리만 알리고 첫 밤만 Y인 자리는 알리지 않는다", async () => {
+    // 10/16은 기록 그대로(4*4 Y: 2, 9, 11, 17, 20, 22, 23), 10/17은 2와 9가 N이다.
+    const server = uljuServer({ day: (date, classes) => (date === "2026-10-17" ? closing(["별빛야영장2", "별빛야영장9"])(date, classes) : ok(uljuRowsFor(date, uljuRows(classes)))) });
+    const p = run({ from: "2026-10-16" }, { server, nights: 2 });
+    await settle();
+    expect(p.allRequests.map((r) => JSON.parse(r.body!).select_date)).toEqual(["2026-10-16", "2026-10-17"]);
+    expect(p.sent).toHaveLength(1);
+    const text = p.sent[0]!.text;
+    for (const seat of ["별빛야영장11", "별빛야영장17", "별빛야영장20", "별빛야영장22", "별빛야영장23"]) expect(mentions(text, seat), seat).toBe(true);
+    for (const seat of ["별빛야영장2", "별빛야영장9"]) expect(mentions(text, seat), seat).toBe(false);
+    await p.stop();
+  });
+
+  it("둘째 밤이 모두 N이면 첫 밤에 Y가 있어도 알리지 않는다", async () => {
+    const server = uljuServer({ day: (date, classes) => (date === "2026-10-17" ? closing(uljuRows(classes).map((r) => r.NAME))(date, classes) : ok(uljuRowsFor(date, uljuRows(classes)))) });
+    const p = run({ from: "2026-10-16" }, { server, nights: 2 });
+    await settle();
+    expect(p.allRequests).toHaveLength(2);
+    expect(p.sent).toHaveLength(0);
+    expect(failedKinds(p)).toEqual([]);
+    await p.stop();
+  });
+
+  it("감시 조건 둘이 같은 밤을 쓰면 그 밤은 한 번만 조회한다", async () => {
+    const p = start(watch({ from: "2026-10-16" }, [ZONE_4X4], "", "jakcheon-byeolbit", 2) + watch({ from: "2026-10-17" }, [ZONE_6X4]));
+    await settle();
+    expect(p.allRequests.map((r) => JSON.parse(r.body!).select_date).sort()).toEqual(["2026-10-16", "2026-10-17"]);
+    await p.stop();
+  });
+
+  it("두 시설을 감시하면 classes가 다른 요청이 각각 나가고 시설마다 구역·자리로 알린다", async () => {
+    const p = start(watch({ from: "2026-10-16" }, [ZONE_4X4]) + watch({ from: "2026-10-16" }, ["F0000001"], "", "deungeok"));
+    await settle();
+    expect(p.allRequests.map((r) => JSON.parse(r.body!).classes)).toEqual(["C0000001", "C0000002"]);
+    expect(p.allRequests.every((r) => r.headers["Content-Type"] === "application/json" && r.headers["X-CSRF-TOKEN"] === "")).toBe(true);
+    const text = p.sent.map((m) => m.text).join("\n");
+    expect(text).toContain("야영데크(4*4)");
+    expect(text).toContain("등억 오토캠핑장");
+    await p.stop();
+  });
+
+  it("같은 FACILITY_ID(F0000001)라도 시설마다 따로 판정한다", async () => {
+    // 등억알프스 오토캠핑장은 15자리가 Y, 작천정달빛 오토캠핑장은 6자리가 Y다.
+    const p = start(watch({ from: "2026-10-16" }, ["F0000001"], "", "jakcheon-dalbit"));
+    await settle();
+    expect(p.allRequests.map((r) => JSON.parse(r.body!).classes)).toEqual(["C0000003"]);
+    const text = p.sent[0]!.text;
+    expect(text).toContain("달빛 오토캠핑장");
+    expect(text).not.toContain("등억");
+    await p.stop();
+  });
+});
+
+describe("ulju 신호 분류", () => {
+  const without = (zone: string) => (date: string, classes: string) => ok(uljuRowsFor(date, uljuRows(classes).filter((r) => r.FACILITY_ID !== zone)));
+  const bad: [string, () => TransportResponse][] = [
+    ["모르는 result", () => ({ status: 200, body: JSON.stringify({ result: "maintenance", list: [] }) })],
+    ["JSON이 아닌 응답", () => ({ status: 200, body: "<html>점검 중입니다</html>" })],
+    ["list가 없는 ok", () => ({ status: 200, body: JSON.stringify({ result: "ok" }) })],
+    ["FACILITY_ID가 없는 행", () => ok(uljuRowsFor("2026-10-16").map((r): Partial<UljuRow> => ({ ...r, FACILITY_ID: undefined })))],
+    ["ISRESERVABLE이 없는 행", () => ok(uljuRowsFor("2026-10-16").map((r): Partial<UljuRow> => ({ ...r, ISRESERVABLE: undefined })))],
+    ["ISRESERVABLE이 Y/N 밖", () => ok(uljuRowsFor("2026-10-16").map((r, i) => (i === 0 ? { ...r, ISRESERVABLE: "P" } : r)))],
+    ["감시 구역 소실", () => without(ZONE_4X4)("2026-10-16", "C0000001")],
+    ["빈 list", () => ok([])],
+  ];
+
+  it.each(bad)("%s는 첫 바퀴에는 알림 없이 두 바퀴 연속일 때 unrecognized로 멈추고 알린다", async (_name, response) => {
+    const p = run({ from: "2026-10-16" }, { server: uljuServer({ day: () => response() }) });
+    await settle();
+    expect(failedKinds(p)).toEqual(["unrecognized"]);
+    expect(p.sent).toHaveLength(0);
+    await p.clock.advance(150_000);
+    await settle();
+    expect(failedKinds(p)).toEqual(["unrecognized", "unrecognized"]);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toMatch(/구조가 바뀌/);
+    const before = p.allRequests.length;
+    await p.clock.advance(150_000);
+    await settle();
+    expect(p.allRequests.length).toBe(before); // 멈췄다.
+    await p.stop();
+  });
+
+  it("첫 바퀴에만 구조가 달라 보이고 다음 바퀴가 정상이면 멈추지 않는다", async () => {
+    let calls = 0;
+    const server = uljuServer({ day: (date, classes) => (++calls === 1 ? { status: 200, body: JSON.stringify({ result: "maintenance" }) } : ok(uljuRowsFor(date, uljuRows(classes)))) });
+    const p = run({ from: "2026-10-16" }, { server });
+    await settle();
+    await p.clock.advance(150_000);
+    await settle();
+    await p.clock.advance(150_000);
+    await settle();
+    expect(failedKinds(p)).toEqual(["unrecognized"]);
+    expect(p.allRequests).toHaveLength(3);
+    expect(p.sent).toHaveLength(1); // 빈자리 알림뿐이다.
+    expect(p.sent[0]!.text).toContain("야영데크(4*4)");
+    await p.stop();
+  });
+
+  it("쓰지 않는 구역이 사라지거나 새로 생겨도 경고만 한 번 남기고 감시를 계속한다", async () => {
+    const server = uljuServer({
+      day: (date, classes) => {
+        const rows = uljuRows(classes).filter((r) => r.FACILITY_ID !== "F0000003");
+        return ok(uljuRowsFor(date, [...rows, { ...rows[0]!, FACILITY_ID: "F0000099", FACILITY_NAME: "새 구역", CAMP_ID: "NEW1", NAME: "새자리1" }]));
+      },
+    });
+    const p = run({ from: "2026-10-16" }, { server });
+    await settle();
+    await p.clock.advance(150_000);
+    await settle();
+    expect(failedKinds(p)).toEqual([]);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("야영데크(4*4)");
+    const warns = p.logs.filter((l) => l.msg === "ulju zone drift").map((l) => `${l.fields?.change}:${l.fields?.zone}`);
+    expect(warns.sort()).toEqual(["gone:F0000003", "new:F0000099"]);
+    await p.stop();
+  });
+
+  it.each([
+    ["HTTP 503", { status: 503, body: "" }, "transient"],
+    ["HTTP 502", { status: 502, body: "" }, "transient"],
+    ["HTTP 403", { status: 403, body: "" }, "blocked"],
+  ])("한 밤이 %s이면 남은 요청은 보내지 않고 이미 받은 밤의 결과는 반영한다", async (_name, response, kind) => {
+    // 10/16 ok -> 10/17 실패 -> 10/18은 보내지 않는다.
+    const server = uljuServer({ day: (date, classes) => (date === "2026-10-17" ? response : ok(uljuRowsFor(date, uljuRows(classes)))) });
+    const p = start(watch({ from: "2026-10-16" }) + watch({ from: "2026-10-17" }) + watch({ from: "2026-10-18" }), { server });
+    await settle();
+    expect(p.allRequests.map((r) => JSON.parse(r.body!).select_date)).toEqual(["2026-10-16", "2026-10-17"]);
+    expect(new Set(failedKinds(p))).toEqual(new Set([kind]));
+    expect(p.sent.some((m) => m.text.includes("야영데크(4*4)"))).toBe(true); // 10/16 결과
+    await p.stop();
+  });
+
+  it("연결 실패는 transient이고 알리지 않고 멈추지 않는다", async () => {
+    const server = uljuServer({
+      intercept: () => {
+        throw new Error("connect ECONNREFUSED");
+      },
+    });
+    const p = run({ from: "2026-10-16" }, { server });
+    await settle();
+    expect(failedKinds(p)).toEqual(["transient"]);
+    await p.clock.advance(300_000); // 일시 오류가 이어지면 간격이 두 배로 늘어난다.
+    await settle();
+    expect(failedKinds(p)).toEqual(["transient", "transient"]);
+    expect(p.sent).toHaveLength(0);
+    await p.stop();
+  });
+
+  it("2박 조회 단위에서 둘째 밤이 실패하면 그 단위는 알리지 않는다", async () => {
+    const server = uljuServer({ day: (date, classes) => (date === "2026-10-17" ? { status: 503, body: "" } : ok(uljuRowsFor(date, uljuRows(classes)))) });
+    const p = run({ from: "2026-10-16" }, { server, nights: 2 });
+    await settle();
+    expect(failedKinds(p)).toEqual(["transient"]);
+    expect(p.sent).toHaveLength(0);
+    await p.stop();
+  });
+});
+
 describe("ulju 설정", () => {
   const problems = (text: string): string => {
     try {
@@ -290,8 +452,9 @@ ${lines}
     );
   });
 
-  it("2박은 위치와 함께 거부된다(즉시결제는 한 번에 1박)", () => {
-    expect(problems(block("    facility: jakcheon-byeolbit\n    zones: [F0000004]\n    nights: 2"))).toMatch(/\d+번째 줄 watches\.0\.nights: ulju는 최대 1박까지 예약할 수 있다\(설정값 2\)/);
+  it("2박은 받고 3박은 최대 박수와 함께 위치를 짚어 거부한다", () => {
+    expect(problems(block("    facility: jakcheon-byeolbit\n    zones: [F0000004]\n    nights: 2"))).toBe("");
+    expect(problems(block("    facility: jakcheon-byeolbit\n    zones: [F0000004]\n    nights: 3"))).toMatch(/\d+번째 줄 watches\.0\.nights: ulju는 최대 2박까지 예약할 수 있다\(설정값 3\)/);
   });
 });
 
@@ -320,16 +483,30 @@ describe("catalog ulju", () => {
     const r = await run();
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/^jakcheon-byeolbit\s+작천정별빛야영장\s+7곳$/m);
+    expect(r.out).toMatch(/^deungeok\s+등억알프스야영장\s+3곳$/m);
+    expect(r.out).toMatch(/^jakcheon-dalbit\s+작천정달빛야영장\s+2곳$/m);
+    expect(r.out).toMatch(/^daeunsan\s+대운산하늘숲야영장\s+8곳$/m);
     expect(r.requests).toEqual([]);
   });
 
-  it("작천정별빛은 최대 1박과 FACILITY_ID 구역 일곱 곳을 보인다", async () => {
+  it("작천정별빛은 최대 2박과 FACILITY_ID 구역 일곱 곳을 보인다", async () => {
     const r = await run("jakcheon-byeolbit");
     expect(r.code).toBe(0);
-    expect(r.out).toMatch(/^ulju \(최대 1박\)$/m);
+    expect(r.out).toMatch(/^ulju \(최대 2박\)$/m);
     for (const z of ["F0000001 오토캠핑장", "F0000002 야영데크(8*8)", "F0000003 야영데크(8*4)", "F0000004 야영데크(4*4)", "F0000016 야영데크(6*4)", "F0000017 야영데크(8*5)", "F0000005 캐빈하우스"]) {
       expect(r.out.replace(/ +/g, " ")).toContain(z);
     }
+  });
+
+  it.each([
+    ["deungeok", ["F0000001 오토캠핑장", "F0000006 카라반(일반)", "F0000007 카라반(테마)"]],
+    ["jakcheon-dalbit", ["F0000001 오토캠핑장", "F0000018 야영데크(8.5*6.5)"]],
+    ["daeunsan", ["F0000015 7.3m × 7m", "F0000008 7.2m × 7m", "F0000009 8m × 5.8m", "F0000010 7.1m × 7m", "F0000011 7.1m × 6.9m", "F0000012 2.5m × 12m, 8m × 8m", "F0000013 7.2m × 7.2m", "F0000014 7.2m × 6.9m"]],
+  ])("%s는 기록한 FACILITY_ID 구역을 보인다", async (facility, zones) => {
+    const r = await run(facility);
+    expect(r.code).toBe(0);
+    for (const z of zones) expect(r.out.replace(/ +/g, " ")).toContain(z);
+    expect(r.requests).toEqual([]);
   });
 
   it("없는 시설은 쓸 수 있는 값을 보이며 거부한다", async () => {

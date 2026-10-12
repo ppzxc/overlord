@@ -476,7 +476,8 @@ export interface UljuRow {
   [key: string]: unknown;
 }
 
-export const uljuRows = (): UljuRow[] => JSON.parse(fixture("ulju-get_cal_day_data_list-C0000001-20261016.json")).list;
+/** 시설(classes)별 기록한 2026-10-16 응답의 행. C0000001 작천정별빛 88, C0000002 등억알프스 68(Y 15), C0000003 작천정달빛 47(Y 9), C0000005 대운산하늘숲 20(Y 0)이다. */
+export const uljuRows = (classes = "C0000001"): UljuRow[] => JSON.parse(fixture(`ulju-get_cal_day_data_list-${classes}-20261016.json`)).list;
 
 /** 같은 밤을 가리키도록 SDATE·EDATE를 고친 행. 기록은 10/16 하루뿐이라 다른 밤의 응답은 이 행을 날짜만 바꿔 만든다. */
 export const uljuRowsFor = (date: string, rows: UljuRow[] = uljuRows()): UljuRow[] => {
@@ -506,7 +507,7 @@ export function uljuServer(
     const form = JSON.parse(req.body ?? "{}") as (typeof body)[number];
     body.push(form);
     if (opts.day) return opts.day(form.select_date, form.classes);
-    return { status: 200, body: JSON.stringify({ result: "ok", list: uljuRowsFor(form.select_date) }) };
+    return { status: 200, body: JSON.stringify({ result: "ok", list: uljuRowsFor(form.select_date, uljuRows(form.classes)) }) };
   };
   return Object.assign(respond, { bodies: body });
 }

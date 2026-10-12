@@ -26,9 +26,12 @@ const MAIN: NetFunnelQueue = { tsUrl: "https://campwait.junggu.ulsan.kr/ts.wseq"
 const INFO: ProviderInfo = {
   id: "junggu",
   facilities,
-  // 서버가 정한 최대 박수는 못 봤다. 화면 JS(`rsStay` 1, 2)가 근거인 2박까지만 읽는다(카탈로그 머리 주석).
+  // 세 시설 공통의 최대 박수는 여기 한 곳에만 둔다(시설마다 다르지 않다). 서버가 정한 값은 못 봤다. 화면 JS(`rsStay` 1, 2)가 근거인 2박까지만 읽는다(카탈로그 머리 주석).
   maxNights: 2,
-  // 날짜가 열렸는지는 월 지도(isAbleDate)가 알려 주므로 규칙으로는 거르지 않는다. 열리는 시각과 당일 마감 시각은 미확인이다.
+  // 세 값 모두 근거가 없는 자리 채움이다(타입상 필수라 둔다). 이 예약처가 날짜를 몇 일 전 몇 시에 여는지, 당일 입실이 몇 시에 마감되는지는 미확인이다.
+  // 날짜가 열렸는지는 월 지도(isAbleDate)가 알려 주므로 규칙으로는 거르지 않는다. 그래서 값이 하는 일은 이만큼뿐이다.
+  // - openDaysBefore 365, openTime 00:00: 입실일이 오늘부터 1년을 넘게 먼 감시 조건을 아직 열리지 않은 것으로 보고 조회하지 않는다(그 앞 날짜는 모두 월 지도로 거른다).
+  // - sameDayCutoff 23:59: 당일 입실일이 하루 끝까지 조회 대상이고, 감시 조건의 모든 날짜가 지나야 만료 알림이 나간다.
   openingRule: { openDaysBefore: 365, openTime: "00:00", sameDayCutoff: "23:59" },
   // 오픈 경쟁 시간 기본값은 없다. 선착순 접수 개시 시각이 미확인이다.
   defaultPollIntervalSeconds: 150,
@@ -55,9 +58,15 @@ const ref = (facility: string): { cpId: string; menuNo: string } => {
 
 const pageUrl = (menuNo: string) => `${ORIGIN}${PAGE_PATH}?menuNo=${menuNo}`;
 
-/** 로그인 화면·차단 안내·봇 탐지·captcha가 JSON 자리에 온 것을 알아보는 표지. 표지가 없는 JSON 아님은 unrecognized다. */
-// `menuNo=5010000`(로그인 링크)은 사이트 공통 머리말에 있어 모든 화면에 나오므로 표지로 쓰지 않는다. 로그인으로 가는 리다이렉트는 HTTP 층이 접근 금지로 막는다.
-const LOGIN_OR_BLOCK_PAGE = /로그인\s*(?:이|을|후에?)?\s*(?:필요|해\s*주)|접근이 (차단|제한)|비정상적인 접근|botmanager|crawlingCheck|dynapath|captcha/i;
+/**
+ * 봇 탐지 장치·captcha가 JSON 자리에 온 것을 알아보는 표지. 표지가 없는 JSON 아님은 unrecognized다.
+ * 근거: 이 표지들은 ADR 0002가 넘지 않는 선으로 꼽은 봇 탐지 장치의 이름이다. 중구가 이 장치를 쓰는 것은 못 봤고(기록한 화면·스크립트·조회 응답 어디에도 없다),
+ * 그래서 나타나면 새 신호로 보고 멈춘다.
+ * 중구 로그인 화면과 차단 안내의 원문은 기록이 없다(로그인 경로를 부르지 않았다). 그래서 로그인·차단 문구는 짐작으로 판정하지 않는다.
+ * 확인된 로그인 신호는 ajax 응답의 `msg: "login"`(화면 JS가 그렇게 다룬다)과 로그인 경로로의 리다이렉트(HTTP 층이 접근 금지로 막는다)뿐이다.
+ * `menuNo=5010000`(머리말의 로그인 링크)과 "로그인 후 이용하실 수 있습니다."(화면 JS의 alert)는 정상 화면에도 있어 표지로 쓰지 않는다.
+ */
+const BOT_DETECTION_PAGE = /botmanager|crawlingCheck|dynapath|captcha/i;
 
 /** 응답 상태를 판정한다. 403·429는 차단, 5xx는 일시 오류, 그 밖의 200 아님은 구조 변경이다. */
 function assertOk(res: TransportResponse, where: string): void {
@@ -85,7 +94,7 @@ function parseJson(res: TransportResponse, where: string): Record<string, unknow
   try {
     body = JSON.parse(res.body);
   } catch {
-    if (LOGIN_OR_BLOCK_PAGE.test(res.body)) throw new AdapterError("blocked", `${where}: JSON이 아니라 로그인·차단 화면이 왔다`);
+    if (BOT_DETECTION_PAGE.test(res.body)) throw new AdapterError("blocked", `${where}: JSON이 아니라 봇 탐지·captcha 화면이 왔다`);
     throw new AdapterError("unrecognized", `${where}: JSON이 아니다`);
   }
   if (!isRecord(body)) throw new AdapterError("unrecognized", `${where}: JSON 객체가 아니다`);

@@ -384,12 +384,21 @@ describe("중구 폴러", () => {
       await p.stop();
     });
 
-    it("사이트 레이아웃이 붙은 HTML(공통 머리말의 로그인 링크 포함)이 JSON 자리에 오면 blocked가 아니라 unrecognized다", async () => {
-      const page = readFileSync(new URL("../research/raw/junggu/pageCont.do_menuNo-1010300.html", import.meta.url), "utf8");
+    it.each(["1010300", "1020300", "1030300"])("기록한 예약 화면 %s(머리말의 로그인 링크와 로그인 alert 포함)가 JSON 자리에 오면 blocked가 아니라 unrecognized다", async (menuNo) => {
+      const page = readFileSync(new URL(`../research/raw/junggu/pageCont.do_menuNo-${menuNo}.html`, import.meta.url), "utf8");
       expect(page).toContain("menuNo=5010000"); // 기록한 화면의 머리말에 로그인 링크가 있다.
+      expect(page).toContain("로그인 후 이용하실 수 있습니다."); // 화면 JS의 alert도 정상 화면에 있다.
       const p = run({ from: "2026-10-20" }, { server: jungguServer({ siteList: () => ({ status: 200, body: page }) }) });
       await settle();
       expect(failedKinds(p)).toEqual(["unrecognized"]);
+      await p.stop();
+    });
+
+    it("JSON 자리에 봇 탐지 장치 표지(botmanager)가 오면 blocked로 멈춘다", async () => {
+      const body = '<script src="https://cdn-botmanager.example/agent.js"></script>';
+      const p = run({ from: "2026-10-20" }, { server: jungguServer({ siteList: () => ({ status: 200, body }) }) });
+      await settle();
+      expect(failedKinds(p)).toEqual(["blocked"]);
       await p.stop();
     });
 

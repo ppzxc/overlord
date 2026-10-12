@@ -66,11 +66,8 @@ const taehwayeonZones: ZoneInfo[] = [
   zone("08", "태화연 오토(이동식카라반)", "오토캠핑", 6),
 ];
 
-/** 최대 박수 2는 화면 JS(`rsStay` 1, 2)를 근거로 한 값이다. 서버가 정한 값은 확인하지 못했다. */
-const MAX_NIGHTS = 2;
-
 export const facilities: FacilityInfo[] = [
-  { code: "iphwa-auto2", name: "입화산 제2오토야영장", ref: { cpId: "iphwa_auto2", menuNo: "1010300" }, zones: iphwaAuto2Zones, maxNights: MAX_NIGHTS },
-  { code: "hwangbang", name: "황방산 생태야영장", ref: { cpId: "hwangbang", menuNo: "1020300" }, zones: hwangbangZones, maxNights: MAX_NIGHTS },
-  { code: "taehwayeon", name: "태화연 야영장", ref: { cpId: "taehwa", menuNo: "1030300" }, zones: taehwayeonZones, maxNights: MAX_NIGHTS },
+  { code: "iphwa-auto2", name: "입화산 제2오토야영장", ref: { cpId: "iphwa_auto2", menuNo: "1010300" }, zones: iphwaAuto2Zones },
+  { code: "hwangbang", name: "황방산 생태야영장", ref: { cpId: "hwangbang", menuNo: "1020300" }, zones: hwangbangZones },
+  { code: "taehwayeon", name: "태화연 야영장", ref: { cpId: "taehwa", menuNo: "1030300" }, zones: taehwayeonZones },
 ];

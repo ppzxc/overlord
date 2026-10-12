@@ -143,3 +143,5 @@ await runPoller(
   controller.signal,
 );
 healthzServer.close();
+// runPoller는 모든 예약처 루프와 어댑터 close(마지막 5004)가 끝나야 돌려주므로, 이제 연결 풀을 닫아도 나갈 요청이 없다.
+await transport.close();

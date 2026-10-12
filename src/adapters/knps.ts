@@ -26,8 +26,8 @@ const PAGE_HEADERS = { Referer: PAGE, Origin: ORIGIN, "X-Requested-With": "XMLHt
 const INFO: ProviderInfo = {
   id: "knps",
   facilities,
-  // 예약 화면은 1박 2일과 2박 3일을 고르게 한다. 2박은 다음 조각에서 연다.
-  maxNights: 1,
+  // 예약 화면은 1박 2일과 2박 3일을 고르게 한다.
+  maxNights: 2,
   // 응답이 내일부터 약 80일치를 주고 그 범위 밖은 빈자리 없음으로 친다. 열림 시각은 알 수 없어 넉넉히 잡는다. 오늘 날짜는 응답에 없으므로 당일 마감은 00:00이다.
   openingRule: { openDaysBefore: 365, openTime: "00:00", sameDayCutoff: "00:00" },
   // 빈자리 접수 개시가 10:00이다(스펙의 6차 회차 공지). 매일 10:00에 새 날짜를 여는지는 미확인이다.
@@ -165,12 +165,25 @@ async function readFacility(facility: string, ctx: AdapterContext): Promise<Grid
   return grid;
 }
 
-/** 한 바퀴. 화면을 열고(`landingCamp`) 시설마다 한 번씩 읽는다. 첫 실패는 그대로 던진다. */
+/** 입실일부터 `nights`박 모든 밤이 예약가능(`_N`)인지 본다. 다음날 칸이 없거나 닫혀 있으면 아니다. */
+function openForNights(dates: Map<string, CellStatus>, checkIn: string, nights: number): boolean {
+  for (let i = 0; i < nights; i++) {
+    const d = new Date(`${checkIn}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + i);
+    if (dates.get(d.toISOString().slice(0, 10)) !== "N") return false;
+  }
+  return true;
+}
+
+/**
+ * 한 바퀴. 화면을 열고(`landingCamp`) 시설마다 한 번씩 읽는다. 시설 하나가 실패하면 남은 시설은 보내지 않고
+ * 그 시설과 남은 시설의 조회 단위를 같은 오류로 돌려준다. 이미 읽은 시설의 결과는 그대로 둔다.
+ */
 async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>> {
   const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
   const byFacility = new Map<string, AvailabilityQuery[]>();
   for (const q of units) {
-    if (q.nights !== 1) throw new Error(`knps는 아직 1박만 읽는다(${q.nights}박)`);
+    if (q.nights > INFO.maxNights) throw new Error(`knps는 최대 ${INFO.maxNights}박만 읽는다(${q.nights}박)`);
     byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
   }
   if (byFacility.size === 0) return results;
@@ -180,8 +193,20 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
   // 페이지 `load`가 보내는 landingCamp 5101. 페이지는 이 키의 5004를 보내지 않는다.
   const landing = await enterQueue(ctx, LANDING);
   setNetFunnelCookie(ctx.http, HOST, landing.result ?? landing.key);
+  let failure: AdapterError | undefined;
   for (const [facility, queries] of byFacility) {
-    const grid = await readFacility(facility, ctx);
+    let grid: Grid | undefined;
+    if (!failure) {
+      try {
+        grid = await readFacility(facility, ctx);
+      } catch (e) {
+        failure = e instanceof AdapterError ? e : new AdapterError("transient", e instanceof Error ? e.message : String(e));
+      }
+    }
+    if (!grid) {
+      for (const q of queries) results.set(q, failure!);
+      continue;
+    }
     warnZoneDrift(grid, ctx);
     await warnNetfunnelDrift(ctx);
     const zones = resolveFacility(INFO, facility).zones;
@@ -193,7 +218,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
         continue;
       }
       // 응답 범위 밖의 입실일은 어느 자리에도 칸이 없어 빈자리 없음이 된다.
-      results.set(q, [...seats].filter(([, dates]) => dates.get(q.checkIn) === "N").map(([seat]): AvailableSite => ({ id: seat, name: seat })));
+      results.set(q, [...seats].filter(([, dates]) => openForNights(dates, q.checkIn, q.nights)).map(([seat]): AvailableSite => ({ id: seat, name: seat })));
     }
   }
   return results;

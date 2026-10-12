@@ -8,17 +8,17 @@ import type { TransportRequest } from "../src/types.js";
 // A01의 10/13은 예약만료(_C)다.
 const ZONE = "0200901"; // 일반(대형)야영지의 prod-ctg-id
 
-const watch = (checkIn: string, extra = "") => `
+const watch = (checkIn: string, extra = "", nights = 1) => `
   - name: 갓바위 가을
     provider: knps
     facility: gatbawi
     zones: ["${ZONE}"]
     checkIn: { from: ${checkIn}, to: ${checkIn} }
-    nights: 1
+    nights: ${nights}
     notify: [default]${extra}`;
 
-const run = (checkIn: string, opts: { server?: ReturnType<typeof knpsServer>; extra?: string; random?: () => number } = {}) =>
-  startPoller(() => ({ status: 404, body: "" }), { yaml: configWith(watch(checkIn, opts.extra)), server: opts.server ?? knpsServer(), random: opts.random });
+const run = (checkIn: string, opts: { server?: ReturnType<typeof knpsServer>; extra?: string; random?: () => number; nights?: number } = {}) =>
+  startPoller(() => ({ status: 404, body: "" }), { yaml: configWith(watch(checkIn, opts.extra, opts.nights)), server: opts.server ?? knpsServer(), random: opts.random });
 
 describe("국립공원 폴러", () => {
   it("예약가능(_N) 자리는 구역 이름·자리·딥링크가 담긴 메시지 한 건으로 알린다", async () => {
@@ -138,6 +138,45 @@ describe("국립공원 폴러", () => {
   });
 });
 
+describe("국립공원 2박", () => {
+  it("첫 밤만 _N이고 다음날이 _C 또는 _W인 자리는 2박 빈자리가 아니다", async () => {
+    // 10/15: A01 _N→10/16 _C, A04 _N→10/16 비예약가능. 1박이면 알리지만 2박이면 알리지 않는다.
+    const p = run("2026-10-15", { nights: 2 });
+    await settle();
+    expect(p.sent).toHaveLength(0);
+    await p.stop();
+  });
+
+  it("두 밤 모두 _N인 자리만 알린다", async () => {
+    // 10/21: A01 _N→10/22 _N, A04 _N→10/22 _W.
+    const p = run("2026-10-21", { nights: 2 });
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("A01");
+    expect(p.sent[0]!.text).not.toContain("A04");
+    await p.stop();
+  });
+
+  it("다음날이 응답 범위 밖이면 2박 빈자리가 아니다", async () => {
+    const p = run("2026-12-31", { nights: 2 });
+    await settle();
+    expect(p.sent).toHaveLength(0);
+    expect(p.logs.some((l) => l.msg === "query failed")).toBe(false);
+    await p.stop();
+  });
+});
+
+describe("국립공원 자리 필터", () => {
+  it("seats 필터에 맞는 자리만 알린다", async () => {
+    const p = run("2026-10-15", { extra: "\n    seats: [A04]" });
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("A04");
+    expect(p.sent[0]!.text).not.toContain("A01");
+    await p.stop();
+  });
+});
+
 describe("국립공원 설정", () => {
   const cfg = (extra: string, facility = "    facility: gatbawi\n") =>
     configWith(`  - name: w\n    provider: knps\n${facility}    zones: ["0200901"]\n    checkIn: { from: 2026-10-15, to: 2026-10-15 }\n${extra}`);
@@ -157,10 +196,20 @@ describe("국립공원 설정", () => {
     expect(m).toContain("gatbawi, dohak");
   });
 
-  it("2박 감시 조건은 위치와 함께 거부한다", () => {
-    const m = messageOf(cfg("    nights: 2\n"));
+  it("3박 감시 조건은 위치와 함께 거부한다", () => {
+    const m = messageOf(cfg("    nights: 3\n"));
     expect(m).toContain("watches.0.nights");
-    expect(m).toContain("최대 1박");
+    expect(m).toContain("최대 2박");
+  });
+
+  it("2박 감시 조건은 받아들인다", () => {
+    expect(() => loadConfig(cfg("    nights: 2\n"), ENV)).not.toThrow();
+  });
+
+  it("없는 자리 이름은 위치와 함께 거부한다", () => {
+    const m = messageOf(cfg("    seats: [A99]\n"));
+    expect(m).toContain("watches.0.seats");
+    expect(m).toContain("A99");
   });
 
   it("1박 감시 조건은 받아들인다", () => {

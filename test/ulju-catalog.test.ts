@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { adapters } from "../src/adapters/index.js";
 import { runCatalog } from "../src/commands.js";
+import { loadConfig } from "../src/config.js";
 import type { TransportRequest, TransportResponse } from "../src/types.js";
-import { uljuRows, uljuRowsFor, uljuServer } from "./harness.js";
+import { ENV, configWith, uljuRows, uljuRowsFor, uljuServer } from "./harness.js";
 
 // catalog ulju --live를 기록한 응답(research/raw/ulju, 2026-10-16)으로 돌린다. 그 밖의 날짜는 같은 행에 날짜만 바꿔 만든다.
 // 가짜 시계는 2026-10-12 17:00 KST라 내일(KST)은 2026-10-13이다.
 
-const setup = (server = uljuServer()) => {
+const setup = (server = uljuServer(), config?: ReturnType<typeof loadConfig>) => {
   const out: string[] = [];
   const err: string[] = [];
   const requests: TransportRequest[] = [];
@@ -17,6 +18,7 @@ const setup = (server = uljuServer()) => {
       { kind: "catalog", provider: "ulju", ...(facility ? { facility } : {}), live: true },
       {
         adapters,
+        ...(config ? { config } : {}),
         transport: async (r) => (requests.push(r), server(r)),
         version: "0.1.0",
         now: () => new Date(now),
@@ -42,6 +44,40 @@ describe("catalog ulju --live", () => {
     expect(s.out()).toContain("F0000005: 고정 목록이 없다. 실제 10자리: 캐빈하우스1-캐빈하우스10");
     expect(s.out()).toContain("차이 없음");
     expect(s.err()).toBe("");
+  });
+
+  describe("오픈 경쟁 시간", () => {
+    // 울주는 오픈 경쟁 시간 기본값이 없다. 운영자가 설정한 구간 안에서는 요청 없이 거부하고 밖에서는 실행한다.
+    const withRush = loadConfig(
+      configWith(`  - name: w
+    provider: ulju
+    facility: jakcheon-byeolbit
+    zones: [F0000004]
+    checkIn: { from: 2026-10-16, to: 2026-10-16 }
+    nights: 1
+    notify: [default]`).replace("providers:", 'providers:\n  ulju: { openingRush: { from: "16:50", to: "17:10" } }'),
+      ENV,
+    );
+
+    it("설정한 구간(16:50~17:10 KST) 안이면 요청 없이 1로 거부한다", async () => {
+      const s = setup(uljuServer(), withRush);
+      expect(await s.run("jakcheon-byeolbit", "2026-10-12T08:00:00Z")).toBe(1); // 17:00 KST
+      expect(s.err()).toContain("오픈 경쟁 시간(16:50~17:10 KST)");
+      expect(s.requests).toEqual([]);
+    });
+
+    it("구간 밖이면 거부하지 않고 한 번 조회한다", async () => {
+      const s = setup(uljuServer(), withRush);
+      expect(await s.run("jakcheon-byeolbit", "2026-10-12T09:00:00Z")).toBe(0); // 18:00 KST
+      expect(s.err()).toBe("");
+      expect(s.requests).toHaveLength(1);
+    });
+
+    it("설정이 없으면 기본 구간이 없어 어느 시각에도 거부하지 않는다", async () => {
+      const s = setup();
+      expect(await s.run("jakcheon-byeolbit", "2026-10-12T08:00:00Z")).toBe(0);
+      expect(s.requests).toHaveLength(1);
+    });
   });
 
   it("시설 없이 --live를 걸면 요청 없이 쓸 수 있는 시설 코드와 함께 1이다", async () => {

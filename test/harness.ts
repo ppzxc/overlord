@@ -384,6 +384,16 @@ export interface XticketProduct {
   [key: string]: unknown;
 }
 
+export interface XticketGroup {
+  product_group_code: string;
+  product_group_name: string;
+  [key: string]: unknown;
+}
+
+/** 기록한 상품군 응답(2026-10-12 달서, 나정). 다른 시설의 값은 기록하지 않았으므로 달서 것을 쓴다. */
+export const xticketGroups = (_form: URLSearchParams, shopEncode: string): XticketGroup[] =>
+  JSON.parse(fixture(`xticket-GetBookProductGroup-${shopEncode === XTICKET_NAJEONG ? "najeong" : "dalseo"}.json`)).data.bookProductGroupList;
+
 /** 기록한 응답(2026-10-12)의 날짜 목록. 202610은 10/12~10/31, 202611은 11/01~11/30이다. */
 export const xticketPlayDates = (month: string): XticketPlayDate[] =>
   month === "202610" || month === "202611" ? JSON.parse(fixture(`xticket-GetBookPlayDate-${month}.json`)).data.bookPlayDateList : [];
@@ -401,6 +411,8 @@ export function xticketServer(
     playDates?: (month: string, shopEncode: string) => XticketPlayDate[];
     /** 자리 목록. 기본은 기록한 응답(카라반-11, 카라반-13이 선택가능)이다. */
     products?: (form: URLSearchParams, shopEncode: string) => XticketProduct[];
+    /** 날짜의 상품군 목록(GetBookProductGroup.json). 기본은 시설마다 기록한 응답(달서 4개, 나정 2개)이다. */
+    groups?: (form: URLSearchParams, shopEncode: string) => XticketGroup[];
     /** 모든 요청에 앞서 응답을 가로챈다. */
     intercept?: (req: TransportRequest) => TransportResponse | undefined;
   } = {},
@@ -434,6 +446,9 @@ export function xticketServer(
     const form = new URLSearchParams(req.body ?? "");
     if (url.pathname === "/Web/Book/GetBookPlayDate.json") {
       return json({ data: { bookPlayDateList: (opts.playDates ?? xticketPlayDates)(form.get("play_month") ?? "", shop) } });
+    }
+    if (url.pathname === "/Web/Book/GetBookProductGroup.json") {
+      return json({ data: { bookProductGroupList: (opts.groups ?? xticketGroups)(form, shop) } });
     }
     if (url.pathname === "/Web/Book/GetBookProduct010001.json") {
       return json({ data: { bookProductList: (opts.products ?? xticketProducts)(form, shop) } });

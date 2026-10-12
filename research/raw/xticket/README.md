@@ -78,3 +78,13 @@ shopEncode: `f27ad3485cf140b64341e2cc975c376d14561a12aca07349ae393d97379882c7`. 
 ## 칠곡보 확인한 사실
 
 - 같은 요청 흐름이 `/web/main` -> 302 `/Web/Reservation` -> 302 `/web/error.html?code=9001`("잘못된 접근입니다.")로 끝난다(`chilgokbo_headers_h1.txt`, `chilgokbo_headers_h2.txt`, `chilgokbo_error_9001.html`). 이 shopEncode는 xticket에서 열리지 않아 카탈로그에 넣지 않았다.
+
+# 카탈로그 채우기와 `--live` 기록 (#71)
+
+2026-10-12 저녁 KST, 같은 원칙(정직한 UA, 요청 사이 5~8초, 302 홉도 한 건씩)으로 시설마다 `/web/main`(302 두 번 뒤 200) -> `GetShopInformation.json` -> `GetBookProductGroup.json`(내일 10/13) -> 상품군마다 `GetBookProduct010001.json`(1박)을 한 번씩 보냈다.
+로그인·captcha·봇 탐지 호출과 접근 금지 경로 요청은 없었고, 시설 화면에 `crawlingCheck`·`dynapath`·`botmanager`는 없었다. 쿠키와 `GetShopInformation.json`의 키 네 개는 `<masked>`다. 파일은 `gyeongju-caravan_*`, `gangdong_*`, `aengbongsan_*`, `gangnaru_*`다.
+
+- `shopInfo.book_days`: 경주 별빛카라반 2, 강동그린웨이 3, 앵봉산 2, 강나루 2. `two_stay_days`는 모두 0이다. 강나루는 `advance_ddays: 1`(함안군민 우선예약)이다.
+- `gangdong_GetBookProduct010001_9999_20261013_1n.json`: 없는 상품군 코드(9999)로 한 번 조회하면 `{"data":{"bookProductList":[]}}`다(`gangdong_probe_headers_h*.txt`). 정상 상품군은 모든 자리를 주므로 빈 목록을 상품군 소실로 본다.
+- 강동그린웨이 0001에서 `status_code` `3`이 보였다.
+- `catalog_live_20261012.txt`: 시설마다 실제로 돌린 `node dist/main.js catalog xticket <시설> --live`의 출력이다(달서·나정·경주 별빛카라반·강동그린웨이·앵봉산·강나루 모두 "차이 없음", 종료 코드 0).

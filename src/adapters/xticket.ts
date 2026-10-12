@@ -1,9 +1,11 @@
-import { addDays } from "../schedule.js";
+import { addDays, kstDate } from "../schedule.js";
 import {
   AdapterError,
   type AdapterContext,
   type AvailabilityQuery,
   type AvailableSite,
+  type FacilityObservation,
+  type HttpClient,
   type ProviderAdapter,
   type ProviderInfo,
   type TransportResponse,
@@ -55,29 +57,70 @@ const failure = (res: TransportResponse, what: string): AdapterError | undefined
   return undefined;
 };
 
+/** 로그인 화면, 차단 화면, 봇 탐지·captcha가 JSON 자리에 온 것이다. 본문에서 알아본다. */
+const LOGIN_OR_BLOCK_PAGE = /MemberLogin|login_id|login_passwd|로그인|차단|접근이 제한|botmanager|crawlingCheck|dynapath|jcaptcha|captcha/i;
+/** 시설 화면에 있으면 안 되는 봇 탐지 장치. captcha는 예약 폼이 원래 싣고 있어 여기서는 보지 않는다. */
+const BOT_DETECTION = /botmanager|crawlingCheck|dynapath/i;
+
+/**
+ * 시설 화면 요청이 리다이렉트 상한을 넘은 횟수(시설별, 연속). 세션을 열 때마다 바퀴를 넘어 이어져야 하므로 HTTP 클라이언트(예약처 수명)에 매단다.
+ * 첫 바퀴는 일시 오류, 2바퀴 연속이면 구조 변경이다. 성공하면 다시 센다.
+ */
+const redirectStreaks = new WeakMap<HttpClient, Map<string, number>>();
+
+/** 네트워크 층이 던진 오류를 분류한다. 로그인·차단 경로로의 리다이렉트는 blocked다(그 경로로는 요청이 나가지 않았다). */
+function classifyThrown(e: unknown, what: string): unknown {
+  if (!(e instanceof Error) || e instanceof AdapterError) return e;
+  if (e.message.startsWith("접근 금지 경로")) return new AdapterError("blocked", `${what}: 로그인·접근 금지 경로로 보내졌다(${e.message})`);
+  return e;
+}
+
 /** 시설의 쿠키 세션을 연다. 앞 시설의 쿠키는 버린다. /web/main이 302 두 번으로 쿠키를 심고 200을 준다. */
-async function openSession(shopEncode: string, ctx: AdapterContext): Promise<void> {
+async function openSession(facility: string, shopEncode: string, ctx: AdapterContext): Promise<void> {
   ctx.http.clearSession();
-  const res = await ctx.http.get(mainUrl(shopEncode));
+  const streaks = redirectStreaks.get(ctx.http) ?? new Map<string, number>();
+  redirectStreaks.set(ctx.http, streaks);
+  let res: TransportResponse;
+  try {
+    res = await ctx.http.get(mainUrl(shopEncode));
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("리다이렉트가")) {
+      const n = (streaks.get(facility) ?? 0) + 1;
+      streaks.set(facility, n);
+      throw new AdapterError(n >= 2 ? "unrecognized" : "transient", `시설 화면: 세션이 열리지 않는다(${e.message}, 연속 ${n}번째)`);
+    }
+    throw classifyThrown(e, "시설 화면");
+  }
   const bad = failure(res, "시설 화면");
   if (bad) throw bad;
+  if (BOT_DETECTION.test(res.body)) throw new AdapterError("blocked", "시설 화면에 봇 탐지 장치가 보인다");
+  streaks.delete(facility);
 }
 
 /** 한 요청을 보내고 data 객체를 돌려준다. 응답은 JSON이어야 하고 error가 없어야 한다. */
 async function postJson(path: string, form: Record<string, string>, shopEncode: string, ctx: AdapterContext): Promise<Record<string, unknown>> {
   // 브라우저처럼 Referer·Origin을 싣는다. 빼면 서버가 `{}`를 준다.
-  const res = await ctx.http.post(`${ORIGIN}${path}`, form, {
-    headers: { Referer: mainUrl(shopEncode), Origin: ORIGIN, "X-Requested-With": "XMLHttpRequest" },
-  });
+  let res: TransportResponse;
+  try {
+    res = await ctx.http.post(`${ORIGIN}${path}`, form, {
+      headers: { Referer: mainUrl(shopEncode), Origin: ORIGIN, "X-Requested-With": "XMLHttpRequest" },
+    });
+  } catch (e) {
+    throw classifyThrown(e, path);
+  }
   const bad = failure(res, path);
   if (bad) throw bad;
   let body: unknown;
   try {
     body = JSON.parse(res.body);
   } catch {
+    // 로그인·차단 화면이면 막힌 것이고, 그 밖의 JSON 아님은 구조 변경이다.
+    if (LOGIN_OR_BLOCK_PAGE.test(res.body)) throw new AdapterError("blocked", `${path}: JSON이 아니라 로그인·차단 화면이 왔다`);
     throw new AdapterError("unrecognized", `${path}: JSON이 아니다`);
   }
-  const obj = body as { data?: unknown; error?: { message?: string }; redirect?: boolean } | null;
+  const obj = body as { data?: unknown; error?: { message?: string }; error1?: { message?: string }; redirect?: boolean } | null;
+  // 페이지(main.js)는 error1을 알림으로 띄우고 redirect면 returnUrl로 보낸다. 로그인·권한을 요구하는 응답이다.
+  if (obj?.error1) throw new AdapterError("blocked", `${path}: ${obj.error1.message ?? "로그인 또는 권한을 요구하는 응답"}`);
   if (obj?.error) {
     // 쿠키가 없거나 만료되면 HTTP 200에 error와 redirect가 온다. 세션을 다시 열면 되는 일시 오류다.
     throw new AdapterError(obj.redirect ? "transient" : "unrecognized", `${path}: ${obj.error.message ?? "오류 응답"}`);
@@ -121,12 +164,29 @@ async function fetchOpenSites(q: AvailabilityQuery, shopEncode: string, ctx: Ada
   );
   const list = data.bookProductList;
   if (!Array.isArray(list)) throw new AdapterError("unrecognized", "data.bookProductList가 없다");
+  // 응답은 예약 여부와 관계없이 상품군의 모든 자리를 준다(기록: 14·40·15곳). 빈 목록은 그 상품군이 없어졌다는 뜻이다.
+  if (list.length === 0) throw new AdapterError("unrecognized", `상품군 ${q.zone}이(가) 응답에서 사라졌다`);
   const sites: AvailableSite[] = [];
   for (const p of list as { product_name?: unknown; status_code?: unknown; select_yn?: unknown }[]) {
     if (typeof p?.product_name !== "string") throw new AdapterError("unrecognized", "bookProductList 항목에 product_name이 없다");
+    warnStatusCode(q.facility, p.status_code, ctx);
     if (p.status_code === "0" && p.select_yn === "1") sites.push({ id: p.product_name, name: p.product_name });
   }
   return sites;
+}
+
+/** 페이지 JS(getProductAlt)가 따로 다루는 status_code와 기록으로 본 값. 그 밖의 값은 예약완료로 치고 한 번만 경고한다. */
+const KNOWN_STATUS_CODES = new Set(["0", "1", "2", "4"]);
+const warnedStatus = new WeakMap<HttpClient, Set<string>>();
+
+function warnStatusCode(facility: string, code: unknown, ctx: AdapterContext): void {
+  const value = String(code);
+  if (KNOWN_STATUS_CODES.has(value)) return;
+  const warned = warnedStatus.get(ctx.http) ?? new Set<string>();
+  warnedStatus.set(ctx.http, warned);
+  if (warned.has(`${facility}:${value}`)) return;
+  warned.add(`${facility}:${value}`);
+  ctx.log?.("xticket status_code drift", { facility, status_code: value });
 }
 
 /** 박수만큼 이어지는 밤의 날짜(YYYY-MM-DD). */
@@ -138,7 +198,7 @@ async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: 
   const shopEncode = shopEncodeOf(facility);
   // 시설마다 세션을 새로 연다.
   try {
-    await openSession(shopEncode, ctx);
+    await openSession(facility, shopEncode, ctx);
   } catch (e) {
     if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
     for (const q of units) results.set(q, e);
@@ -211,6 +271,45 @@ export const xticketAdapter: ProviderAdapter = {
 
   /** 시설마다 세션을 열고 달마다 날짜 목록을 읽어 자리가 남은 조회 단위만 자리 조회로 넘어간다. */
   queryAvailabilityBatch: queryBatch,
+
+  /**
+   * `catalog --live`: 시설 하나의 세션을 열고 내일(KST) 날짜로 상품군 목록을 한 번, 상품군마다 자리 목록을 한 번씩 읽는다.
+   * 바퀴와 같은 요청 원칙(한 줄, 5초+지터)이다. 조회가 실패하면 AdapterError로 던진다.
+   */
+  async observeFacility(facility: string, ctx: AdapterContext): Promise<FacilityObservation> {
+    const shopEncode = shopEncodeOf(facility);
+    const tomorrow = ymd(addDays(kstDate(ctx.clock.now()), 1));
+    try {
+      await openSession(facility, shopEncode, ctx);
+      const data = await postJson("/Web/Book/GetBookProductGroup.json", { start_date: tomorrow, end_date: tomorrow }, shopEncode, ctx);
+      const groups = data.bookProductGroupList;
+      if (!Array.isArray(groups)) throw new AdapterError("unrecognized", "data.bookProductGroupList가 없다");
+      const zones: FacilityObservation["zones"] = [];
+      for (const g of groups as { product_group_code?: unknown; product_group_name?: unknown }[]) {
+        if (typeof g?.product_group_code !== "string" || typeof g.product_group_name !== "string") {
+          throw new AdapterError("unrecognized", "bookProductGroupList 항목을 읽지 못했다");
+        }
+        const products = await postJson(
+          "/Web/Book/GetBookProduct010001.json",
+          { product_group_code: g.product_group_code, start_date: tomorrow, end_date: tomorrow, book_days: "1", two_stay_days: "0" },
+          shopEncode,
+          ctx,
+        );
+        const list = products.bookProductList;
+        if (!Array.isArray(list)) throw new AdapterError("unrecognized", "data.bookProductList가 없다");
+        zones.push({
+          name: g.product_group_name,
+          codes: [g.product_group_code],
+          seats: (list as { product_name?: unknown }[]).flatMap((p) => (typeof p?.product_name === "string" ? [p.product_name] : [])),
+        });
+      }
+      return { zones };
+    } catch (e) {
+      // 연결 실패처럼 분류되지 않은 오류는 일시 오류로 보고한다. 알려진 AdapterError는 그대로 둔다.
+      if (e instanceof AdapterError) throw e;
+      throw new AdapterError("transient", e instanceof Error ? e.message : String(e));
+    }
+  },
 
   deepLink: (q: AvailabilityQuery) => mainUrl(shopEncodeOf(q.facility)),
 };

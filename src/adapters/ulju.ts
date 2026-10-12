@@ -213,6 +213,9 @@ export const uljuAdapter: ProviderAdapter = {
     return found ?? [];
   },
 
+  /** 밤마다 서버의 조회 창(이번 달, 다음 달은 11일 10:00부터)에 드는 단위만 조회한다. 아닌 단위는 코어가 빼서 요청 없는 바퀴를 성공으로 세지 않는다. */
+  isQueryable: (q, now) => nightsOf(q).every((d) => isQueryable(d, now)),
+
   /** 같은 (시설, 밤)은 구역이 여럿이어도 한 번만 조회한다. */
   queryAvailabilityBatch: queryBatch,
 

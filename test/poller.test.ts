@@ -1141,6 +1141,19 @@ describe("quietHours, 일일 요약, dead-man ping", () => {
     await p.stop();
   });
 
+  it("아직 열리지 않은 날짜뿐이라 요청이 한 건도 안 나간 시간은 바퀴 0회, 마지막 성공 없음으로 적는다", async () => {
+    // 10-30은 09-30 10:00에 열린다. 09-29 09:00~10:00에는 조회 단위가 없어 요청이 없다.
+    const p = startPoller(open, {
+      yaml: configWith(watchYaml("먼 날짜", "    checkIn: { from: 2026-10-30, to: 2026-10-30 }")).replace("providers:", `${HOURLY}\nproviders:`),
+    });
+    await settle();
+    for (let i = 0; i < 24; i++) await p.clock.advance(POLL_MS);
+    expect(p.allRequests).toHaveLength(0);
+    const m = hourlies(p)[0]!;
+    expect(m.text).toMatch(/goraebul<\/b>: 정상 · 지난 1시간 바퀴 0회, 실패한 바퀴 0회 · 마지막 성공 없음/);
+    await p.stop();
+  });
+
   it("hourlySummary를 켜지 않으면 시간별 요약을 보내지 않는다", async () => {
     const p = startPoller(soldOut);
     await settle();

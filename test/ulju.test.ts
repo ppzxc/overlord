@@ -147,6 +147,15 @@ describe("ulju 폴러", () => {
       await p.stop();
     });
 
+    it("2박 가운데 한 밤이라도 조회 창 밖이면 그 단위는 첫 밤도 조회하지 않고 창 안의 다른 감시 조건은 그대로 조회한다", async () => {
+      // 10/10 09:00 KST: 10/31 입실 2박의 둘째 밤(11/1)은 아직 닫혀 있다.
+      const p = start(watch({ from: "2026-10-31" }, [ZONE_4X4], "", "jakcheon-byeolbit", 2) + watch({ from: "2026-10-16" }), { now: "2026-10-10T09:00:00+09:00" });
+      await settle();
+      expect(p.allRequests.map((r) => JSON.parse(r.body!).select_date)).toEqual(["2026-10-16"]);
+      expect(failedKinds(p)).toEqual([]);
+      await p.stop();
+    });
+
     it("다음 달 날짜는 이번 달 11일 10:00 KST(선착순 시작) 전에는 조회하지 않고 그 뒤에는 조회한다", async () => {
       const before = run({ from: "2026-11-20" }, { now: "2026-10-11T09:59:00+09:00" });
       await settle();
@@ -253,6 +262,42 @@ describe("ulju 폴러", () => {
       expect(failedKinds(p)).toEqual(["unrecognized"]);
       await p.stop();
     });
+  });
+});
+
+describe("ulju 요청이 한 건도 나가지 않은 바퀴", () => {
+  const HOURLY = "hourlySummary: { enabled: true, everyHours: 1 }";
+  const hourlies = (p: { sent: { text: string }[] }) => p.sent.filter((m) => m.text.includes("시간별 요약"));
+
+  it("조회 창 규칙(다음 달은 이번 달 11일 10:00부터)으로 요청이 없던 시간은 바퀴 0회, 마지막 성공 없음으로 적는다", async () => {
+    // 2026-10-10 09:00 KST에 11월 날짜는 아직 닫혀 있다(10/11 10:00에 열린다). 10:00까지 한 시간 동안 요청이 없다.
+    const p = startPoller(() => ({ status: 404, body: "" }), {
+      yaml: configWith(watch({ from: "2026-11-20" })).replace("providers:", `${HOURLY}\nproviders:`),
+      server: uljuServer(),
+      now: "2026-10-10T09:00:00+09:00",
+    });
+    await settle();
+    for (let i = 0; i < 24; i++) await p.clock.advance(150_000);
+    expect(p.allRequests).toHaveLength(0);
+    expect(failedKinds(p)).toEqual([]);
+    const m = hourlies(p)[0]!;
+    expect(m.text).toMatch(/ulju<\/b>: 정상 · 지난 1시간 바퀴 0회, 실패한 바퀴 0회 · 마지막 성공 없음/);
+    await p.stop();
+  });
+
+  it("창이 열려 요청이 나가기 시작하면 그 바퀴부터 바퀴 수와 마지막 성공에 잡힌다", async () => {
+    // 09:01에 시작해 150초마다 돈다. 10/11 10:00에 11월이 열려 10:01 바퀴부터 요청이 나간다.
+    const p = startPoller(() => ({ status: 404, body: "" }), {
+      yaml: configWith(watch({ from: "2026-11-20" })).replace("providers:", `${HOURLY}\nproviders:`),
+      server: uljuServer(),
+      now: "2026-10-11T09:01:00+09:00",
+    });
+    await settle();
+    for (let i = 0; i < 48; i++) await p.clock.advance(150_000); // 11:01
+    const [before, after] = hourlies(p);
+    expect(before!.text).toMatch(/바퀴 0회.*마지막 성공 없음/);
+    expect(after!.text).toMatch(/바퀴 [1-9]\d*회, 실패한 바퀴 0회 · 마지막 성공 10-11 (10:[0-5]\d|11:00)/);
+    await p.stop();
   });
 });
 

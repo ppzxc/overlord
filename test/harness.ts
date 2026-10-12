@@ -325,6 +325,10 @@ export function knpsServer(
     list?: (form: URLSearchParams) => string;
     /** 대기열 5101/5002 응답 줄을 바꾼다. 액션(aid)과 그 액션의 몇 번째 요청인지를 받는다. 기본은 바로 통과다. */
     queue?: (aid: string, nth: number) => string | undefined;
+    /** campsiteList.do의 HTTP 상태. 기본은 200이다. */
+    listStatus?: number;
+    /** `/assets/js/lib/netfunnel.js` 본문. 기본은 기록한 버전(2.2.19)과 `TS_HOST`다. */
+    script?: string;
   } = {},
 ) {
   const calls = { keys: 0, queue: new Map<string, number>() };
@@ -346,7 +350,10 @@ export function knpsServer(
     }
     if (url.pathname === "/reservation/campsiteList.do") {
       const form = new URLSearchParams(req.body ?? "");
-      return { status: 200, body: opts.list ? opts.list(form) : fixture("knps-gatbawi-campsiteList.htm") };
+      return { status: opts.listStatus ?? 200, body: opts.list ? opts.list(form) : fixture("knps-gatbawi-campsiteList.htm") };
+    }
+    if (url.pathname === "/assets/js/lib/netfunnel.js") {
+      return { status: 200, body: opts.script ?? "/*\n * Version 2.2.19\n */\nNetFunnel.TS_HOST = 'netfunnel.knps.or.kr';\n" };
     }
     return { status: 404, body: "" };
   };

@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import {
   AdapterError,
   type AdapterContext,
+  type HttpClient,
   type AvailabilityQuery,
   type AvailableSite,
   type ProviderAdapter,
@@ -56,7 +57,53 @@ type CellStatus = string;
 /** 구역 이름 → 자리 이름 → 입실일 → 상태. */
 type Grid = Map<string, Map<string, Map<string, CellStatus>>>;
 
-const CELL_CLASS = /(?:^|\s)(\d{4})(\d{2})(\d{2})_([A-Z])(?:\s|$)/;
+const CELL_CLASS = /(?:^|\s)(\d{4})(\d{2})(\d{2})_(\w+)(?:\s|$)/;
+/** 상태 접미: 예약가능, 대기가능, 예약만료, 예약불가. 이 밖은 구조 변경이다. */
+const KNOWN_SUFFIXES = new Set(["N", "W", "C", "R"]);
+/** 로그인 화면을 가리는 문구. 실제로 본 적이 없어 보수적으로 잡았다. 기록한 응답에는 없다. */
+const AUTH_MARKER = /로그인/;
+
+const NETFUNNEL_JS = `${ORIGIN}/assets/js/lib/netfunnel.js`;
+// 2026-10-12에 기록으로 확인한 값. 달라지면 경고만 남긴다.
+const NETFUNNEL_VERSION = "2.2.19";
+const NETFUNNEL_TS_HOST = "netfunnel.knps.or.kr";
+const KNOWN_ZONES = new Set(facilities.flatMap((f) => f.zones).map((z) => z.name));
+
+/** `netfunnel.js` 경고 확인을 이미 한 세션. */
+const scriptChecked = new WeakSet<HttpClient>();
+/** 세션마다 이미 경고한 구역 차이. 같은 차이는 한 번만 남긴다. */
+const warnedDrift = new WeakMap<HttpClient, Set<string>>();
+
+/** `netfunnel.js`의 버전과 `TS_HOST`가 기록한 값과 다르면 경고만 남긴다. 첫 조회가 끝난 뒤 세션당 한 번 받고, 받지 못해도 감시는 그대로다. */
+async function warnNetfunnelDrift(ctx: AdapterContext): Promise<void> {
+  if (scriptChecked.has(ctx.http) || ctx.signal?.aborted) return;
+  scriptChecked.add(ctx.http);
+  try {
+    const res = await ctx.http.get(NETFUNNEL_JS);
+    if (res.status !== 200) return;
+    const version = /Version\s+(\S+)/.exec(res.body)?.[1];
+    const host = /^NetFunnel\.TS_HOST\s*=\s*'([^']*)'/m.exec(res.body)?.[1];
+    if (version !== NETFUNNEL_VERSION) ctx.log?.("knps netfunnel.js version changed", { expected: NETFUNNEL_VERSION, actual: version });
+    if (host !== NETFUNNEL_TS_HOST) ctx.log?.("knps TS_HOST changed", { expected: NETFUNNEL_TS_HOST, actual: host });
+  } catch {
+    // 경고 전용이라 실패해도 감시는 그대로다.
+  }
+}
+
+/** 카탈로그와 다른 구역은 경고만 남긴다. 감시 조건이 쓰는 구역이 사라진 것은 조회 단위 판정이 실패로 처리한다. */
+function warnZoneDrift(grid: Grid, ctx: AdapterContext): void {
+  const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
+  warnedDrift.set(ctx.http, warned);
+  const drift = [
+    ...[...grid.keys()].filter((n) => !KNOWN_ZONES.has(n)).map((n) => ["new", n] as const),
+    ...[...KNOWN_ZONES].filter((n) => !grid.has(n)).map((n) => ["gone", n] as const),
+  ];
+  for (const [change, zone] of drift) {
+    if (warned.has(`${change}:${zone}`)) continue;
+    warned.add(`${change}:${zone}`);
+    ctx.log?.("knps zone drift", { change, zone });
+  }
+}
 
 /**
  * 응답의 자리×날짜 표를 읽는다. 왼쪽 표(`table-sticky-body`)의 구역 머리(rowspan)와 자리 행이 오른쪽 표(`table-body`)의 행과 같은 순서로 맞물린다.
@@ -90,6 +137,7 @@ function parseGrid(html: string): Grid {
       .each((_, cell) => {
         const m = CELL_CLASS.exec($(cell).attr("class") ?? "");
         if (!m) return;
+        if (!KNOWN_SUFFIXES.has(m[4]!)) throw new AdapterError("unrecognized", `모르는 칸 상태 접미: ${m[4]}`);
         dates.set(`${m[1]}-${m[2]}-${m[3]}`, m[4]!);
         cells++;
       });
@@ -111,6 +159,7 @@ async function readFacility(facility: string, ctx: AdapterContext): Promise<Grid
   );
   if (res.status >= 500) throw new AdapterError("transient", `campsiteList.do: HTTP ${res.status}`);
   if (res.status !== 200) throw new AdapterError("unrecognized", `campsiteList.do: 예상 밖 HTTP ${res.status}`);
+  if (AUTH_MARKER.test(res.body)) throw new AdapterError("blocked", "campsiteList.do가 로그인 화면을 돌려줬다");
   const grid = parseGrid(res.body);
   await completeQueue(ctx, RESERVATION2, pass.key);
   return grid;
@@ -133,6 +182,8 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
   setNetFunnelCookie(ctx.http, HOST, landing.result ?? landing.key);
   for (const [facility, queries] of byFacility) {
     const grid = await readFacility(facility, ctx);
+    warnZoneDrift(grid, ctx);
+    await warnNetfunnelDrift(ctx);
     const zones = resolveFacility(INFO, facility).zones;
     for (const q of queries) {
       const zone = zones.find((z) => z.code === q.zone);

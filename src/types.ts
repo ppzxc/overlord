@@ -91,12 +91,15 @@ export interface FacilityInfo {
   /** 예약처가 시설을 가리키는 값. 예약처마다 모양이 달라 문자열 하나 또는 작은 레코드다. 없으면 비운다. */
   ref?: string | Record<string, string>;
   zones: ZoneInfo[];
+  /** 이 시설의 최대 박수. 예약처 기본(`ProviderInfo.maxNights`)과 다른 시설만 적는다. */
+  maxNights?: number;
 }
 
 export interface ProviderInfo {
   id: string;
   /** 예약처 안의 시설. 하나 이상이다. */
   facilities: FacilityInfo[];
+  /** 예약처 기본 최대 박수. 시설마다 다르면 가장 큰 값이고 `FacilityInfo.maxNights`가 덮어쓴다. */
   maxNights: number;
   openingRule: OpeningRule;
   /** 오픈 경쟁 시간의 기본값. 설정의 `providers.<id>.openingRush`가 덮어쓴다. 없으면 쉬지 않는다. */

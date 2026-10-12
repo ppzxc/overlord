@@ -56,3 +56,25 @@ shopEncode: `f27ad3485cf140b64341e2cc975c376d14561a12aca07349ae393d97379882c7`. 
 
 `(0,1)` 2곳(카라반-11, 카라반-13), `(1,0)` 1곳(카라반-01), 나머지 `(0,0)`. `GetBookPlayDate_202610.json`의 `20261015`는 `book_remain_count: 3`이다. 카라반 2곳보다 많으니 `book_remain_count`는 상품군 전체 합으로 보인다(0003·0004는 이 날 조회하지 않았다). 오토캠핑장(0002)은 같은 날 15곳 모두 `(0,0)`이다.
 테스트용 fixture는 `test/fixtures/xticket-*.json`으로 같은 원문을 복사했다.
+
+# 나정고운모래해변(`najeong`)·칠곡보(`chilgokbo`) 기록 (#70)
+
+2026-10-12 저녁 KST, ADR 0002 원칙(UA `overlord-availability-poller/0.1 (personal availability notifier)`, 요청 사이 5~8초, 302 홉도 한 건씩)으로 `camp.xticket.kr`에 시설마다 몇 건씩 보냈다. 로그인·captcha·봇 탐지 호출과 접근 금지 경로 요청은 없다. 요청은 `curl`이고 형식은 달서 기록과 같다.
+쿠키 값과 `GetShopInformation.json`의 `web_store_key`·`web_cancel_key`·`web_store_id`·`mobile_store_id`는 `<masked>`다. 파일은 `najeong_*`, `chilgokbo_*`다.
+
+## 운영 주체(시설 공식 안내)
+
+- 나정: 경주시가 조성한 시설이다(경주시 웹진 「지금, 나정고운모래해변 오토캠핑장으로」, 공식 사이트 njcamping.or.kr 하단 "Copyright 2022 경주시청"). 사이트에 대표자 이름이 있어 위탁 운영으로 보이지만 공립 시설이다. 예약 링크는 사이트의 "실시간예약"(`www.xticket.kr/Web/Reservation?shop_encode=08f2d6ac...`)이고 같은 값이 `camp.xticket.kr/web/main?shopEncode=`에서도 열린다.
+- 칠곡보: 칠곡군 관광 누리집(chilgok.go.kr/tour)의 부속사이트 "칠곡보오토캠핑장 예약" 링크가 `camp.xticket.kr/web/main?shopEncode=3b8dfd4f...`다. 지자체 시설이라 민간이 아니다. 소개란의 "홈페이지 바로가기"는 땡큐캠핑(`m.thankqcamping.com`)이다.
+
+## 나정 확인한 사실
+
+- 흐름은 달서와 같다: `/web/main`(302 두 번 뒤 200) -> `GetShopInformation.json` -> `GetBookPlayDate.json` -> `GetBookProductGroup.json` -> `GetBookProduct010001.json`(`najeong_*`).
+- `shopInfo`: `shop_name: 나정고운모래해변`, `two_stay_days: 0`, **`book_days: 2`**, `advance_ddays: 0`, `max_book_count: 1`. 최대 박수는 달서 3, 나정 2로 시설마다 다르다. 시설 안내도 "1회 최대 2박 3일"이다.
+- 상품군(`GetBookProductGroup.json`): `0101` 카라반사이트, `0201` 오토사이트.
+- 날짜 목록은 10/13부터 11/30까지이고 `advance_yn`은 모두 "0"이다(우선예약 없음).
+- 자리 판정: 10/16 카라반사이트(40곳) 1박은 `(0,1)` 10곳, 2박(`book_days: 2`)은 모두 `(0,0)`, 3박(`book_days: 3`, 페이지 상한 밖)도 모두 `(0,0)`이고 서버는 거부하지 않았다. 10/18~19 2박은 `(0,1)` 28곳이다. 서버가 박수에 맞춰 판정한다.
+
+## 칠곡보 확인한 사실
+
+- 같은 요청 흐름이 `/web/main` -> 302 `/Web/Reservation` -> 302 `/web/error.html?code=9001`("잘못된 접근입니다.")로 끝난다(`chilgokbo_headers_h1.txt`, `chilgokbo_headers_h2.txt`, `chilgokbo_error_9001.html`). 이 shopEncode는 xticket에서 열리지 않아 카탈로그에 넣지 않았다.

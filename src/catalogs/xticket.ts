@@ -20,7 +20,17 @@
 // - 봇 탐지·captcha: 조회 흐름에 `crawlingCheck`·`dynapath`·`botmanager`는 없다. captcha(`/Web/jcaptcha`)는 로그인 뒤 예약 신청(`Book010001.json`) 직전에만 쓰인다.
 // - 접근 금지로 확인한 경로(`main.js`·`common.js`·화면 링크): `/Web/Book/Book010001.json`(예약 확정), `/Web/jcaptcha`, `/Web/Member/`(로그인·로그아웃·비밀번호 변경),
 //   `/web/books`(예약내역 결제·취소), `/web/profile`, `/web/join`, `/web/findId`, `/web/ciRequest`, `/web/ipinRequest`. 서버가 `/Web`과 `/web`을 가리지 않으므로 대소문자 구분 없이 막는다.
-// - 이 목록은 지자체·공공기관 운영 시설만 담는다. 칠곡보 등 다른 시설은 #70 이후에 더한다.
+// - 이 목록은 지자체·공공기관 운영 시설만 담는다.
+//
+// 기록으로 확인한 것(#70, 2026-10-12 저녁 KST, research/raw/xticket의 najeong_*·chilgokbo_*):
+// - 나정고운모래해변 오토캠핑장(`najeong`): 경주시가 조성한 공공 시설이다(경주시 누리집 웹진 「지금, 나정고운모래해변 오토캠핑장으로」, 사이트 njcamping.or.kr 하단 "Copyright 2022 경주시청"). 위탁 운영자가 있는 공립 시설로 보고 넣는다.
+//   예약 링크는 시설 공식 사이트 njcamping.or.kr의 "실시간예약"(`www.xticket.kr/Web/Reservation?shop_encode=08f2d6ac...`)에서 읽었다. 같은 값이 `camp.xticket.kr/web/main?shopEncode=`에서도 열린다(302 두 번 뒤 200).
+//   `GetShopInformation.json`: `shop_name: 나정고운모래해변`, `two_stay_days: 0`, `book_days: 2`(박수 선택지 상한), `advance_ddays: 0`, `max_book_count: 1`. 상품군은 `0101` 카라반사이트, `0201` 오토사이트이다.
+//   서버는 `book_days: 3`도 거부하지 않고 응답했지만(선택가능 0) 시설 안내도 "1회 최대 2박 3일"이라 페이지 상한 2박을 쓴다. 날짜 목록은 내일(10/13)부터 11/30까지다(달서와 같은 모양, `advance_yn` 모두 "0").
+//   2박 조회(`book_days: 2`, 10/16~10/17 카라반사이트)에서는 1박에서 선택가능이던 10곳이 모두 선택불가로 돌아왔다. 서버가 박수에 맞춰 판정한다는 증거다.
+// - 칠곡보 오토캠핑장(`chilgokbo`): 넣지 않았다. 칠곡군 관광 누리집이 "칠곡보오토캠핑장 예약"으로 `camp.xticket.kr/web/main?shopEncode=3b8dfd4f...`를 걸어 두었지만(운영은 칠곡군, 민간이 아니다), 이 값은 xticket에서 열리지 않는다.
+//   `/web/main`이 302로 `/Web/Reservation`을 거쳐 `/web/error.html?code=9001`("잘못된 접근입니다.")로 보낸다. 같은 요청 흐름이 달서·나정에서는 200이다. 같은 누리집 소개란의 "홈페이지 바로가기"는 땡큐캠핑(`m.thankqcamping.com`)이라 예약이 옮겨 갔을 가능성이 크다.
+//   그래서 xticket 어댑터가 볼 수 없는 시설로 보고 카탈로그에 두지 않는다.
 import type { FacilityInfo, ZoneInfo } from "../types.js";
 
 const dalseoZones: ZoneInfo[] = [
@@ -30,11 +40,24 @@ const dalseoZones: ZoneInfo[] = [
   { code: "0004", name: "데크캠핑장", type: "데크캠핑장" },
 ];
 
+const najeongZones: ZoneInfo[] = [
+  { code: "0101", name: "카라반사이트", type: "카라반" },
+  { code: "0201", name: "오토사이트", type: "오토캠핑장" },
+];
+
 export const facilities: FacilityInfo[] = [
   {
     code: "dalseo",
     name: "달서별빛캠프 캠핑장",
     ref: "f27ad3485cf140b64341e2cc975c376d14561a12aca07349ae393d97379882c7",
     zones: dalseoZones,
+    maxNights: 3,
+  },
+  {
+    code: "najeong",
+    name: "나정고운모래해변 오토캠핑장",
+    ref: "08f2d6ac872d55a829cd62de5a910ff0922eeb57506d4ddbe021224fce47d006",
+    zones: najeongZones,
+    maxNights: 2,
   },
 ];

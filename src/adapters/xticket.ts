@@ -15,8 +15,8 @@ const ORIGIN = "https://camp.xticket.kr";
 const INFO: ProviderInfo = {
   id: "xticket",
   facilities,
-  // 달서의 페이지 상한은 3박이지만 이 조각은 1박만 본다(research/raw/xticket/README.md).
-  maxNights: 1,
+  // 박수 상한은 시설 페이지의 shopInfo.book_days다(달서 3, 나정 2). 시설마다 카탈로그의 maxNights가 덮어쓰고 이 값은 가장 큰 값이다.
+  maxNights: 3,
   // 날짜는 GetBookPlayDate.json이 준 것만 열린 날로 친다. 열림 시각은 달마다 달라 어댑터가 목록으로 가른다.
   // 입실일 D−90일부터 조회 단위로 만들고(목록은 약 2달 앞까지다), 당일 입실은 18:00 KST에 마감된다(2026-10-12 기록).
   openingRule: { openDaysBefore: 90, openTime: "00:00", sameDayCutoff: "18:00" },
@@ -185,7 +185,16 @@ async function queryBatch(units: AvailabilityQuery[], ctx: AdapterContext) {
   const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
   const byFacility = new Map<string, AvailabilityQuery[]>();
   for (const q of units) byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
-  for (const [facility, list] of byFacility) await queryFacility(facility, list, ctx, results);
+  let failure: AdapterError | undefined;
+  for (const [facility, list] of byFacility) {
+    // 앞 시설이 실패했으면 남은 시설 요청은 보내지 않고 같은 오류로 실패 처리한다. 이미 받은 결과는 그대로 둔다.
+    if (failure) {
+      for (const q of list) results.set(q, failure);
+      continue;
+    }
+    await queryFacility(facility, list, ctx, results);
+    failure = list.map((q) => results.get(q)).find((r): r is AdapterError => r instanceof AdapterError);
+  }
   return results;
 }
 

@@ -369,6 +369,7 @@ export function knpsServer(
 }
 
 export const XTICKET_DALSEO = "f27ad3485cf140b64341e2cc975c376d14561a12aca07349ae393d97379882c7";
+export const XTICKET_NAJEONG = "08f2d6ac872d55a829cd62de5a910ff0922eeb57506d4ddbe021224fce47d006";
 
 export interface XticketPlayDate {
   advance_yn: string;

@@ -2,7 +2,6 @@ import * as cheerio from "cheerio";
 import {
   AdapterError,
   type AdapterContext,
-  type HttpClient,
   type AvailabilityQuery,
   type AvailableSite,
   type ProviderAdapter,
@@ -14,7 +13,7 @@ import { resolveFacility } from "../facility.js";
 import { filterSeats } from "../seats.js";
 import { isLotteryHeld, parseLottery, type LotterySchedule } from "../knps-lottery.js";
 import { kstDate } from "../schedule.js";
-import { completeQueue, enterQueue, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
+import { completeQueue, enterQueue, netfunnelScriptCheck, setNetFunnelCookie, warnDriftOnce, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "reservation.knps.or.kr";
 const ORIGIN = `https://${HOST}`;
@@ -90,45 +89,18 @@ function assertOk(status: number, where: string): void {
   if (status !== 200) throw new AdapterError("unrecognized", `${where}: 예상 밖 HTTP ${status}`);
 }
 
-const NETFUNNEL_JS = `${ORIGIN}/assets/js/lib/netfunnel.js`;
 // 2026-10-12에 기록으로 확인한 값. 달라지면 경고만 남긴다.
-const NETFUNNEL_VERSION = "2.2.19";
-const NETFUNNEL_TS_HOST = "netfunnel.knps.or.kr";
-
-/** `netfunnel.js` 경고 확인을 이미 한 세션. */
-const scriptChecked = new WeakSet<HttpClient>();
-/** 세션마다 이미 경고한 구역·자리 차이. 같은 차이는 한 번만 남긴다. */
-const warnedDrift = new WeakMap<HttpClient, Set<string>>();
-
-/** `netfunnel.js`의 버전과 `TS_HOST`가 기록한 값과 다르면 경고만 남긴다. 첫 조회가 끝난 뒤 세션당 한 번 받고, 받지 못해도 감시는 그대로다. */
-async function warnNetfunnelDrift(ctx: AdapterContext): Promise<void> {
-  if (scriptChecked.has(ctx.http) || ctx.signal?.aborted) return;
-  scriptChecked.add(ctx.http);
-  try {
-    const res = await ctx.http.get(NETFUNNEL_JS);
-    if (res.status !== 200) return;
-    const version = /Version\s+(\S+)/.exec(res.body)?.[1];
-    const host = /^NetFunnel\.TS_HOST\s*=\s*'([^']*)'/m.exec(res.body)?.[1];
-    if (version !== NETFUNNEL_VERSION) ctx.log?.("knps netfunnel.js version changed", { expected: NETFUNNEL_VERSION, actual: version });
-    if (host !== NETFUNNEL_TS_HOST) ctx.log?.("knps TS_HOST changed", { expected: NETFUNNEL_TS_HOST, actual: host });
-  } catch {
-    // 경고 전용이라 실패해도 감시는 그대로다.
-  }
-}
+const netfunnelScript = netfunnelScriptCheck({ provider: "knps", url: `${ORIGIN}/assets/js/lib/netfunnel.js`, version: "2.2.19", tsHost: "netfunnel.knps.or.kr" });
 
 /** 카탈로그와 다른 구역·자리는 경고만 남긴다. 감시 조건이 쓰는 구역이나 자리가 사라진 것은 조회 단위 판정이 실패로 처리한다. */
 function warnDrift(facility: string, zones: ZoneInfo[], grid: Grid, ctx: AdapterContext): void {
   const known = new Set(zones.map((z) => z.name));
-  const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
-  warnedDrift.set(ctx.http, warned);
   const drift = [
     ...[...grid.keys()].filter((n) => !known.has(n)).map((n) => ["new", n] as const),
     ...[...known].filter((n) => !grid.has(n)).map((n) => ["gone", n] as const),
   ];
   for (const [change, zone] of drift) {
-    if (warned.has(`${facility}:${change}:${zone}`)) continue;
-    warned.add(`${facility}:${change}:${zone}`);
-    ctx.log?.("knps zone drift", { facility, change, zone });
+    warnDriftOnce(ctx, `${facility}:${change}:${zone}`, "knps zone drift", { facility, change, zone });
   }
   for (const z of zones) {
     const seats = grid.get(z.name);
@@ -139,9 +111,7 @@ function warnDrift(facility: string, zones: ZoneInfo[], grid: Grid, ctx: Adapter
       ...z.seats.filter((n) => !seats.has(n)).map((n) => ["gone", n] as const),
     ];
     for (const [change, seat] of seatDrift) {
-      if (warned.has(`${facility}:${z.name}:${change}:${seat}`)) continue;
-      warned.add(`${facility}:${z.name}:${change}:${seat}`);
-      ctx.log?.("knps seat drift", { facility, zone: z.name, change, seat });
+      warnDriftOnce(ctx, `${facility}:${z.name}:${change}:${seat}`, "knps seat drift", { facility, zone: z.name, change, seat });
     }
   }
 }
@@ -292,7 +262,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       continue;
     }
     warnDrift(facility, zones, grid, ctx);
-    await warnNetfunnelDrift(ctx);
+    await netfunnelScript.warn(ctx);
     for (const q of queries) {
       const zone = zones.find((z) => z.code === q.zone);
       const seats = zone && grid.get(zone.name);

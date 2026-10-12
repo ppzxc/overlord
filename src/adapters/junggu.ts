@@ -13,7 +13,7 @@ import { facilities } from "../catalogs/junggu.js";
 import { resolveFacility } from "../facility.js";
 import { BlockedPathError } from "../http.js";
 import { addDays, kstDate } from "../schedule.js";
-import { enterQueue, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
+import { enterQueue, netfunnelScriptCheck, setNetFunnelCookie, warnDriftOnce, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "camping.junggu.ulsan.kr";
 const ORIGIN = `https://${HOST}`;
@@ -120,7 +120,6 @@ function parseMonthly(res: TransportResponse): Map<string, Day> {
   return days;
 }
 
-
 /** 한 (구역, 밤)의 자리 목록. `open`은 화면이 "예약하기"로 그리는 자리다. */
 interface Night {
   csName: string | undefined;
@@ -184,46 +183,18 @@ function tlsVerifyCode(e: unknown): string | undefined {
 
 /** 세션(HttpClient)마다 TLS 검증이 연속으로 실패한 바퀴 수. 검증 실패 없이 끝난 바퀴가 있으면 지운다. */
 const tlsStreak = new WeakMap<HttpClient, number>();
-/** `netfunnel.js` 확인을 이미 한 세션. */
-const scriptChecked = new WeakSet<HttpClient>();
-/** 세션마다 이미 경고한 구역 차이. 같은 차이는 한 번만 남긴다. */
-const warnedDrift = new WeakMap<HttpClient, Set<string>>();
-
-const NETFUNNEL_JS = `${ORIGIN}/camping/js/netfunnel.js`;
 // 2026-10-12에 기록으로 확인한 값(research/raw/junggu/netfunnel.excerpt.js). 달라지면 경고만 남긴다.
-const NETFUNNEL_VERSION = "2.2.19";
-const NETFUNNEL_TS_HOST = "campwait.junggu.ulsan.kr";
-
-/** `netfunnel.js`의 버전과 `TS_HOST`가 기록한 값과 다르면 경고만 남긴다. 첫 조회가 끝난 뒤 세션당 한 번 받고, 받지 못해도 감시는 그대로다. */
-async function warnNetfunnelDrift(ctx: AdapterContext): Promise<void> {
-  if (scriptChecked.has(ctx.http) || ctx.signal?.aborted) return;
-  scriptChecked.add(ctx.http);
-  try {
-    const res = await ctx.http.get(NETFUNNEL_JS);
-    if (res.status !== 200) return;
-    const version = /Version\s+(\S+)/.exec(res.body)?.[1];
-    const host = /^NetFunnel\.TS_HOST\s*=\s*'([^']*)'/m.exec(res.body)?.[1];
-    if (version !== NETFUNNEL_VERSION) ctx.log?.("junggu netfunnel.js version changed", { expected: NETFUNNEL_VERSION, actual: version });
-    if (host !== NETFUNNEL_TS_HOST) ctx.log?.("junggu TS_HOST changed", { expected: NETFUNNEL_TS_HOST, actual: host });
-  } catch {
-    // 경고 전용이라 실패해도 감시는 그대로다.
-  }
-}
+const netfunnelScript = netfunnelScriptCheck({ provider: "junggu", url: `${ORIGIN}/camping/js/netfunnel.js`, version: "2.2.19", tsHost: "campwait.junggu.ulsan.kr" });
 
 /** 카탈로그와 다른 구역(예약 화면에만 있거나 화면에서 빠진 구역)은 경고만 남긴다. 감시 조건이 쓰는 구역이 빠진 것은 조회 단위 판정이 실패로 처리한다. */
 function warnZoneDrift(facility: string, onPage: Map<string, string>, ctx: AdapterContext): void {
   const known = new Set(resolveFacility(INFO, facility).zones.map((z) => z.code));
-  const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
-  warnedDrift.set(ctx.http, warned);
   const drift = [
     ...[...onPage.keys()].filter((c) => !known.has(c)).map((c) => ["new", c] as const),
     ...[...known].filter((c) => !onPage.has(c)).map((c) => ["gone", c] as const),
   ];
   for (const [change, zone] of drift) {
-    const key = `${facility}:${change}:${zone}`;
-    if (warned.has(key)) continue;
-    warned.add(key);
-    ctx.log?.("junggu zone drift", { facility, change, zone });
+    warnDriftOnce(ctx, `${facility}:${change}:${zone}`, "junggu zone drift", { facility, change, zone });
   }
 }
 
@@ -341,7 +312,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
   }
   if (tlsFailed) tlsStreak.set(ctx.http, priorTls + 1);
   else tlsStreak.delete(ctx.http);
-  if (!failure) await warnNetfunnelDrift(ctx);
+  if (!failure) await netfunnelScript.warn(ctx);
   return results;
 }
 

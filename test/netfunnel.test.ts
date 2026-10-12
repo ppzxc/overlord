@@ -66,6 +66,12 @@ describe("NetFunnel 대기열 진입", () => {
     expect(s.calls).toHaveLength(1);
   });
 
+  it.each([403, 429])("대기열 서버 HTTP %i는 blocked이고 다시 묻지 않는다(ADR 0002: 403·429는 멈춘다)", async (status) => {
+    const s = server([{ status, body: "" }, OK]);
+    await expect(enterQueue(s.ctx, QUEUE)).rejects.toMatchObject({ kind: "blocked" });
+    expect(s.calls).toHaveLength(1);
+  });
+
   it("기다림이 120초 상한을 넘기게 되면 transient로 포기한다", async () => {
     const s = server(Array.from({ length: 30 }, () => result(201, "key=K&nwait=9&ttl=7")));
     await expect(enterQueue(s.ctx, QUEUE)).rejects.toMatchObject({ kind: "transient" });

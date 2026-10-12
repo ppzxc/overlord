@@ -478,6 +478,17 @@ describe("중구 신호 분류", () => {
       expect(alertTexts(p)[0]).toMatch(/차단/);
       await p.stop();
     });
+
+    it.each([403, 429])("대기열 서버 HTTP %i는 blocked로 곧바로 멈추고 알리며 예약 화면은 나가지 않는다", async (status) => {
+      const server = jungguServer({ intercept: (req) => (new URL(req.url).hostname === "campwait.junggu.ulsan.kr" ? { status, body: "" } : undefined) });
+      const p = runIphwa({ server });
+      await settle();
+      expect(failedKinds(p)).toEqual(["blocked"]);
+      expect(alertTexts(p)).toHaveLength(1);
+      expect(alertTexts(p)[0]).toMatch(/차단/);
+      expect(p.allRequests.map((r) => new URL(r.url).hostname)).toEqual(["campwait.junggu.ulsan.kr"]);
+      await p.stop();
+    });
   });
 
   describe("netfunnel.js 버전 변경", () => {

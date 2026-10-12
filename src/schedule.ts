@@ -67,14 +67,14 @@ export function isExpired(w: WatchWindow, rule: OpeningRule, now: Date): boolean
 }
 
 /** 지금 조회해야 하는 조회 단위: 남은 날짜 가운데 이미 열린 날짜만 구역마다 펼친다. */
-export function expandWatch(w: WatchWindow & { zones: string[] }, rule: OpeningRule, now: Date): AvailabilityQuery[] {
+export function expandWatch(w: WatchWindow & { facility: string; zones: string[] }, rule: OpeningRule, now: Date): AvailabilityQuery[] {
   const open = remainingDates(w, rule, now).filter(
     (d) => now.getTime() >= kstInstant(addDays(d, -rule.openDaysBefore), rule.openTime),
   );
-  return w.zones.flatMap((zone) => open.map((checkIn) => ({ zone, checkIn, nights: w.nights })));
+  return w.zones.flatMap((zone) => open.map((checkIn) => ({ facility: w.facility, zone, checkIn, nights: w.nights })));
 }
 
-export const unitKey = (q: AvailabilityQuery) => `${q.zone}|${q.checkIn}|${q.nights}`;
+export const unitKey = (q: AvailabilityQuery) => `${q.facility}|${q.zone}|${q.checkIn}|${q.nights}`;
 
 const minutesOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));
 

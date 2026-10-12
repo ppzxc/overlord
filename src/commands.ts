@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { renderCatalog } from "./catalog.js";
+import { renderCatalog, renderFacilities } from "./catalog.js";
 import { renderLiveDiff } from "./catalog-live.js";
 import type { Command } from "./cli.js";
 import { ConfigError, loadConfig, type Config } from "./config.js";
@@ -24,10 +24,26 @@ export interface CatalogDeps {
 export async function runCatalog(command: Extract<Command, { kind: "catalog" }>, deps: CatalogDeps): Promise<number> {
   const adapter = deps.adapters[command.provider ?? ""];
   if (!adapter) {
-    deps.err(`사용법: catalog <예약처> [--live]. 쓸 수 있는 예약처: ${Object.keys(deps.adapters).join(", ")}\n`);
+    deps.err(`사용법: catalog <예약처> [<시설>] [--live]. 쓸 수 있는 예약처: ${Object.keys(deps.adapters).join(", ")}\n`);
     return 1;
   }
-  deps.out(renderCatalog(adapter));
+  const facilities = adapter.describe().facilities;
+  const codes = facilities.map((f) => f.code).join(", ");
+  if (command.facility !== undefined && !facilities.some((f) => f.code === command.facility)) {
+    deps.err(`없는 시설: ${command.facility}. 쓸 수 있는 값: ${codes}\n`);
+    return 1;
+  }
+  // 시설을 안 골랐을 때 시설이 하나면 그 시설이다. 둘 이상이면 목록만 보이고, --live는 요청 없이 거부한다.
+  const facility = command.facility ?? (facilities.length === 1 ? facilities[0]!.code : undefined);
+  if (facility === undefined) {
+    if (command.live) {
+      deps.err(`시설을 골라야 한다. 쓸 수 있는 값: ${codes}\n`);
+      return 1;
+    }
+    deps.out(renderFacilities(adapter));
+    return 0;
+  }
+  deps.out(renderCatalog(adapter, facility));
   if (!command.live) return 0;
   const rush = deps.config?.providers[adapter.describe().id]?.openingRush ?? adapter.describe().openingRush;
   if (rush && msUntilRushEnd(deps.now(), rush) > 0) {
@@ -41,6 +57,7 @@ export async function runCatalog(command: Extract<Command, { kind: "catalog" }>,
     now: deps.now(),
     clock: { now: deps.now, sleep: (ms) => deps.sleep(ms) },
     random: deps.random,
+    facility,
   });
   deps.out(result.text);
   return result.failed ? 1 : 0;

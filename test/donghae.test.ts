@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
+import { donghaeAdapter } from "../src/adapters/donghae.js";
 import { createHttpClient } from "../src/http.js";
-import { DONGHAE_ENTRY, DONGHAE_ZONES, ENV, configWith, donghaeServer, settle, startPoller } from "./harness.js";
+import { DONGHAE_ENTRY, DONGHAE_ZONES, ENV, FakeClock, configWith, donghaeServer, fakeHttp, settle, startPoller } from "./harness.js";
+
+describe("동해시 시설 ref", () => {
+  it("카탈로그에 없는 시설을 조회하면 요청을 보내지 않고 던진다", async () => {
+    let requests = 0;
+    const http = fakeHttp(async () => {
+      requests++;
+      return { status: 500, body: "" };
+    });
+    const q = { facility: "nope", zone: "자동차캠핑장", checkIn: "2026-10-03", nights: 1 };
+    await expect(donghaeAdapter.queryAvailability(q, { clock: new FakeClock(), http })).rejects.toThrow(/nope/);
+    await expect(donghaeAdapter.listZones!(q, { clock: new FakeClock(), http })).rejects.toThrow(/nope/);
+    expect(requests).toBe(0);
+  });
+});
 
 const HEAD_WATCH = (extra = "") => `
   - name: 망상 가을

@@ -18,7 +18,7 @@ docker compose up -d --build
 
 `config.example.yaml`에 예시가 있다. 주요 항목은 다음과 같다.
 
-- `providers.<id>.pollIntervalSeconds`: 바퀴 사이 간격(60초 이상, 기본 150).
+- `providers.<id>.pollIntervalSeconds`: 바퀴 사이 간격(60초 이상, 생략하면 예약처가 선언한 기본값, 그것도 없으면 150).
 - `providers.<id>.openingRush`: 오픈 경쟁 시간 `{ from, to }`(HH:MM). 이 구간에는 조회하지 않고 끝까지 쉰다. 생략하면 예약처 기본값을 쓴다.
 - `quietHours`: 알림을 무음으로 보내고 바퀴 간격을 3배로 늘리는 시간대.
 - `dailySummary`: 일일 요약 시각. 예약처별 마지막 성공 시각과 프로세스 가동 시작 시각도 적는다.
@@ -36,4 +36,4 @@ docker compose up -d --build
 
 `npm run typecheck`, `npm run lint`, `npm test`.
 
-예약처 카탈로그: `node dist/main.js catalog <예약처> [--live] [--config config.yaml]`
+예약처 카탈로그: `node dist/main.js catalog <예약처> [<시설>] [--live] [--config config.yaml]`

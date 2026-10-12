@@ -1,4 +1,5 @@
 import type { ProviderAdapter, ZoneInfo } from "./types.js";
+import { resolveFacility } from "./facility.js";
 
 /** A01,A02,A03,A05 → "A01-A03, A05". 번호가 연속인 것만 묶는다. */
 export function compact(ids: string[]): string {
@@ -21,16 +22,29 @@ const seatsText = (z: ZoneInfo) => (z.seats ? `${z.seats.length}자리: ${compac
 /** 터미널에서 한글은 두 칸을 차지한다. */
 const visualWidth = (text: string) => [...text].reduce((n, ch) => n + (/[가-힣]/.test(ch) ? 2 : 1), 0);
 
-/** 구역 표: 코드, 이름, 유형, 정원, 자리 번호. */
-export function renderCatalog(adapter: ProviderAdapter): string {
+/** 행들을 열마다 가장 넓은 칸에 맞춘다. 마지막 열은 패딩 없이 그대로 둔다. */
+function renderRows(rows: string[][]): string {
+  const last = rows[0]!.length - 1;
+  const widths = Array.from({ length: last }, (_, c) => Math.max(...rows.map((r) => visualWidth(r[c]!))));
+  return rows
+    .map((r) => r.map((cell, c) => (c < last ? cell + " ".repeat(widths[c]! - visualWidth(cell)) : cell)).join("  ").trimEnd())
+    .join("\n");
+}
+
+/** 시설 목록: 코드, 이름, 구역 수. 시설이 둘 이상인 예약처에서 시설을 고르게 한다. */
+export function renderFacilities(adapter: ProviderAdapter): string {
   const info = adapter.describe();
+  const rows = info.facilities.map((f) => [f.code, f.name, `${f.zones.length}곳`]);
+  return `${info.id} (최대 ${info.maxNights}박)\n${renderRows(rows)}\n`;
+}
+
+/** 구역 표: 코드, 이름, 유형, 정원, 자리 번호. 시설을 안 고르면 첫 시설이다(시설이 하나인 예약처용). */
+export function renderCatalog(adapter: ProviderAdapter, facilityCode?: string): string {
+  const info = adapter.describe();
+  const facility = resolveFacility(info, facilityCode);
   const rows = [
     ["코드", "이름", "유형", "정원", "자리"],
-    ...info.zones.map((z) => [z.code, z.name, z.type, z.capacity ? `${z.capacity}인` : "-", seatsText(z)]),
+    ...facility.zones.map((z) => [z.code, z.name, z.type, z.capacity ? `${z.capacity}인` : "-", seatsText(z)]),
   ];
-  const widths = [0, 1, 2, 3].map((c) => Math.max(...rows.map((r) => visualWidth(r[c]!))));
-  const lines = rows.map((r) =>
-    [...r.slice(0, 4).map((cell, c) => cell + " ".repeat(widths[c]! - visualWidth(cell))), r[4]!].join("  ").trimEnd(),
-  );
-  return `${info.id} (최대 ${info.maxNights}박)\n${lines.join("\n")}\n`;
+  return `${info.id} (최대 ${info.maxNights}박)\n${renderRows(rows)}\n`;
 }

@@ -1,8 +1,9 @@
 import type { Config } from "./config.js";
+import { resolveFacility } from "./facility.js";
 import { ProviderHealth, worstFailure, type Failure } from "./health.js";
 import { LOOP_TURN, type Liveness } from "./liveness.js";
 import { createHttpClient } from "./http.js";
-import { createShared, errMessage, recordRound, type DayStats, type ProviderStat, type Shared } from "./notify.js";
+import { createShared, errMessage, pollIntervalMs, recordRound, type DayStats, type ProviderStat, type Shared } from "./notify.js";
 import { addDays, expandWatch, HOUR_MS, isExpired, isQuiet, kstDate, kstHourKey, msUntilRushEnd, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
 import { runDailySummary, runHourlySummary } from "./summary.js";
@@ -90,7 +91,7 @@ async function runProvider(
   const adapter = deps.adapters[providerId]!;
   const info = adapter.describe();
   const watches = config.watches.filter((w) => w.provider === providerId);
-  const intervalMs = (config.providers[providerId]?.pollIntervalSeconds ?? 150) * 1000;
+  const intervalMs = pollIntervalMs(config, providerId, info);
 
   const rush = config.providers[providerId]?.openingRush ?? info.openingRush;
 
@@ -172,7 +173,7 @@ async function runProvider(
     }
 
     // 같은 조회 단위는 감시 조건이 몇 개든 한 번만 조회한다.
-    const plans = active.map((watch) => ({ watch, units: expandWatch(watch, info.openingRule, now) }));
+    const plans = active.map((watch) => ({ watch, units: expandWatch({ ...watch, facility: resolveFacility(info, watch.facility).code }, info.openingRule, now) }));
     const results = new Map<string, AvailableSite[] | null>(); // null: 이번 바퀴에 조회 실패
     const queries = new Map<string, AvailabilityQuery>();
     for (const { units } of plans) for (const q of units) queries.set(unitKey(q), q);

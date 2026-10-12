@@ -1,7 +1,8 @@
 import { compact } from "./catalog.js";
+import { resolveFacility } from "./facility.js";
 import { createHttpClient } from "./http.js";
 import { addDays, kstDate } from "./schedule.js";
-import { AdapterError, type AdapterContext, type Clock, type ProviderAdapter, type Transport, type ZoneInfo, type ZoneObservation } from "./types.js";
+import { AdapterError, type AdapterContext, type Clock, type ProviderAdapter, type Transport, type FacilityInfo, type ZoneObservation } from "./types.js";
 
 export interface LiveOptions {
   transport: Transport;
@@ -10,6 +11,8 @@ export interface LiveOptions {
   /** 요청 사이 간격(5초 + 0~3초 지터)을 지키는 데 쓰는 시계와 난수. 폴러와 같은 원칙이다. */
   clock: Clock;
   random: () => number;
+  /** 대조할 시설 코드. 없으면 첫 시설이다(시설이 하나인 예약처용). */
+  facility?: string;
 }
 
 export interface LiveResult {
@@ -36,15 +39,15 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
     }),
   };
   try {
-    return await compareLive(adapter, info.zones, addDays(kstDate(opts.now), 1), ctx);
+    return await compareLive(adapter, resolveFacility(info, opts.facility), addDays(kstDate(opts.now), 1), ctx);
   } finally {
     // 대기열에 들어갔던 예약처는 종료할 때 마무리 신호를 보낸다.
     await adapter.close?.(ctx);
   }
 }
 
-async function compareLive(adapter: ProviderAdapter, zones: ZoneInfo[], checkIn: string, ctx: AdapterContext): Promise<LiveResult> {
-  if (adapter.listZones) return renderZoneDiff(adapter.listZones.bind(adapter), zones, checkIn, ctx);
+async function compareLive(adapter: ProviderAdapter, facility: FacilityInfo, checkIn: string, ctx: AdapterContext): Promise<LiveResult> {
+  if (adapter.listZones) return renderZoneDiff(adapter.listZones.bind(adapter), facility, checkIn, ctx);
   if (!adapter.listSeats) {
     return { text: `${adapter.describe().id}는 자리 단위로 보지 않는 예약처라 비교할 자리 목록이 없다\n`, failed: false };
   }
@@ -52,10 +55,10 @@ async function compareLive(adapter: ProviderAdapter, zones: ZoneInfo[], checkIn:
   const lines: string[] = [];
   let differences = 0;
   let failures = 0;
-  for (const zone of zones) {
+  for (const zone of facility.zones) {
     let actual: string[];
     try {
-      actual = await listSeats({ zone: zone.code, checkIn, nights: 1 }, ctx);
+      actual = await listSeats({ facility: facility.code, zone: zone.code, checkIn, nights: 1 }, ctx);
     } catch (e) {
       if (!(e instanceof AdapterError)) throw e;
       failures++;
@@ -89,18 +92,18 @@ async function compareLive(adapter: ProviderAdapter, zones: ZoneInfo[], checkIn:
 /** 구역 이름 집합만 알 수 있는 예약처: 한 번 조회해서 고정 구역과 비교한다. */
 async function renderZoneDiff(
   listZones: NonNullable<ProviderAdapter["listZones"]>,
-  zones: ZoneInfo[],
+  facility: FacilityInfo,
   checkIn: string,
   ctx: AdapterContext,
 ): Promise<LiveResult> {
   let seen: ZoneObservation;
   try {
-    seen = await listZones({ zone: "", checkIn, nights: 1 }, ctx);
+    seen = await listZones({ facility: facility.code, zone: "", checkIn, nights: 1 }, ctx);
   } catch (e) {
     if (!(e instanceof AdapterError)) throw e;
     return { text: `조회 실패(${e.kind}): ${e.message}\n`, failed: true };
   }
-  const fixed = zones.map((z) => z.name);
+  const fixed = facility.zones.map((z) => z.name);
   const missing = fixed.filter((n) => !seen.zones.includes(n));
   const added = seen.zones.filter((n) => !fixed.includes(n));
   const lines: string[] = [];

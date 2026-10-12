@@ -527,9 +527,9 @@ describe("고래불 실제 캘린더 fixture", () => {
     const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
     const seen: string[] = [];
     const units = [
-      { zone: "DKA", checkIn: "2026-09-29", nights: 1 }, // (34)
-      { zone: "PEA", checkIn: "2026-09-29", nights: 1 }, // 캘린더에 없는 구역
-      { zone: "DKA", checkIn: "2026-09-15", nights: 1 }, // 지난 날짜(td.not)
+      { facility: "goraebul", zone: "DKA", checkIn: "2026-09-29", nights: 1 }, // (34)
+      { facility: "goraebul", zone: "PEA", checkIn: "2026-09-29", nights: 1 }, // 캘린더에 없는 구역
+      { facility: "goraebul", zone: "DKA", checkIn: "2026-09-15", nights: 1 }, // 지난 날짜(td.not)
     ];
     const res = await goraebulAdapter.queryAvailabilityBatch!(
       units,
@@ -543,7 +543,7 @@ describe("고래불 실제 캘린더 fixture", () => {
 
   it("캘린더 구조를 읽지 못하면 unrecognized로 실패한다", async () => {
     const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
-    const unit = { zone: "DKA", checkIn: "2026-09-29", nights: 1 };
+    const unit = { facility: "goraebul", zone: "DKA", checkIn: "2026-09-29", nights: 1 };
     const res = await goraebulAdapter.queryAvailabilityBatch!(
       [unit],
       ctxFor("<html></html>"),
@@ -556,6 +556,7 @@ describe("캘린더 실패 격리", () => {
   const run = async (body: string, months: string[]) => {
     const { goraebulAdapter } = await import("../src/adapters/goraebul.js");
     const units = months.map((m) => ({
+      facility: "goraebul",
       zone: "DKA",
       checkIn: `${m}-29`,
       nights: 1,
@@ -1220,6 +1221,63 @@ describe("동작 로그", () => {
     await settle();
     expect(p.logs.map((l) => l.msg)).toEqual(["poller started", "cycle done"]);
     expect(p.logs[1]!.fields).toMatchObject({ newOpenings: 0, failed: 0 });
+    await p.stop();
+  });
+});
+
+describe("예약처별 기본 폴링 간격", () => {
+  const watchYaml = `  - { name: 다른곳, provider: other, zones: [DKA], checkIn: { from: 2026-09-29, to: 2026-09-29 }, nights: 1, notify: [default] }`;
+  const fake = (defaultPollIntervalSeconds?: number): ProviderAdapter => ({
+    ...goraebulAdapter,
+    id: "other",
+    describe: () => ({ ...goraebulAdapter.describe(), id: "other", defaultPollIntervalSeconds }),
+    queryAvailabilityBatch: undefined,
+    queryAvailability: async (_q, ctx) => {
+      await ctx.http.get("https://other.example/x");
+      return [];
+    },
+  });
+  const run = (adapter: ProviderAdapter, providersYaml: string) =>
+    startPoller(() => ({ status: 200, body: "" }), {
+      yaml: configWith(watchYaml).replace("providers:\n  goraebul: { pollIntervalSeconds: 150 }\n", providersYaml),
+      adapters: { other: adapter },
+    });
+
+  it("기본값을 선언하지 않은 예약처는 설정에 값이 없으면 150초 간격으로 돈다", async () => {
+    const p = run(fake(), "providers:\n  other: {}\n");
+    await settle();
+    expect(p.requests).toHaveLength(1);
+    await p.clock.advance(149_000);
+    expect(p.requests).toHaveLength(1);
+    await p.clock.advance(1_000);
+    expect(p.requests).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("providers 항목 자체가 없어도 150초 간격으로 돈다", async () => {
+    const p = run(fake(), "providers: {}\n");
+    await settle();
+    await p.clock.advance(150_000);
+    expect(p.requests).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("기본값을 선언한 예약처는 설정에 값이 없으면 그 값으로 돈다", async () => {
+    const p = run(fake(300), "providers:\n  other: {}\n");
+    await settle();
+    expect(p.requests).toHaveLength(1);
+    await p.clock.advance(299_000);
+    expect(p.requests).toHaveLength(1);
+    await p.clock.advance(1_000);
+    expect(p.requests).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("설정의 pollIntervalSeconds가 예약처 기본값을 덮어쓴다", async () => {
+    const p = run(fake(300), "providers:\n  other: { pollIntervalSeconds: 90 }\n");
+    await settle();
+    await p.clock.advance(90_000);
+    expect(p.requests).toHaveLength(2);
     await p.stop();
   });
 });

@@ -6,7 +6,7 @@ import { loadConfig } from "../src/config.js";
 import { Liveness } from "../src/liveness.js";
 import { runPoller } from "../src/poller.js";
 import type { TelegramMessage, TelegramSink } from "../src/telegram.js";
-import type { Clock, HttpClient, ProviderAdapter, Transport, TransportRequest, TransportResponse } from "../src/types.js";
+import type { AvailabilityQuery, Clock, HttpClient, ProviderAdapter, Transport, TransportRequest, TransportResponse } from "../src/types.js";
 
 export const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
@@ -267,4 +267,48 @@ export function donghaeServer(
     return { status: 404, body: "" };
   };
   return respond;
+}
+
+/**
+ * 테스트 전용 가짜 어댑터. 시설이 둘(alpha, beta)이고 두 시설에 같은 구역 코드(SH)가 하나 있다.
+ * 조회 단위를 calls에 쌓고 자리 하나를 돌려준다.
+ */
+export function twoFacilityAdapter(): { adapter: ProviderAdapter; calls: AvailabilityQuery[] } {
+  const calls: AvailabilityQuery[] = [];
+  const adapter: ProviderAdapter = {
+    id: "multi",
+    describe: () => ({
+      id: "multi",
+      facilities: [
+        {
+          code: "alpha",
+          name: "알파 시설",
+          ref: "A-1",
+          zones: [
+            { code: "SH", name: "공용구역", type: "테스트", seats: ["S01", "S02"] },
+            { code: "AO", name: "알파전용", type: "테스트" },
+          ],
+        },
+        {
+          code: "beta",
+          name: "베타 시설",
+          ref: "B-1",
+          zones: [
+            { code: "SH", name: "공용구역", type: "테스트", seats: ["T01"] },
+            { code: "BO", name: "베타전용", type: "테스트" },
+          ],
+        },
+      ],
+      maxNights: 2,
+      openingRule: { openDaysBefore: 30, openTime: "00:00", sameDayCutoff: "23:00" },
+      blockedPaths: [],
+      cookieSession: false,
+    }),
+    queryAvailability: async (q) => {
+      calls.push(q);
+      return [{ id: "S01", name: "1번 자리" }];
+    },
+    deepLink: (q) => `https://multi.example/${q.facility}/${q.zone}/${q.checkIn}`,
+  };
+  return { adapter, calls };
 }

@@ -117,7 +117,7 @@ describe("catalog", () => {
 
   // 요소 id(dka_2)의 번호를 고정 목록에서 뽑아 응답을 만든다.
   const fixedLayout = (zone: string) => {
-    const seats = goraebulAdapter.describe().zones.find((z) => z.code === zone)!.seats!;
+    const seats = goraebulAdapter.describe().facilities[0]!.zones.find((z) => z.code === zone)!.seats!;
     return layout(zone, seats.map((id) => +/(\d+)$/.exec(id)![1]!));
   };
 
@@ -433,5 +433,12 @@ describe("catalog donghae --live 구역 대조", () => {
     const result = await run(donghaeServer({ detailBody: () => "not json" }));
     expect(result.text).toContain("조회 실패(unrecognized)");
     expect(result.failed).toBe(true);
+  });
+});
+
+describe("pollIntervalSeconds 기본값", () => {
+  it("설정에 없으면 미리 채우지 않고 비워 둔다", () => {
+    const yaml = configWith(watch("")).replace("goraebul: { pollIntervalSeconds: 150 }", "goraebul: {}");
+    expect(loadConfig(yaml, ENV).providers.goraebul?.pollIntervalSeconds).toBeUndefined();
   });
 });

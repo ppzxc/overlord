@@ -1,5 +1,6 @@
 import type { Config } from "./config.js";
 import { compact } from "./catalog.js";
+import { defaultFacility } from "./facility.js";
 import { seatsMatching } from "./seats.js";
 import type { ProviderAdapter } from "./types.js";
 
@@ -26,7 +27,7 @@ export function checkAgainstProviders(config: Config, adapters: Record<string, P
     const info = adapter.describe();
     const facilityCodes = info.facilities.map((f) => f.code).join(", ");
     // 시설이 하나면 생략할 수 있다. 둘 이상이면 어느 시설인지 골라야 한다.
-    const facility = w.facility === undefined ? (info.facilities.length === 1 && !info.facilityRequired ? info.facilities[0] : undefined) : info.facilities.find((f) => f.code === w.facility);
+    const facility = w.facility === undefined ? defaultFacility(info) : info.facilities.find((f) => f.code === w.facility);
     if (w.facility === undefined && !facility) {
       problems.push({ path: at("facility"), message: `시설을 골라야 한다. 쓸 수 있는 값: ${facilityCodes}` });
     } else if (w.facility !== undefined && !facility) {

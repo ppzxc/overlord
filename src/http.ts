@@ -21,6 +21,25 @@ export function userAgent(version: string, suffix: string): string {
   return suffix.trim() ? `${base} ${suffix.trim()}` : base;
 }
 
+/** 접근 금지 경로를 부르려 했다(직접 요청이나 리다이렉트 홉). 요청은 나가지 않았다. */
+export class BlockedPathError extends Error {
+  constructor(
+    readonly blockedPath: string,
+    readonly url: string,
+  ) {
+    super(`접근 금지 경로(${blockedPath})는 호출하지 않는다: ${url}`);
+    this.name = "BlockedPathError";
+  }
+}
+
+/** 한 요청이 리다이렉트 상한을 넘었다. */
+export class RedirectLimitError extends Error {
+  constructor(readonly url: string) {
+    super(`리다이렉트가 ${MAX_REDIRECTS}번을 넘었다: ${url}`);
+    this.name = "RedirectLimitError";
+  }
+}
+
 /** 한 요청이 따라가는 리다이렉트의 상한. */
 const MAX_REDIRECTS = 5;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
@@ -47,7 +66,7 @@ export function createHttpClient(opts: {
     // 서버가 경로의 대소문자를 가리지 않는 예약처(xticket의 /Web과 /web)도 있어 대소문자 없이 견준다.
     const lower = pathname.toLowerCase();
     const blocked = opts.blockedPaths.find((p) => lower.startsWith(p.toLowerCase()));
-    if (blocked) throw new Error(`접근 금지 경로(${blocked})는 호출하지 않는다: ${url}`);
+    if (blocked) throw new BlockedPathError(blocked, url);
   };
 
   // 쿠키는 보내는 순간에 싣는다. 큐에서 기다리던 요청도 앞 요청이 받은 쿠키를 가져가야 한다.
@@ -70,7 +89,7 @@ export function createHttpClient(opts: {
       assertAllowed(url);
       const res = await sendOnce(method, url, body, contentType, extra);
       if (!REDIRECT_STATUSES.has(res.status) || !res.location) return res;
-      if (hop === MAX_REDIRECTS) throw new Error(`리다이렉트가 ${MAX_REDIRECTS}번을 넘었다: ${url}`);
+      if (hop === MAX_REDIRECTS) throw new RedirectLimitError(url);
       url = new URL(res.location, url).toString();
       // fetch처럼 303과, POST에 대한 301·302는 본문 없는 GET으로 바꾼다. 307·308은 그대로 다시 보낸다.
       if (res.status === 303 || (method === "POST" && (res.status === 301 || res.status === 302))) {

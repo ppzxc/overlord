@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
-import { createHttpClient } from "../src/http.js";
+import { BlockedPathError, RedirectLimitError, createHttpClient } from "../src/http.js";
 import type { Transport, TransportRequest, TransportResponse } from "../src/types.js";
 import { FakeClock } from "./harness.js";
 
@@ -279,13 +279,17 @@ describe("리다이렉트", () => {
 
   it("접근 금지 경로로 가는 리다이렉트는 따라가지 않는다", async () => {
     const { requests, transport } = redirecting({ "/a": { status: 302, body: "", location: "https://example.com/bbs/x" } });
-    await expect(client(transport, { blockedPaths: ["/bbs/"] }).get("https://example.com/a")).rejects.toThrow(/접근 금지/);
+    const failed = client(transport, { blockedPaths: ["/bbs/"] }).get("https://example.com/a");
+    await expect(failed).rejects.toThrow(/접근 금지/);
+    await expect(failed).rejects.toBeInstanceOf(BlockedPathError);
     expect(requests).toHaveLength(1);
   });
 
   it("리다이렉트가 끝없이 이어지면 멈춘다", async () => {
     const { requests, transport } = redirecting({ "/loop": { status: 302, body: "", location: "/loop" } });
-    await expect(client(transport).get("https://example.com/loop")).rejects.toThrow(/리다이렉트/);
+    const failed = client(transport).get("https://example.com/loop");
+    await expect(failed).rejects.toThrow(/리다이렉트/);
+    await expect(failed).rejects.toBeInstanceOf(RedirectLimitError);
     expect(requests.length).toBeLessThanOrEqual(6);
   });
 

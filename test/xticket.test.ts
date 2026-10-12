@@ -305,6 +305,8 @@ describe("xticket 신호 분류", () => {
 
   it.each([
     ["HTML(로그인 표지 없음)", PLAY_DATE, html("<html><body>점검 중입니다</body></html>")],
+    ["HTML(로그인·차단·captcha 단어만 있고 로그인 폼은 없음)", PLAY_DATE, html("<html><nav>로그인 | 회원가입</nav><p>차단 규정과 captcha 안내</p></html>")],
+    ["자리 목록 자리에 온 일반 HTML(로그인 단어만 있음)", PRODUCT, html("<html><a href=\"/web/main\">로그인</a> 화면이 바뀌었습니다</html>")],
     ["data.bookPlayDateList 없음", PLAY_DATE, html(JSON.stringify({ data: {} }))],
     ["data.bookProductList 없음", PRODUCT, html(JSON.stringify({ data: { other: [] } }))],
     ["감시 상품군이 응답에서 사라짐(빈 자리 목록)", PRODUCT, html(JSON.stringify({ data: { bookProductList: [] } }))],
@@ -529,6 +531,16 @@ describe("catalog xticket", () => {
     expect(r.out).toMatch(/^gangnaru\s+강나루 오토캠핑장\s+2곳$/m);
     expect(r.out).not.toMatch(/chilgokbo/);
     expect(r.requests).toEqual([]);
+  });
+
+  it.each([
+    ["dalseo", 3],
+    ["najeong", 2],
+    ["gyeongju-caravan", 2],
+    ["gangdong", 3],
+  ])("%s 구역 표 머리글은 시설의 최대 박수 %i박을 보인다", async (facility, max) => {
+    const r = await run(facility);
+    expect(r.out).toMatch(new RegExp(`^xticket \\(최대 ${max}박\\)$`, "m"));
   });
 
   it("나정은 상품군 0101 카라반사이트와 0201 오토사이트를 구역으로 보여 준다", async () => {

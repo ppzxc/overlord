@@ -11,6 +11,7 @@ import {
   type TransportResponse,
 } from "../types.js";
 import { facilities } from "../catalogs/xticket.js";
+import { BlockedPathError, RedirectLimitError } from "../http.js";
 
 const ORIGIN = "https://camp.xticket.kr";
 
@@ -57,8 +58,12 @@ const failure = (res: TransportResponse, what: string): AdapterError | undefined
   return undefined;
 };
 
-/** 로그인 화면, 차단 화면, 봇 탐지·captcha가 JSON 자리에 온 것이다. 본문에서 알아본다. */
-const LOGIN_OR_BLOCK_PAGE = /MemberLogin|login_id|login_passwd|로그인|차단|접근이 제한|botmanager|crawlingCheck|dynapath|jcaptcha|captcha/i;
+/**
+ * 로그인 폼·차단 안내·봇 탐지가 JSON 자리에 온 것을 알아보는 구체 표지(로그인 경로, 로그인 폼 입력 이름, 차단 안내 문구, 봇 탐지·captcha 경로).
+ * "로그인", "차단", "captcha" 같은 낱말만으로는 판정하지 않는다. 메뉴나 안내문에도 나오므로 일반 HTML 구조 변경이 blocked로 오인된다.
+ * 표지가 없는 JSON 아님은 unrecognized다.
+ */
+const LOGIN_OR_BLOCK_PAGE = /MemberLogin|login_id|login_passwd|접근이 (차단|제한)|비정상적인 접근|botmanager|crawlingCheck|dynapath|\/jcaptcha/i;
 /** 시설 화면에 있으면 안 되는 봇 탐지 장치. captcha는 예약 폼이 원래 싣고 있어 여기서는 보지 않는다. */
 const BOT_DETECTION = /botmanager|crawlingCheck|dynapath/i;
 
@@ -70,13 +75,13 @@ const redirectStreaks = new WeakMap<HttpClient, Map<string, number>>();
 
 /** 네트워크 층이 던진 오류를 분류한다. 로그인·차단 경로로의 리다이렉트는 blocked다(그 경로로는 요청이 나가지 않았다). */
 function classifyThrown(e: unknown, what: string): unknown {
-  if (!(e instanceof Error) || e instanceof AdapterError) return e;
-  if (e.message.startsWith("접근 금지 경로")) return new AdapterError("blocked", `${what}: 로그인·접근 금지 경로로 보내졌다(${e.message})`);
+  if (e instanceof BlockedPathError) return new AdapterError("blocked", `${what}: 로그인·접근 금지 경로로 보내졌다(${e.message})`);
   return e;
 }
 
-/** 시설의 쿠키 세션을 연다. 앞 시설의 쿠키는 버린다. /web/main이 302 두 번으로 쿠키를 심고 200을 준다. */
-async function openSession(facility: string, shopEncode: string, ctx: AdapterContext): Promise<void> {
+/** 시설의 쿠키 세션을 열고 그 시설의 shopEncode를 돌려준다. 앞 시설의 쿠키는 버린다. /web/main이 302 두 번으로 쿠키를 심고 200을 준다. */
+async function openSession(facility: string, ctx: AdapterContext): Promise<string> {
+  const shopEncode = shopEncodeOf(facility);
   ctx.http.clearSession();
   const streaks = redirectStreaks.get(ctx.http) ?? new Map<string, number>();
   redirectStreaks.set(ctx.http, streaks);
@@ -84,7 +89,7 @@ async function openSession(facility: string, shopEncode: string, ctx: AdapterCon
   try {
     res = await ctx.http.get(mainUrl(shopEncode));
   } catch (e) {
-    if (e instanceof Error && e.message.startsWith("리다이렉트가")) {
+    if (e instanceof RedirectLimitError) {
       const n = (streaks.get(facility) ?? 0) + 1;
       streaks.set(facility, n);
       throw new AdapterError(n >= 2 ? "unrecognized" : "transient", `시설 화면: 세션이 열리지 않는다(${e.message}, 연속 ${n}번째)`);
@@ -93,8 +98,23 @@ async function openSession(facility: string, shopEncode: string, ctx: AdapterCon
   }
   const bad = failure(res, "시설 화면");
   if (bad) throw bad;
+  // 사후 검사다: 시설 화면 요청은 이미 나갔고 본문을 받은 뒤에야 본다. 봇 탐지를 피하는 장치가 아니라, 보이면 다음 요청부터 멈추기 위한 것이다.
   if (BOT_DETECTION.test(res.body)) throw new AdapterError("blocked", "시설 화면에 봇 탐지 장치가 보인다");
   streaks.delete(facility);
+  return shopEncode;
+}
+
+/** 이번 바퀴에서 이어 갈 수 있는 오류(차단이 아닌 AdapterError)는 돌려주고, 차단이나 예상 밖 오류는 그대로 던져 전체를 멈춘다. */
+function recoverable(e: unknown): AdapterError {
+  if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
+  return e;
+}
+
+/** data.bookProductList를 배열로 읽는다. 없거나 배열이 아니면 구조 변경이다. */
+function productListOf(data: Record<string, unknown>): unknown[] {
+  const list = data.bookProductList;
+  if (!Array.isArray(list)) throw new AdapterError("unrecognized", "data.bookProductList가 없다");
+  return list;
 }
 
 /** 한 요청을 보내고 data 객체를 돌려준다. 응답은 JSON이어야 하고 error가 없어야 한다. */
@@ -162,8 +182,7 @@ async function fetchOpenSites(q: AvailabilityQuery, shopEncode: string, ctx: Ada
     shopEncode,
     ctx,
   );
-  const list = data.bookProductList;
-  if (!Array.isArray(list)) throw new AdapterError("unrecognized", "data.bookProductList가 없다");
+  const list = productListOf(data);
   // 응답은 예약 여부와 관계없이 상품군의 모든 자리를 준다(기록: 14·40·15곳). 빈 목록은 그 상품군이 없어졌다는 뜻이다.
   if (list.length === 0) throw new AdapterError("unrecognized", `상품군 ${q.zone}이(가) 응답에서 사라졌다`);
   const sites: AvailableSite[] = [];
@@ -195,13 +214,13 @@ const lastNight = (q: AvailabilityQuery) => addDays(q.checkIn, q.nights - 1);
 const monthOf = (date: string) => ymd(date).slice(0, 6);
 
 async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: AdapterContext, results: Map<AvailabilityQuery, AvailableSite[] | AdapterError>) {
-  const shopEncode = shopEncodeOf(facility);
   // 시설마다 세션을 새로 연다.
+  let shopEncode: string;
   try {
-    await openSession(facility, shopEncode, ctx);
+    shopEncode = await openSession(facility, ctx);
   } catch (e) {
-    if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
-    for (const q of units) results.set(q, e);
+    const error = recoverable(e);
+    for (const q of units) results.set(q, error);
     return;
   }
   const months = [...new Set(units.flatMap((q) => nightsOf(q).map(monthOf)))].sort();
@@ -212,8 +231,7 @@ async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: 
       calendars.set(month, await fetchPlayDates(month, shopEncode, ctx));
     } catch (e) {
       // 한 달이 실패해도 다른 달은 계속 본다. 차단은 전체가 멈춘다.
-      if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
-      failedMonths.set(month, e);
+      failedMonths.set(month, recoverable(e));
     }
   }
   for (const q of units) {
@@ -235,8 +253,7 @@ async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: 
     try {
       results.set(q, await fetchOpenSites(q, shopEncode, ctx));
     } catch (e) {
-      if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
-      results.set(q, e);
+      results.set(q, recoverable(e));
     }
   }
 }
@@ -245,15 +262,15 @@ async function queryBatch(units: AvailabilityQuery[], ctx: AdapterContext) {
   const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
   const byFacility = new Map<string, AvailabilityQuery[]>();
   for (const q of units) byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
-  let failure: AdapterError | undefined;
+  let halted: AdapterError | undefined;
   for (const [facility, list] of byFacility) {
     // 앞 시설이 실패했으면 남은 시설 요청은 보내지 않고 같은 오류로 실패 처리한다. 이미 받은 결과는 그대로 둔다.
-    if (failure) {
-      for (const q of list) results.set(q, failure);
+    if (halted) {
+      for (const q of list) results.set(q, halted);
       continue;
     }
     await queryFacility(facility, list, ctx, results);
-    failure = list.map((q) => results.get(q)).find((r): r is AdapterError => r instanceof AdapterError);
+    halted = list.map((q) => results.get(q)).find((r): r is AdapterError => r instanceof AdapterError);
   }
   return results;
 }
@@ -277,10 +294,9 @@ export const xticketAdapter: ProviderAdapter = {
    * 바퀴와 같은 요청 원칙(한 줄, 5초+지터)이다. 조회가 실패하면 AdapterError로 던진다.
    */
   async observeFacility(facility: string, ctx: AdapterContext): Promise<FacilityObservation> {
-    const shopEncode = shopEncodeOf(facility);
     const tomorrow = ymd(addDays(kstDate(ctx.clock.now()), 1));
     try {
-      await openSession(facility, shopEncode, ctx);
+      const shopEncode = await openSession(facility, ctx);
       const data = await postJson("/Web/Book/GetBookProductGroup.json", { start_date: tomorrow, end_date: tomorrow }, shopEncode, ctx);
       const groups = data.bookProductGroupList;
       if (!Array.isArray(groups)) throw new AdapterError("unrecognized", "data.bookProductGroupList가 없다");
@@ -295,8 +311,9 @@ export const xticketAdapter: ProviderAdapter = {
           shopEncode,
           ctx,
         );
-        const list = products.bookProductList;
-        if (!Array.isArray(list)) throw new AdapterError("unrecognized", "data.bookProductList가 없다");
+        // 바퀴(fetchOpenSites)와 달리 빈 목록을 상품군 소실로 보지 않는다. 여기서는 상품군 목록이 있다고 한 상품군을 그대로 관찰해 자리 0곳으로 보고하고,
+        // 카탈로그와의 차이는 catalog --live가 사람에게 보여 준다. 바퀴는 감시 중인 상품군이 사라진 것을 알려야 해서 다르게 판정한다.
+        const list = productListOf(products);
         zones.push({
           name: g.product_group_name,
           codes: [g.product_group_code],

@@ -11,7 +11,7 @@
 //   시설은 세션에 묶이므로(본문에 시설 값이 없다) 시설을 바꿀 때 `/web/main?shopEncode=<새 값>`부터 새 세션으로 연다. `shopCode`(페이지가 덧붙이는 값)는 필요 없다.
 // - `shopInfo`는 `POST /Web/Book/GetShopInformation.json {shop_encode}`가 준다. 달서는 `two_stay_days: 0`, `book_days: 3`(페이지 박수 선택지 상한), `advance_ddays: 0`.
 //   `GetBookProduct010001.json`은 `two_stay_days`를 빼도 같은 응답이라 어댑터는 `two_stay_days=0`을 보낸다(페이지는 `shopInfo.two_stay_days`를 보낸다). 0이 아닌 시설(2박3일 우선 예약)은 시설 단위 덮어쓰기가 필요하다.
-// - 최대 박수: 페이지는 `shopInfo.book_days`(달서 3)까지만 고르게 한다. 서버는 `book_days: 4`도 거부하지 않았다. 이 예약처의 `maxNights`는 이번 조각에서 1이다.
+// - 최대 박수: 페이지는 `shopInfo.book_days`(달서 3)까지만 고르게 한다. 서버는 `book_days: 4`도 거부하지 않았다. 예약처 기본 `maxNights`는 가장 큰 값 3이고, 시설마다 `shopInfo.book_days`를 `FacilityInfo.maxNights`로 덮어쓴다(달서·강동 3, 나머지 2).
 // - 날짜 목록(`GetBookPlayDate.json`): 17:54 KST에는 오늘(10/12)부터, 18:01 KST에는 내일(10/13)부터 11/30까지다. 12월과 지난 달은 빈 배열이다. 당일 입실은 18:00 KST에 마감되는 것으로 본다.
 //   `shopInfo.advance_period`("2026.10.01 14:00 ~ 10.02 13:00 (11월분)")와 `warning_text`("타지역민예약 오픈: 10월 2일(금) 14:00")로 보아 다음 달분이 매월 초에 열린다. 확정한 규칙이 아니라서 목록이 주지 않는 날짜는 빈자리 없음으로 친다.
 //   `book_remain_count`는 상품군 전체 합으로 보인다(1015는 3인데 카라반 선택가능은 2곳). 0이면 어느 상품군에도 자리가 없다.

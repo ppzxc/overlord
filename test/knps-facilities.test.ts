@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { configWith, knpsServer, settle, startPoller } from "./harness.js";
 import type { TransportRequest, TransportResponse } from "../src/types.js";
 
-// 도학 구역은 #67에서 기록으로 채운다. 이 파일은 카탈로그의 도학에 합성 구역을 얹어 한 바퀴의 시설 순회만 본다.
-// 도학 응답은 갓바위 기록 축소본을 그대로 쓴다(구역 이름이 같다).
+// 이 파일은 한 바퀴의 시설 순회만 본다. 그래서 카탈로그의 도학 구역을 갓바위 구역 이름(응답 fixture와 같다)에 구역 코드 0200902를 붙인 합성으로 바꾼다.
+// 도학의 실제 구역·자리는 knps-catalog.test.ts가 본다.
 vi.mock("../src/catalogs/knps.js", async (importOriginal) => {
   const orig = await importOriginal<typeof import("../src/catalogs/knps.js")>();
   const gatbawi = orig.facilities.find((f) => f.code === "gatbawi")!;

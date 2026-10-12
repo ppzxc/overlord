@@ -132,6 +132,16 @@ export interface ZoneObservation {
   unknown: { zone: string; value: string }[];
 }
 
+/** 예약처 응답 하나로 본 시설의 구역과 자리. 구역마다 응답이 따로 필요 없는 예약처용이다. */
+export interface FacilityObservation {
+  zones: {
+    name: string;
+    /** 응답이 그 구역의 칸에 실은 구역 코드. 칸이 모두 닫혀 있으면 비어 있다. */
+    codes: string[];
+    seats: string[];
+  }[];
+}
+
 export class AdapterError extends Error {
   constructor(
     readonly kind: "transient" | "blocked" | "unrecognized" | "unavailable",
@@ -168,4 +178,9 @@ export interface ProviderAdapter {
    * 모르는 값은 실패가 아니라 관찰 결과에 담는다.
    */
   listZones?(q: AvailabilityQuery, ctx: AdapterContext): Promise<ZoneObservation>;
+  /**
+   * 시설 하나의 모든 구역·자리를 한 번의 조회로 돌려준다. catalog --live가 구역 코드와 자리를 고정 목록과 비교한다.
+   * 구현하면 구역마다 listSeats를 부르지 않는다.
+   */
+  observeFacility?(facility: string, ctx: AdapterContext): Promise<FacilityObservation>;
 }

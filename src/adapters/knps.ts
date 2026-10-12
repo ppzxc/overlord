@@ -60,6 +60,12 @@ type CellStatus = string;
 /** 구역 이름 → 자리 이름 → 입실일 → 상태. */
 type Grid = Map<string, Map<string, Map<string, CellStatus>>>;
 
+/** 응답을 읽은 결과. `codes`는 구역 이름 → 그 구역의 열린 칸이 실은 구역 코드(`data-prod-ctg-id`)다. */
+interface ParsedList {
+  grid: Grid;
+  codes: Map<string, Set<string>>;
+}
+
 const CELL_CLASS = /(?:^|\s)(\d{4})(\d{2})(\d{2})_(\w+)(?:\s|$)/;
 /** 상태 접미: 예약가능, 대기가능, 예약만료, 예약불가. 이 밖은 구조 변경이다. */
 const KNOWN_SUFFIXES = new Set(["N", "W", "C", "R"]);
@@ -70,7 +76,6 @@ const NETFUNNEL_JS = `${ORIGIN}/assets/js/lib/netfunnel.js`;
 // 2026-10-12에 기록으로 확인한 값. 달라지면 경고만 남긴다.
 const NETFUNNEL_VERSION = "2.2.19";
 const NETFUNNEL_TS_HOST = "netfunnel.knps.or.kr";
-const KNOWN_ZONES = new Set(facilities.flatMap((f) => f.zones).map((z) => z.name));
 
 /** `netfunnel.js` 경고 확인을 이미 한 세션. */
 const scriptChecked = new WeakSet<HttpClient>();
@@ -94,17 +99,18 @@ async function warnNetfunnelDrift(ctx: AdapterContext): Promise<void> {
 }
 
 /** 카탈로그와 다른 구역은 경고만 남긴다. 감시 조건이 쓰는 구역이 사라진 것은 조회 단위 판정이 실패로 처리한다. */
-function warnZoneDrift(grid: Grid, ctx: AdapterContext): void {
+function warnZoneDrift(facility: string, grid: Grid, ctx: AdapterContext): void {
+  const known = new Set(resolveFacility(INFO, facility).zones.map((z) => z.name));
   const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
   warnedDrift.set(ctx.http, warned);
   const drift = [
-    ...[...grid.keys()].filter((n) => !KNOWN_ZONES.has(n)).map((n) => ["new", n] as const),
-    ...[...KNOWN_ZONES].filter((n) => !grid.has(n)).map((n) => ["gone", n] as const),
+    ...[...grid.keys()].filter((n) => !known.has(n)).map((n) => ["new", n] as const),
+    ...[...known].filter((n) => !grid.has(n)).map((n) => ["gone", n] as const),
   ];
   for (const [change, zone] of drift) {
-    if (warned.has(`${change}:${zone}`)) continue;
-    warned.add(`${change}:${zone}`);
-    ctx.log?.("knps zone drift", { change, zone });
+    if (warned.has(`${facility}:${change}:${zone}`)) continue;
+    warned.add(`${facility}:${change}:${zone}`);
+    ctx.log?.("knps zone drift", { facility, change, zone });
   }
 }
 
@@ -112,7 +118,7 @@ function warnZoneDrift(grid: Grid, ctx: AdapterContext): void {
  * 응답의 자리×날짜 표를 읽는다. 왼쪽 표(`table-sticky-body`)의 구역 머리(rowspan)와 자리 행이 오른쪽 표(`table-body`)의 행과 같은 순서로 맞물린다.
  * 닫힌 칸(`_C`, `_R`)에는 구역 표시가 없어서 구역은 이 표 구조로 정한다. 칸이 하나도 없으면 구조 변경이다.
  */
-function parseGrid(html: string): Grid {
+function parseGrid(html: string): ParsedList {
   const $ = cheerio.load(html);
   const names: { zone: string; seat: string }[] = [];
   let zone: string | undefined;
@@ -128,6 +134,7 @@ function parseGrid(html: string): Grid {
     throw new AdapterError("unrecognized", `자리 표 구조가 맞지 않는다(자리 ${names.length}행, 날짜 ${rows.length}행)`);
   }
   const grid: Grid = new Map();
+  const codes = new Map<string, Set<string>>();
   let cells = 0;
   rows.each((i, tr) => {
     const { zone: z, seat } = names[i]!;
@@ -135,22 +142,26 @@ function parseGrid(html: string): Grid {
     grid.set(z, bySeat);
     const dates = new Map<string, CellStatus>();
     bySeat.set(seat, dates);
+    const zoneCodes = codes.get(z) ?? new Set<string>();
+    codes.set(z, zoneCodes);
     $(tr)
       .find("i")
       .each((_, cell) => {
         const m = CELL_CLASS.exec($(cell).attr("class") ?? "");
         if (!m) return;
+        const code = $(cell).attr("data-prod-ctg-id");
+        if (code) zoneCodes.add(code);
         if (!KNOWN_SUFFIXES.has(m[4]!)) throw new AdapterError("unrecognized", `모르는 칸 상태 접미: ${m[4]}`);
         dates.set(`${m[1]}-${m[2]}-${m[3]}`, m[4]!);
         cells++;
       });
   });
   if (cells === 0) throw new AdapterError("unrecognized", "자리×날짜 칸을 하나도 읽지 못했다");
-  return grid;
+  return { grid, codes };
 }
 
 /** 시설 하나를 대기열 `reservation2`로 들어가 `campsiteList.do`로 읽는다. 성공하면 5004를 보낸다. */
-async function readFacility(facility: string, ctx: AdapterContext): Promise<Grid> {
+async function readFacility(facility: string, ctx: AdapterContext): Promise<ParsedList> {
   const { ref } = resolveFacility(INFO, facility);
   if (typeof ref !== "object" || !ref.dept_id) throw new Error(`knps 시설 ${facility}에 dept_id가 없다`);
   const pass = await enterQueue(ctx, RESERVATION2);
@@ -163,9 +174,18 @@ async function readFacility(facility: string, ctx: AdapterContext): Promise<Grid
   if (res.status >= 500) throw new AdapterError("transient", `campsiteList.do: HTTP ${res.status}`);
   if (res.status !== 200) throw new AdapterError("unrecognized", `campsiteList.do: 예상 밖 HTTP ${res.status}`);
   if (AUTH_MARKER.test(res.body)) throw new AdapterError("blocked", "campsiteList.do가 로그인 화면을 돌려줬다");
-  const grid = parseGrid(res.body);
+  const parsed = parseGrid(res.body);
   await completeQueue(ctx, RESERVATION2, pass.key);
-  return grid;
+  return parsed;
+}
+
+/** 예약 화면을 열고 페이지 `load`가 보내는 `landingCamp` 5101까지 한다. 페이지는 이 키의 5004를 보내지 않는다. */
+async function openPage(ctx: AdapterContext): Promise<void> {
+  const page = await ctx.http.get(PAGE);
+  if (page.status >= 500) throw new AdapterError("transient", `예약 화면: HTTP ${page.status}`);
+  if (page.status !== 200) throw new AdapterError("unrecognized", `예약 화면: 예상 밖 HTTP ${page.status}`);
+  const landing = await enterQueue(ctx, LANDING);
+  setNetFunnelCookie(ctx.http, HOST, landing.result ?? landing.key);
 }
 
 /** 입실일부터 `nights`박 모든 밤이 예약가능(`_N`)인지 본다. 다음날 칸이 없거나 닫혀 있으면 아니다. */
@@ -218,18 +238,13 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
     byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
   }
   if (byFacility.size === 0) return results;
-  const page = await ctx.http.get(PAGE);
-  if (page.status >= 500) throw new AdapterError("transient", `예약 화면: HTTP ${page.status}`);
-  if (page.status !== 200) throw new AdapterError("unrecognized", `예약 화면: 예상 밖 HTTP ${page.status}`);
-  // 페이지 `load`가 보내는 landingCamp 5101. 페이지는 이 키의 5004를 보내지 않는다.
-  const landing = await enterQueue(ctx, LANDING);
-  setNetFunnelCookie(ctx.http, HOST, landing.result ?? landing.key);
+  await openPage(ctx);
   let failure: AdapterError | undefined;
   for (const [facility, queries] of byFacility) {
     let grid: Grid | undefined;
     if (!failure) {
       try {
-        grid = await readFacility(facility, ctx);
+        grid = (await readFacility(facility, ctx)).grid;
       } catch (e) {
         failure = e instanceof AdapterError ? e : new AdapterError("transient", e instanceof Error ? e.message : String(e));
       }
@@ -238,7 +253,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       for (const q of queries) results.set(q, failure!);
       continue;
     }
-    warnZoneDrift(grid, ctx);
+    warnZoneDrift(facility, grid, ctx);
     await warnNetfunnelDrift(ctx);
     const zones = resolveFacility(INFO, facility).zones;
     for (const q of queries) {
@@ -268,6 +283,15 @@ export const knpsAdapter: ProviderAdapter = {
 
   /** 같은 시설은 조회 단위가 몇 개든 응답 하나로 판정한다. */
   queryAvailabilityBatch: (units, ctx) => runBatch(units, ctx),
+
+  /** `catalog --live`: 시설 하나를 응답 하나로 읽는다(추첨 화면·스크립트 확인 없이 화면, 대기열, 조회 한 번). */
+  async observeFacility(facility, ctx) {
+    await openPage(ctx);
+    const { grid, codes } = await readFacility(facility, ctx);
+    return {
+      zones: [...grid].map(([name, seats]) => ({ name, codes: [...(codes.get(name) ?? [])], seats: [...seats.keys()] })),
+    };
+  },
 
   deepLink: () => PAGE,
 };

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { adapters } from "../src/adapters/index.js";
 import { runCatalog } from "../src/commands.js";
@@ -378,6 +379,25 @@ describe("중구 폴러", () => {
       const p = run({ from: "2026-10-20" }, { server: jungguServer({ siteList: () => ({ status: 200, body: "<html>점검 중</html>" }) }) });
       await settle();
       expect(failedKinds(p)).toEqual(["unrecognized"]);
+      await p.stop();
+    });
+
+    it("사이트 레이아웃이 붙은 HTML(공통 머리말의 로그인 링크 포함)이 JSON 자리에 오면 blocked가 아니라 unrecognized다", async () => {
+      const page = readFileSync(new URL("../research/raw/junggu/pageCont.do_menuNo-1010300.html", import.meta.url), "utf8");
+      expect(page).toContain("menuNo=5010000"); // 기록한 화면의 머리말에 로그인 링크가 있다.
+      const p = run({ from: "2026-10-20" }, { server: jungguServer({ siteList: () => ({ status: 200, body: page }) }) });
+      await settle();
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
+      await p.stop();
+    });
+
+    it.each(["ajaxGetMonthlyMap.do", "ajaxGetSiteList.do"])('%s 응답이 {"msg":"login"}이면 blocked로 멈춘다', async (name) => {
+      const login = () => json({ msg: "login" });
+      const server = name === "ajaxGetMonthlyMap.do" ? jungguServer({ monthly: login }) : jungguServer({ siteList: login });
+      const p = run({ from: "2026-10-20" }, { server });
+      await settle();
+      expect(failedKinds(p)).toEqual(["blocked"]);
+      expect(p.sent[0]!.text).toMatch(/차단/);
       await p.stop();
     });
 

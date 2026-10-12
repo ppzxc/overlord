@@ -51,7 +51,8 @@ const ref = (facility: string): { cpId: string; menuNo: string } => {
 const pageUrl = (menuNo: string) => `${ORIGIN}${PAGE_PATH}?menuNo=${menuNo}`;
 
 /** 로그인 화면·차단 안내·봇 탐지·captcha가 JSON 자리에 온 것을 알아보는 표지. 표지가 없는 JSON 아님은 unrecognized다. */
-const LOGIN_OR_BLOCK_PAGE = /menuNo=5010000|로그인\s*(?:이|을|후에?)?\s*(?:필요|해\s*주)|접근이 (차단|제한)|비정상적인 접근|botmanager|crawlingCheck|dynapath|captcha/i;
+// `menuNo=5010000`(로그인 링크)은 사이트 공통 머리말에 있어 모든 화면에 나오므로 표지로 쓰지 않는다. 로그인으로 가는 리다이렉트는 HTTP 층이 접근 금지로 막는다.
+const LOGIN_OR_BLOCK_PAGE = /로그인\s*(?:이|을|후에?)?\s*(?:필요|해\s*주)|접근이 (차단|제한)|비정상적인 접근|botmanager|crawlingCheck|dynapath|captcha/i;
 
 /** 응답 상태를 판정한다. 403·429는 차단, 5xx는 일시 오류, 그 밖의 200 아님은 구조 변경이다. */
 function assertOk(res: TransportResponse, where: string): void {
@@ -82,6 +83,8 @@ function parseJson(res: TransportResponse, where: string): Record<string, unknow
     throw new AdapterError("unrecognized", `${where}: JSON이 아니다`);
   }
   if (!isRecord(body)) throw new AdapterError("unrecognized", `${where}: JSON 객체가 아니다`);
+  // 화면 JS는 ajax 응답의 msg가 "login"이면 로그인 요구로 다룬다(조회 응답에는 오지 않았다).
+  if (body.msg === "login") throw new AdapterError("blocked", `${where}: 로그인을 요구했다`);
   return body;
 }
 

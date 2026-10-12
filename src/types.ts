@@ -141,6 +141,8 @@ export interface ZoneObservation {
 
 /** 예약처 응답 하나로 본 시설의 구역과 자리. 구역마다 응답이 따로 필요 없는 예약처용이다. */
 export interface FacilityObservation {
+  /** 비교할 응답을 받지 못한 이유(예: 조회할 수 있는 날짜가 없다). 있으면 `zones`는 비어 있고 catalog --live는 비교 없이 이 이유를 알리며 실패로 치지 않는다. */
+  nothingToCompare?: string;
   zones: {
     name: string;
     /** 응답이 그 구역의 칸에 실은 구역 코드. 칸이 모두 닫혀 있으면 비어 있다. */
@@ -164,14 +166,23 @@ export interface ProviderAdapter {
   describe(): ProviderInfo;
   queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]>;
   /**
-   * 조회 단위 여러 개를 한 번에 묻는다. 예약처의 요약 화면으로 먼저 거를 수 있는 어댑터만 구현한다.
+   * 조회 단위 여러 개를 한 번에 묻는다. 요약 화면으로 먼저 거르거나, 같은 응답·세션을 단위끼리 나눠 쓸 수 있는 어댑터만 구현한다.
    * 없으면 코어가 조회 단위마다 queryAvailability를 따로 호출한다.
-   * 결과 키는 넘겨받은 조회 단위 객체다. 단위 하나만 실패하면 그 값에 AdapterError를 담고, 차단처럼 전체가 실패하면 던진다.
+   * 결과 키는 넘겨받은 조회 단위 객체다. 실패는 두 방식 가운데 어댑터가 고른다.
+   * 단위별 값에 AdapterError를 담아 돌려주면 코어가 그 단위만 실패로 치고 나머지 결과는 쓴다(울주는 차단도 이렇게 값으로 돌려준다).
+   * 던지면 코어가 모든 단위를 그 오류로 실패 처리한다(고래불·xticket은 차단을 던진다).
+   * 어느 쪽이든 바퀴의 실패 종류는 가장 무거운 오류로 정해진다. 어댑터마다 다르니 차단이 던져진다고 가정하지 않는다.
    */
   queryAvailabilityBatch?(
     units: AvailabilityQuery[],
     ctx: AdapterContext,
   ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>>;
+  /**
+   * 조회 창이 날짜 규칙(openingRule로 쓸 수 없는 것)으로 정해지는 어댑터가 구현한다. false인 조회 단위는 코어가 이번 바퀴에서 빼서
+   * 어댑터에 넘기지 않는다. 열리지 않은 날짜를 openingRule이 거르는 것과 같게, 단위가 하나도 남지 않아 요청이 없는 바퀴는
+   * 성공으로 기록하지 않는다(바퀴 수·마지막 성공·헬스 상태에 끼지 않는다). now는 한국 시각이 아니라 절대 시각이다.
+   */
+  isQueryable?(q: AvailabilityQuery, now: Date): boolean;
   deepLink(q: AvailabilityQuery): string;
   /** 예약처 루프가 끝날 때(프로세스 종료) 한 번 부른다. 들고 있던 세션을 마무리한다. 실패는 무시된다. */
   close?(ctx: AdapterContext): Promise<void>;

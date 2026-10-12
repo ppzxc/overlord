@@ -1,0 +1,46 @@
+## robots.txt
+HTTP/1.1 200 OK
+ETag: W/"26-1739236796000"
+Last-Modified: Tue, 11 Feb 2025 01:19:56 GMT
+Date: Mon, 12 Oct 2026 09:37:38 GMT
+Content-Type: text/plain
+Content-Length: 26
+
+## booking.html
+HTTP/1.1 200 OK
+Set-Cookie: name=value; path=/; MaxAge=-1; SameSite=Lax
+Set-Cookie: JSESSIONID=<masked>; Path=/ujcamping; Secure; HttpOnly; SameSite=None
+Content-Language: ko-KR
+Date: Mon, 12 Oct 2026 09:37:49 GMT
+Content-Type: text/html; charset=UTF-8
+Transfer-Encoding: chunked
+
+## get_cal_month_data_2026-10.json
+HTTP/1.1 200 OK
+Set-Cookie: name=value; path=/; MaxAge=-1; SameSite=Lax
+Date: Mon, 12 Oct 2026 09:38:51 GMT
+Content-Type: application/json;charset=UTF-8
+Transfer-Encoding: chunked
+
+## get_cal_day_data_list_C0000001_2026-10-16.json
+HTTP/1.1 200 OK
+Set-Cookie: name=value; path=/; MaxAge=-1; SameSite=Lax
+Date: Mon, 12 Oct 2026 09:39:05 GMT
+Content-Type: application/json;charset=UTF-8
+Transfer-Encoding: chunked
+
+## get_cal_day_data_list_C0000001_2026-10-12.today_after17.json
+HTTP/1.1 200 OK
+Set-Cookie: name=value; path=/; MaxAge=-1; SameSite=Lax
+Set-Cookie: JSESSIONID=<masked>; Path=/ujcamping; Secure; HttpOnly; SameSite=None
+Date: Mon, 12 Oct 2026 09:40:22 GMT
+Content-Type: application/json;charset=UTF-8
+Transfer-Encoding: chunked
+
+## get_cal_day_data_list_C0000001_2026-12-25.json
+HTTP/1.1 200 OK
+Set-Cookie: name=value; path=/; MaxAge=-1; SameSite=Lax
+Set-Cookie: JSESSIONID=<masked>; Path=/ujcamping; Secure; HttpOnly; SameSite=None
+Date: Mon, 12 Oct 2026 09:42:48 GMT
+Content-Type: application/json;charset=UTF-8
+Transfer-Encoding: chunked

@@ -99,6 +99,7 @@ async function renderFacilityDiff(observe: NonNullable<ProviderAdapter["observeF
     if (!(e instanceof AdapterError)) throw e;
     return { text: `조회 실패(${e.kind}): ${e.message}\n`, failed: true };
   }
+  if (seen.nothingToCompare) return { text: `${seen.nothingToCompare}\n`, failed: false };
   const lines: string[] = [];
   let differences = 0;
   for (const zone of facility.zones) {

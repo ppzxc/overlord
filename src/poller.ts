@@ -178,6 +178,7 @@ async function runProvider(
     const queries = new Map<string, AvailabilityQuery>();
     for (const { watch, units } of plans) {
       for (const q of units) {
+        if (adapter.isQueryable && !adapter.isQueryable(q, now)) continue; // 아직 조회할 수 없는 날짜는 조회 단위에 넣지 않는다.
         const key = unitKey(q);
         const seats = [...new Set([...(queries.get(key)?.seats ?? []), ...(watch.seats ?? [])])];
         queries.set(key, seats.length > 0 ? { ...q, seats } : q);

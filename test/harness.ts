@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { donghaeAdapter } from "../src/adapters/donghae.js";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
 import { knpsAdapter } from "../src/adapters/knps.js";
+import { uljuAdapter } from "../src/adapters/ulju.js";
 import { xticketAdapter } from "../src/adapters/xticket.js";
 import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
 import { loadConfig } from "../src/config.js";
@@ -13,7 +14,10 @@ import type { AvailabilityQuery, Clock, HttpClient, ProviderAdapter, Transport, 
 export const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 
 export class FakeClock implements Clock {
-  private current = Date.parse("2026-09-29T09:00:00+09:00");
+  private current: number;
+  constructor(start = "2026-09-29T09:00:00+09:00") {
+    this.current = Date.parse(start);
+  }
   private timers: { at: number; resolve: () => void }[] = [];
   now = () => new Date(this.current);
   sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -105,6 +109,8 @@ export function startPoller(
     adapters?: Record<string, ProviderAdapter>;
     /** 주면 모든 요청을 이 함수가 답한다. 동해시처럼 고래불 캘린더 흉내가 필요 없는 서버용이다. */
     server?: (req: TransportRequest) => TransportResponse;
+    /** 가짜 시계의 시작 시각(ISO). 기본은 2026-09-29 09:00 KST다. */
+    now?: string;
   } = {},
 ) {
   const respond = (req: TransportRequest) =>
@@ -119,7 +125,7 @@ export function startPoller(
   const sent: TelegramMessage[] = [];
   const logs: { msg: string; fields?: Record<string, unknown> }[] = [];
   let attempts = 0;
-  const clock = new FakeClock();
+  const clock = new FakeClock(opts.now);
   const transport: Transport = async (req) => {
     allRequests.push(req);
     if (!isCalendar(req)) requests.push(req);
@@ -140,7 +146,7 @@ export function startPoller(
   const done = runPoller(
     {
       config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV, opts.adapters),
-      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter, xticket: xticketAdapter },
+      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter, xticket: xticketAdapter, ulju: uljuAdapter },
       transport,
       clock,
       sink,
@@ -456,4 +462,52 @@ export function xticketServer(
     return { status: 404, body: "" };
   };
   return Object.assign(respond, { opened });
+}
+
+/** 기록한 작천정별빛(C0000001) 2026-10-16 응답(research/raw/ulju, 2026-10-12)의 행. 88자리이고 Y는 11자리(야영데크(4*4) 7, 야영데크(6*4) 4)다. */
+export interface UljuRow {
+  CAMP_ID: string;
+  NAME: string;
+  FACILITY_ID: string;
+  FACILITY_NAME: string;
+  ISRESERVABLE: string;
+  SDATE: string;
+  EDATE: string;
+  [key: string]: unknown;
+}
+
+/** 시설(classes)별 기록한 2026-10-16 응답의 행. C0000001 작천정별빛 88, C0000002 등억알프스 68(Y 15), C0000003 작천정달빛 47(Y 9), C0000005 대운산하늘숲 20(Y 0)이다. */
+export const uljuRows = (classes = "C0000001"): UljuRow[] => JSON.parse(fixture(`ulju-get_cal_day_data_list-${classes}-20261016.json`)).list;
+
+/** 같은 밤을 가리키도록 SDATE·EDATE를 고친 행. 기록은 10/16 하루뿐이라 다른 밤의 응답은 이 행을 날짜만 바꿔 만든다. */
+export const uljuRowsFor = (date: string, rows: UljuRow[] = uljuRows()): UljuRow[] => {
+  const next = new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+  return rows.map((r) => ({ ...r, SDATE: date, EDATE: next }));
+};
+
+/**
+ * 가짜 울주 서버. get_cal_day_data_list만 흉내 낸다. 기록한 대로 쿠키·Referer가 없어도 답하고,
+ * 본문이 JSON이 아니면 400을 준다. 그 밖의 요청은 404라서 어댑터가 예약 화면 같은 다른 경로를 부르면 드러난다.
+ */
+export function uljuServer(
+  opts: {
+    /** 밤(select_date)과 시설 값(classes)별 응답. 기본은 기록한 응답이다. */
+    day?: (date: string, classes: string) => TransportResponse;
+    intercept?: (req: TransportRequest) => TransportResponse | undefined;
+  } = {},
+) {
+  const body: { sql_state: string; select_date: string; classes: string; facility: string; use_only: string }[] = [];
+  const respond = (req: TransportRequest): TransportResponse => {
+    const hijacked = opts.intercept?.(req);
+    if (hijacked) return hijacked;
+    const url = new URL(req.url);
+    if (url.hostname !== "camping.ulju.ulsan.kr") return { status: 404, body: "" };
+    if (req.method !== "POST" || url.pathname !== "/ujcamping/campsite/get_cal_day_data_list") return { status: 404, body: "" };
+    if (req.headers["Content-Type"] !== "application/json") return { status: 400, body: "" };
+    const form = JSON.parse(req.body ?? "{}") as (typeof body)[number];
+    body.push(form);
+    if (opts.day) return opts.day(form.select_date, form.classes);
+    return { status: 200, body: JSON.stringify({ result: "ok", list: uljuRowsFor(form.select_date, uljuRows(form.classes)) }) };
+  };
+  return Object.assign(respond, { bodies: body });
 }

@@ -73,23 +73,25 @@ describe("국립공원 폴러", () => {
   it("요청 순서는 화면 → 5101(landingCamp) → 5101(reservation2) → campsiteList.do → 5004이고 대기열 요청은 5초 간격을 따르지 않는다", async () => {
     const p = run("2026-10-15");
     await settle();
+    const isLottery = (r: TransportRequest) => r.url.endsWith("selectCampLottery.do");
     const label = (r: TransportRequest) => {
       const u = new URL(r.url);
       return u.hostname === "netfunnel.knps.or.kr" ? `nf:${u.searchParams.get("opcode")}:${u.searchParams.get("aid")}` : `${r.method} ${u.pathname.split("/").pop()}`;
     };
-    expect(p.allRequests.slice(0, 5).map(label)).toEqual([
+    const reqs = p.allRequests.filter((r) => !isLottery(r)); // 추첨 화면 읽기는 추첨 기간 묶음에서 본다.
+    expect(reqs.slice(0, 5).map(label)).toEqual([
       "GET searchSimpleCampReservation.do",
       "nf:5101:landingCamp",
       "nf:5101:reservation2",
       "POST campsiteList.do",
       "nf:5004:reservation2",
     ]);
-    const t = p.requestTimes;
+    const t = p.requestTimes.filter((_, i) => !isLottery(p.allRequests[i]!));
     expect(t[1]! - t[0]!).toBe(0); // 대기열은 큐 밖이라 앞 요청과 같은 시각에 나간다.
     expect(t[2]! - t[1]!).toBe(0);
     expect(t[3]! - t[0]!).toBe(6_500); // reservation.knps.or.kr 요청은 5초 + 지터 간격이다.
     expect(t[4]! - t[3]!).toBe(0);
-    const form = Object.fromEntries(new URLSearchParams(p.allRequests[3]!.body));
+    const form = Object.fromEntries(new URLSearchParams(reqs[3]!.body));
     expect(form).toEqual({ dept_id: "B252001", dept_name: "갓바위", parent_dept_name: "팔공산", prd_ctg_id: "", isGreenpoint: "N" });
     await p.stop();
   });
@@ -266,6 +268,40 @@ describe("국립공원 신호 분류", () => {
   });
 });
 
+const MIN = 60_000;
+const DAY = 24 * 60 * MIN;
+const lotteryReqs = (p: ReturnType<typeof run>) => p.allRequests.filter((r) => r.url.endsWith("selectCampLottery.do"));
+const listReqs = (p: ReturnType<typeof run>) => p.allRequests.filter((r) => r.url.endsWith("campsiteList.do"));
+
+describe("국립공원 오픈 경쟁 시간", () => {
+  it("10:00 KST 바퀴는 10:30으로 미뤄지고 그동안 요청·헬스 알림이 없으며 정체로 보지 않는다", async () => {
+    const p = run("2026-10-15");
+    await settle();
+    await p.clock.advance(55 * MIN); // 09:55. 시작은 09:00이다.
+    const before = p.allRequests.length;
+    await p.clock.advance(5 * MIN); // 10:00
+    await p.clock.advance(29 * MIN); // 10:29
+    expect(p.allRequests.length).toBe(before);
+    expect(p.liveness.stalled()).toEqual([]);
+    expect(p.sent.filter((m) => /상태|점검|중단|일시|blocked|차단/.test(m.text))).toEqual([]);
+    await p.clock.advance(1 * MIN); // 10:30
+    expect(p.allRequests.length).toBeGreaterThan(before);
+    await p.stop();
+  });
+
+  it("설정의 openingRush가 기본값을 덮어쓴다", async () => {
+    const custom = configWith(watch("2026-10-15")).replace("providers:", 'providers:\n  knps: { openingRush: { from: "09:00", to: "09:20" } }');
+    const p = startPoller(() => ({ status: 404, body: "" }), { yaml: custom, server: knpsServer() });
+    await settle();
+    expect(p.allRequests).toHaveLength(0); // 시작 시각 09:00이 구간 안이다
+    await p.clock.advance(19 * MIN);
+    expect(p.allRequests).toHaveLength(0);
+    await p.clock.advance(1 * MIN);
+    expect(listReqs(p).length).toBeGreaterThan(0);
+    await p.stop();
+  });
+});
+
 describe("국립공원 2박", () => {
   it("첫 밤만 _N이고 다음날이 _C 또는 _W인 자리는 2박 빈자리가 아니다", async () => {
     // 10/15: A01 _N→10/16 _C, A04 _N→10/16 비예약가능. 1박이면 알리지만 2박이면 알리지 않는다.
@@ -303,6 +339,83 @@ describe("국립공원 자리 필터", () => {
     expect(p.sent[0]!.text).not.toContain("A01");
     await p.stop();
   });
+});
+
+describe("국립공원 추첨 기간", () => {
+  // 기록한 화면(야영장 0 개소, 6차 11/1~12/31, 빈자리 접수일 10/08 10:00)을 대상 기간 10/14~10/20, 빈자리 접수일 10/01 10:00으로 바꾼 변형이다.
+  const base = () =>
+    fixture("knps-selectCampLottery.htm")
+      .replace(/2026\.11\.01 \[일\]/g, "2026.10.14 [수]")
+      .replace(/2026\.12\.31 \[목\]/g, "2026.10.20 [화]")
+      .replace("2026.10.08(10:00)", "2026.10.01(10:00)");
+  const lottery = () => base().replace("(야영장) 0 개소", "(야영장) 3 개소");
+  const serverWith = (body: string) => knpsServer({ lottery: () => ({ status: 200, body }) });
+
+  it("야영장이 0 개소면 대상 기간 안이어도 제외하지 않는다", async () => {
+    const p = run("2026-10-15", { server: serverWith(base()) });
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("대상 기간 안의 날짜는 빈자리 접수 개시 전이면 _N이어도 알리지 않고, 개시 뒤에는 알린다", async () => {
+    const p = run("2026-10-15", { server: serverWith(lottery()) });
+    await settle();
+    expect(lotteryReqs(p)).toHaveLength(1);
+    expect(listReqs(p)).toHaveLength(0); // 조회 단위에서 빠져 시설 조회도 나가지 않는다.
+    expect(p.sent).toHaveLength(0);
+    await p.clock.advance(2 * DAY + 90 * MIN); // 10/01 10:30
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("A01");
+    await p.stop();
+  });
+
+  it("대상 기간 밖의 날짜는 개시 전에도 알린다", async () => {
+    const p = run("2026-10-21", { server: serverWith(lottery()) });
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("추첨 화면은 하루에 한 번만 읽고 KST 날짜가 바뀐 뒤 첫 바퀴에 다시 읽는다", async () => {
+    const p = run("2026-10-21", { server: serverWith(lottery()) });
+    await settle();
+    for (let i = 0; i < 5; i++) await p.clock.advance(300_000);
+    expect(p.allRequests.filter((r) => r.url.endsWith("searchSimpleCampReservation.do")).length).toBeGreaterThan(3);
+    expect(lotteryReqs(p)).toHaveLength(1);
+    await p.clock.advance(DAY);
+    await settle();
+    expect(lotteryReqs(p)).toHaveLength(2);
+    await p.stop();
+  });
+
+  it("추첨 화면 요청은 간격 큐 안에서 나간다", async () => {
+    const p = run("2026-10-21");
+    await settle();
+    const i = p.allRequests.findIndex((r) => r.url.endsWith("selectCampLottery.do"));
+    const j = p.allRequests.findIndex((r) => r.url.endsWith("searchSimpleCampReservation.do"));
+    expect(i).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(p.requestTimes[j]! - p.requestTimes[i]!)).toBe(6_500);
+    await p.stop();
+  });
+
+  const variants: [string, () => { status: number; body: string }][] = [
+    ["모양이 바뀐 화면", () => ({ status: 200, body: "<html><body><h3>점검 중</h3></body></html>" })],
+    ["날짜가 깨진 화면", () => ({ status: 200, body: lottery().replace("추첨 대상 기간", "대상") })],
+    ["HTTP 500", () => ({ status: 500, body: "" })],
+    ["HTTP 403", () => ({ status: 403, body: "" })],
+  ];
+  for (const [name, respond] of variants) {
+    it(`${name}이면 경고 로그만 남기고 달력대로 알린다`, async () => {
+      const p = run("2026-10-15", { server: knpsServer({ lottery: respond }) });
+      await settle();
+      expect(p.logs.some((l) => l.msg === "knps lottery schedule unreadable")).toBe(true);
+      expect(p.sent).toHaveLength(1);
+      expect(p.sent.filter((m) => /상태|점검|중단|일시|blocked|차단/.test(m.text))).toEqual([]);
+      await p.stop();
+    });
+  }
 });
 
 describe("국립공원 설정", () => {

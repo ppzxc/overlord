@@ -1,0 +1,2609 @@
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width">
+	<meta http-equiv="Expires" content="-1" />
+	<meta http-equiv="Pragma" content="no-cache" />
+	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+	
+	<title>국립공원공단 예약시스템</title>
+
+	<link rel="stylesheet" href="/assets/style/common.css?ver3">
+
+	<script src="/assets/js/lib/jquery-3.7.1.min.js"></script>
+	<script src="/assets/js/lib/jquery-migrate-3.5.2.min.js"></script>
+	<script src="/assets/js/lib/swiper.js"></script>
+	<script src="/assets/js/lib/datepicker.min.js"></script>
+	<script src="/assets/js/lib/jquery.fs.zoomer.min.js"></script>
+	<script src="/assets/js/lib/jquery.rwdImageMaps.min.js"></script>
+	<script src="/assets/js/lib/toastr.min.js"></script>
+	<script src="/assets/js/scripts.js"></script>
+	<script src="/assets/js/common.js?ver4"></script>
+</head>
+<body>
+	<div id="wrap" class="sub">
+			
+
+
+
+
+
+<header id="header">
+    <h1>
+        <a href="/" class="logo">국립공원 예약시스템</a>
+    </h1>
+    <nav>
+        <ul class="gnb">
+            
+                <li>
+                    <a href="javascript:void(0);" class="depth1">이용안내</a>
+                    <ul class="depth2">
+                        
+                            <li><a href="/contents/C/serviceGuideIntro.do">야영장</a></li>
+                        
+                            <li><a href="/contents/S/serviceGuideIntro.do">대피소</a></li>
+                        
+                            <li><a href="/contents/E/serviceGuideIntro.do">생태탐방원</a></li>
+                        
+                            <li><a href="/contents/R/serviceGuideIntro.do">민박촌</a></li>
+                        
+                            <li><a href="/contents/T/serviceGuideIntro.do">탐방로예약제</a></li>
+                        
+                            <li><a href="/contents/G/serviceGuideIntro.do">탐방프로그램</a></li>
+                        
+                    </ul>
+                </li>
+            
+                <li>
+                    <a href="javascript:void(0);" class="depth1">예약하기</a>
+                    <ul class="depth2">
+                        
+                            <li><a href="/reservation/searchSimpleCampReservation.do">야영장</a></li>
+                        
+                            <li><a href="/reservation/shelter/searchSimpleShelterReservation.do">대피소</a></li>
+                        
+                            <li><a href="/eco/searchEcoReservation.do">생태탐방원</a></li>
+                        
+                            <li><a href="/reservation/searchSimpleResidenceReservation.do">민박촌</a></li>
+                        
+                            <li><a href="/trail/searchTrailReservation.do">탐방로예약제</a></li>
+                        
+                            <li><a href="/trprogram/searchTrailProgram.do">탐방프로그램</a></li>
+                        
+                            <li><a href="/reservation/selectCampLottery.do">추첨제</a></li>
+                        
+                    </ul>
+                </li>
+            
+                <li>
+                    <a href="javascript:void(0);" class="depth1">알림마당</a>
+                    <ul class="depth2">
+                        
+                            <li><a href="/community/board/notice/boardList.do">공지사항</a></li>
+                        
+                            <li><a href="/community/board/faq/boardList.do">자주하는 질문</a></li>
+                        
+                            <li><a href="/community/board/qna/boardList.do">묻고 답하기</a></li>
+                        
+                            <li><a href="/contents/rsvtRefundPolicy.do">예약·환불정책</a></li>
+                        
+                            <li><a href="/contents/usagePolicy.do">이용정책</a></li>
+                        
+                            <li><a href="/contents/withPet.do">반려견 동행</a></li>
+                        
+                    </ul>
+                </li>
+            
+                <li>
+                    <a href="javascript:void(0);" class="depth1">마이페이지</a>
+                    <ul class="depth2">
+                        
+                            <li><a href="/mypage/dashBoard.do">나의 예약목록</a></li>
+                        
+                            <li><a href="/mypage/couponList.do">나의 쿠폰목록</a></li>
+                        
+                            <li><a href="/talk/searchTalkTransmissionHistory.do">알림메시지</a></li>
+                        
+                            <li><a href="/favorites/selectFavoritesList.do">즐겨찾기</a></li>
+                        
+                    </ul>
+                </li>
+            
+                <li>
+                    <a href="javascript:void(0);" class="depth1">그린포인트</a>
+                    <ul class="depth2">
+                        
+                            <li><a href="/reservation/greenpoint/searchGreenpoint.do" onclick="fn_greenUrlChk();">야영장</a></li>
+                        
+                            <li><a href="/reservation/greenpoint/searchGreenpoint.do?prdDvcd=S" onclick="fn_greenUrlChk();">대피소</a></li>
+                        
+                    </ul>
+                </li>
+            
+        </ul>
+    </nav>
+    <div class="util-area" data-device-mode="pc">
+    	<!--  [2026.09.18] 
+        <a href="/srchrefund/searchRefund.do" class="btn-refund-inquiry">
+            <i class="icon-refund-inquiry"></i>
+            <span>미환불금조회</span>
+        </a>
+    	-->
+        
+            <!-- 비 로그인 상태 -->
+            <a href="/mmb/mmbLogin.do" class="btn-login">
+                <i class="icon-user-check"></i>
+                <span>로그인</span>
+            </a>
+            <a href="https://www.knps.or.kr/portal/member/join01.do?menuNo=7020113" class="btn-join" target="_blank" rel="noopener noreferrer">
+                <i class="icon-user-plus"></i>
+                <span>회원가입</span>
+            </a>
+        
+        
+        <div class="lang-area">
+            <button class="btn btn-toggle" data-popup="layer-language">
+                <i class="icon-globe"></i>
+                <span>KR</span>
+            </button>
+            <div class="layer-language" id="layer-language">
+                <button class="btn is-active">KR</button>
+                <button class="btn" onclick="location.href='/foreigner/main.do'">EN</button>
+            </div>
+        </div>
+    </div>
+    <div class="util-area" data-device-mode="mobile">
+        <button class="btn-menu" title="전체 메뉴 보기">
+            <i class="icon-list"></i>
+        </button>
+        <div class="all-menu">
+            <div class="head">
+            	<!-- [2026.09.18] 
+                <a href="/srchrefund/searchRefund.do" class="btn-refund-inquiry">
+                    <i class="icon-refund-inquiry"></i>
+                    <span>미환불금조회</span>
+                </a>
+            	-->
+                
+                    <!-- 비 로그인 상태 -->
+                    <a href="/mmb/mmbLogin.do" class="btn-login">로그인이<br>필요합니다.</a>
+                    <a href="https://www.knps.or.kr/portal/member/join01.do?menuNo=7020113" class="btn-join" target="_blank" rel="noopener noreferrer">
+                        <i class="icon-user-plus"></i>
+                        <span>회원가입</span>
+                    </a>
+                    <div class="lang-area">
+                        <button class="btn btn-toggle" data-popup="layer-language">
+                            <i class="icon-globe"></i>
+                            <span>KR</span>
+                        </button>
+                        <div class="layer-language" id="layer-language2">
+                            <button class="btn is-active">KR</button>
+                            <button class="btn" onclick="location.href='/foreigner/main.do'">EN</button>
+                        </div>
+                    </div>
+                
+                
+                <button class="btn-close" title="전체 메뉴 닫기">
+                    <i class="icon-close"></i>
+                </button>
+            </div>
+            <ul class="gnb">
+                
+                    <li>
+                        <a href="javascript:void(0);" class="depth1">이용안내</a>
+                        <ul class="depth2">
+                            
+                                <li><a href="/contents/C/serviceGuideIntro.do"
+                                		
+                                		
+                                       >야영장</a></li>
+                            
+                                <li><a href="/contents/S/serviceGuideIntro.do"
+                                		
+                                		
+                                       >대피소</a></li>
+                            
+                                <li><a href="/contents/E/serviceGuideIntro.do"
+                                		
+                                		
+                                       >생태탐방원</a></li>
+                            
+                                <li><a href="/contents/R/serviceGuideIntro.do"
+                                		
+                                		
+                                       >민박촌</a></li>
+                            
+                                <li><a href="/contents/T/serviceGuideIntro.do"
+                                		
+                                		
+                                       >탐방로예약제</a></li>
+                            
+                                <li><a href="/contents/G/serviceGuideIntro.do"
+                                		
+                                		
+                                       >탐방프로그램</a></li>
+                            
+                        </ul>
+                    </li>
+                
+                    <li>
+                        <a href="javascript:void(0);" class="depth1">예약하기</a>
+                        <ul class="depth2">
+                            
+                                <li><a href="/reservation/searchSimpleCampReservation.do"
+                                		
+                                		
+                                       >야영장</a></li>
+                            
+                                <li><a href="/reservation/shelter/searchSimpleShelterReservation.do"
+                                		
+                                		
+                                       >대피소</a></li>
+                            
+                                <li><a href="/eco/searchEcoReservation.do"
+                                		
+                                		
+                                       >생태탐방원</a></li>
+                            
+                                <li><a href="/reservation/searchSimpleResidenceReservation.do"
+                                		
+                                		
+                                       >민박촌</a></li>
+                            
+                                <li><a href="/trail/searchTrailReservation.do"
+                                		
+                                		
+                                       >탐방로예약제</a></li>
+                            
+                                <li><a href="/trprogram/searchTrailProgram.do"
+                                		
+                                		
+                                       >탐방프로그램</a></li>
+                            
+                                <li><a href="/reservation/selectCampLottery.do"
+                                		
+                                		
+                                       >추첨제</a></li>
+                            
+                        </ul>
+                    </li>
+                
+                    <li>
+                        <a href="javascript:void(0);" class="depth1">알림마당</a>
+                        <ul class="depth2">
+                            
+                                <li><a href="/community/board/notice/boardList.do"
+                                		
+                                		
+                                       >공지사항</a></li>
+                            
+                                <li><a href="/community/board/faq/boardList.do"
+                                		
+                                		
+                                       >자주하는 질문</a></li>
+                            
+                                <li><a href="/community/board/qna/boardList.do"
+                                		
+                                		
+                                       >묻고 답하기</a></li>
+                            
+                                <li><a href="/contents/rsvtRefundPolicy.do"
+                                		
+                                		
+                                       >예약·환불정책</a></li>
+                            
+                                <li><a href="/contents/usagePolicy.do"
+                                		
+                                		
+                                       >이용정책</a></li>
+                            
+                                <li><a href="/contents/withPet.do"
+                                		
+                                		
+                                       >반려견 동행</a></li>
+                            
+                        </ul>
+                    </li>
+                
+                    <li>
+                        <a href="javascript:void(0);" class="depth1">마이페이지</a>
+                        <ul class="depth2">
+                            
+                                <li><a href="/mypage/dashBoard.do"
+                                		
+                                		
+                                       >나의 예약목록</a></li>
+                            
+                                <li><a href="/mypage/couponList.do"
+                                		
+                                		
+                                       >나의 쿠폰목록</a></li>
+                            
+                                <li><a href="/talk/searchTalkTransmissionHistory.do"
+                                		
+                                		
+                                       >알림메시지</a></li>
+                            
+                                <li><a href="/favorites/selectFavoritesList.do"
+                                		
+                                		
+                                       >즐겨찾기</a></li>
+                            
+                        </ul>
+                    </li>
+                
+                    <li>
+                        <a href="javascript:void(0);" class="depth1">그린포인트</a>
+                        <ul class="depth2">
+                            
+                                <li><a href="/reservation/greenpoint/searchGreenpoint.do"
+                                		 onclick="fn_greenUrlChk();"
+                                		
+                                       >야영장</a></li>
+                            
+                                <li><a href="/reservation/greenpoint/searchGreenpoint.do?prdDvcd=S"
+                                		
+                                		 onclick="fn_greenUrlChk();"
+                                       >대피소</a></li>
+                            
+                        </ul>
+                    </li>
+                
+            </ul>
+        </div>
+    </div>
+</header>
+			<div id="container">
+				
+
+
+
+
+
+<style>
+.raffle .table {
+    width: 100% !important;
+}
+.board-bottom {
+	margin-bottom: 20px !important;
+}
+
+.park-name {
+	margin: 10px 0px 5px 0px;
+	font-weight: bold;
+	font-size: 16px;
+}
+
+.park-list li {
+	float: left;
+	padding: 3px 3px 0 0;
+}
+
+@media all and (max-width: 480px) {
+	.reservation .draw-lots .btn-area .btn {
+	    padding: 0 8px;
+	    width:90px;
+	}
+	
+	.raffle .table .thead th {
+	    padding: 5px !important;
+	    line-height: 1.0 !important;
+	}
+	
+	.reservation .draw-lots .raffle .table tbody tr td {
+	    word-break: break-all !important;
+	}
+
+	.reservation .draw-lots .table .tbody td {
+	    line-height: 1.0 !important;
+	    padding: 5px !important;
+	}
+	
+	.reservation[data-device-mode=pc] .board-bottom .btn {
+	    min-width: 330px !important;
+	    margin-bottom: 3px;
+	}
+
+	#prdList thead tr th:nth-child(1) {width:15%;}
+	#prdList thead tr th:nth-child(2) {width:15%;}
+	#prdList thead tr th:nth-child(3) {width:30%;}
+	#prdList thead tr th:nth-child(4) {width:25%;}
+	#prdList thead tr th:nth-child(5) {width:15%;}
+	
+	.open-info thead tr th:nth-child(1) {width:20%;}
+	.open-info thead tr th:nth-child(2) {width:40%;}
+	.open-info thead tr th:nth-child(3) {width:40%;}
+	
+	.open-info tbody tr td{padding:10px 0 !important;}
+}
+
+@media all and (min-width: 481px) {
+	#prdList thead tr th:nth-child(1) {width:10%;}
+	#prdList thead tr th:nth-child(2) {width:10%;}
+	#prdList thead tr th:nth-child(3) {width:40%;}
+	#prdList thead tr th:nth-child(4) {width:30%;}
+	#prdList thead tr th:nth-child(5) {width:10%;}
+}
+
+</style>
+<script>
+
+	var isDsprs = 'false';
+	isDsprs = isDsprs == 'true' ? true : false;
+
+	$(function () {
+		init.event();
+	})
+
+	let init = {
+		event: function () {
+
+			funcArray.loginCheck();
+
+			//사회적 약자 추첨 대상영지 버튼 클릭 시
+			$('.btn-target').on('click', function () {
+				location.href = "#empLinkTop";
+			});
+
+		}
+	}
+
+	let funcArray = {
+
+		loginCheck: function () {
+
+			//로그인 체크
+			ajaxCall({
+				url: '/lottery/reservation/lotteryLoginCheck.do;jsessionid=MASKED',
+				data: {},
+				success: function (dat) {
+					//추첨제 로그인이 안 되어 있을 때
+					if (dat.result == 'NLOGIN') {
+						loginPopup("funcArray.afterLogin();");
+					}
+				}
+			});
+		},
+		afterLogin: function () {
+			location.href = window.location.pathname;
+		},
+		//사회적약자 추첨제 신청서 (상단)
+		disadvantaged: function () {
+			ajaxCall({
+				url : '/lottery/selectDisadvantaged.do',
+				success : function(dat){
+					if(dat.result == 'nologin'){
+						loginPopup("funcArray.disadvantaged();");
+					}
+					else if(dat.result == 'exist'){
+						toastrMsg('이미 신청하신 내역이 있습니다. \n추가 신청하실 경우 마지막에 신청하신 내역으로 수정 됩니다.');
+						openPopup('cancellation-charge');
+						$("#applyNm").val(dat.mmbNm);
+						$("#birth").val(dat.mmbBrdt);
+					}
+					else{
+						$("#applyNm").val(dat.mmbNm);
+						$("#birth").val(dat.mmbBrdt);
+						
+						// 신청서 팝업 라디오 초기화
+						$("#pia-radio0-1").attr("disabled", true);
+				    	$("#pia-radio0-2").attr("disabled", true);
+				    	
+				    	$("#pia-radio1-1").attr("disabled", true);
+				    	$("#pia-radio1-2").attr("disabled", true);
+				    	
+				    	$("#pia-radio2-1").attr("disabled", true);
+				    	$("#pia-radio2-2").attr("disabled", true);
+					
+						openPopup('cancellation-charge');
+					}
+				}
+			});
+		},
+		myDisadvantaged : function(){
+			ajaxCall({
+				url : '/lottery/selectDisadvantaged.do',
+				success : function(dat){
+					if(dat.result == 'nologin'){
+						loginPopup("funcArray.myDisadvantaged();");
+					}else if(dat.result == 'noexist') {
+						toastrMsg('당해년도 신청하신 내역이 없습니다. <br/>장애인/국가유공자 신청 후 확인해주세요.');
+					}else {
+						$('#resultTb tbody').empty();
+						var myDisHtml = '';
+						myDisHtml += '<tr>';
+						myDisHtml += '	<th scope="row">신청자명</th>';
+						myDisHtml += '	<td>'+dat.resultMap.mmbNm+'</td>';
+						myDisHtml += '</tr>';
+						myDisHtml += '<tr>';
+						myDisHtml += '	<th scope="row">생년월일</th>';
+						myDisHtml += '	<td>' + dat.resultMap.spmbBrdt + '</td>';
+						myDisHtml += '</tr>';
+						myDisHtml += '<tr>';
+						myDisHtml += '  <th scope="row">증빙서류 첨부</th>';
+						myDisHtml += '  <td><a href="/customer/fileAttchDown.do?spmbDtgId='+dat.resultMap.spmbDtgId+'">'+dat.resultMap.atchFileNm+'</a></td>';
+						myDisHtml += '</tr>';
+						myDisHtml += '<tr>';
+						myDisHtml += '  <th scope="row">개인정보 수집⋅이용동의 여부</th>';
+						myDisHtml += '  <td>동의함(' + dat.resultMap.agreeyDtm + ')</td>';
+						myDisHtml += '</tr>';
+						myDisHtml += '<tr>';
+						myDisHtml += '  <th scope="row">신청결과</th>';
+						myDisHtml += '  <td>';
+
+						if(dat.resultMap.spmbAprvStcd =='10'){
+							myDisHtml += dat.resultMap.spmbDvcdNm+' 승인완료 ('+dat.resultMap.spmbAprvYmd+')';
+						}else if(dat.resultMap.spmbAprvStcd =='01'){
+							myDisHtml += dat.resultMap.spmbDvcdNm+' 신청완료';
+						}else if(dat.resultMap.spmbAprvStcd =='90'){
+							myDisHtml += dat.resultMap.spmbDvcdNm+' 반려사유 ('+dat.resultMap.aprvRstCn+')';
+						}else{
+							myDisHtml += '코드 오류(관리자에게 문의바람)';
+						}
+
+						myDisHtml += '  </td>';
+						myDisHtml += '</tr>';
+
+						$('#resultTb tbody').append(myDisHtml);
+						openPopup('cancellation-charge2');
+					}
+				}
+			});
+		},
+		getLotteryProductList: function(parkId) {
+			ajaxCall({
+				url: '/lottery/selectCampLotteryProductList.do;jsessionid=MASKED',
+				data: {parkId: parkId},
+				success: function (dat) {
+					$('#prdList tbody').empty();
+					var html = '';
+					
+					if(dat.prdList.length > 0) {
+						var deptNm    = "";
+						
+						$("#parkname").html("◈" + dat.parkInfo.parkNm + " 국립공원");
+						
+						for(var i=0; i < dat.prdList.length; i++) {
+							var cnt1 = (dat.prdList[i].prdList      != null ? dat.prdList[i].prdList.split(',').length : 0);
+							var cnt2 = (dat.prdList[i].prdListLimit != null ? dat.prdList[i].prdListLimit.split(',').length : 0)
+							
+							html += "<tr>";
+							//if(i == 0) {
+							//	html += "  <td rowspan='"+ dat.prdList.length +"'>"+dat.parkInfo.parkNm+"</td>";
+							//}
+							if(deptNm != dat.prdList[i].deptNm) {
+								html += "  <td rowspan='"+ dat.prdList[i].prdCtgCnt +"'>"+dat.prdList[i].deptNm+"</td>";
+							}
+							
+							html += "  <td>"+(cnt1+cnt2)+"</td>";
+							html += "  <td>"+dat.prdList[i].prdList+"</td>";
+							html += "  <td>"+(dat.prdList[i].prdListLimit != null ? dat.prdList[i].prdListLimit : "")+"</td>";
+							html += "  <td>"+dat.prdList[i].prdCtgNm+"</td>";
+							html += "</tr>";
+							
+							deptNm = dat.prdList[i].deptNm;
+						}
+					}
+					else {
+						html += "<tr>";
+						html += "  <td colspan='5' class='ta-l'>추첨제 대상 시설이 없습니다.</td>";
+						html += "</tr>";
+					}
+					$('#prdList tbody').append(html);
+				}
+			});
+		},
+		//추첨제 신청 현황보기
+		reserStatView: function () {
+
+			
+			funcArray.loginCheck();
+			return false;
+			
+
+			$.form = $('#weakForm');
+			$.form.attr('action', '/reservation/selectLotteryCampState.do');
+			$('#isDsprs').val('Y');
+			$.form.submit();
+
+		},
+
+		//추첨제 신청하기
+		lotteryReserRegist: function () {
+
+			
+			funcArray.loginCheck();
+			return false;
+			
+
+			$.form = $('#weakForm');
+			$.form.attr('action', '/reservation/searchCampLottery.do');
+			$('#isDsprs').val('Y');
+			$.form.submit();
+		},
+
+		//사회적약자 추첨제 신청현황
+		weakReciptStat: function () {
+
+			
+			funcArray.loginCheck();
+			return false;
+			
+
+			$.form = $('#weakForm');
+			$.form.attr('action', '/reservation/selectLotteryCampState.do');
+
+			//사회적약자면
+			$('#isDsprs').val('C');
+			$.form.submit();
+
+		},
+
+		//사회적약자 추첨제 신청
+		weakRecipt: function () {
+
+			
+			funcArray.loginCheck();
+			return false;
+			
+
+			$.form = $('#weakForm');
+			$.form.attr('action', '/reservation/searchCampLottery.do');
+
+			$('#isDsprs').val('C');
+			$.form.submit();
+		},
+
+		//추첨제 신청 정보
+		viewRegistInfo: function () {
+
+			
+			funcArray.loginCheck();
+			return false;
+			
+
+			$.form = $('#weakForm');
+			$.form.attr('action', '/reservation/confirmCampLottery.do');
+			$.form.submit();
+		}
+	}
+</script>
+
+<form name="weakForm" id="weakForm" method="post" class="frm-select-reservation">
+	<input type="hidden" name="isDsprs" id="isDsprs" value=""/>
+	<input type="hidden" name="pageGbn" id="pageGbn" value=""/>
+</form>
+
+
+<div class="page-location">
+	<span>홈</span>
+	<span>예약하기</span>
+	<span>추첨제</span>
+	<span>추첨제 안내</span>
+</div>
+
+
+
+
+
+	<div class="reservation" data-device-mode="pc">
+		<h3 class="title">야영장 추첨제 안내</h3>
+		<ul class="nav-tabs">
+			<li class="is-active"><a href="/reservation/selectCampLottery.do">야영장</a></li>
+			<li><a href="/reservation/selectShelterLottery.do">대피소</a></li>
+		</ul>
+		<div class="tab-content">
+			<div class="tab-pane is-active" id="tab1">
+                <div class="draw-lots">
+						<!-- 추첨제동수 -->
+						<!-- 일반/자동차 -->
+						<!-- 특화야영장 -->
+						<!-- 카라반 -->
+						<!-- 카라반전용 -->
+						<!-- 야영지 -->
+					
+					
+					<dl>
+						<dt>추첨제 제목</dt>
+						<dd>2026년 추첨제(6차)</dd>
+					</dl>
+					<dl>
+						<dt>추첨 대상 기간</dt>
+						<dd class="text-point">
+							2026.11.01 [일]  ~ 2026.12.31 [목] 
+						</dd>
+					</dl>
+					<dl>
+						<dt>추첨제 대상</dt>
+						<dd>
+							<p>
+								(야영장) 0 개소 / 0영지
+								(일반/자동차 0영지, 
+								특화야영장 0영지, 
+								카라반 0동, 
+								카라반전용 0동)
+							</p>
+							<ul class="dot-list">
+								<li>추첨제 대상 영지는 야영장 사정(보수공사) 등으로 일부변동 될 수 있습니다.</li>
+								<li>(장애인/국가유공자) 등록 및 증빙서류 제출 : 
+									2026.09.29 [화] 14:00 ~ 2026.10.05 [월] 17:00
+								</li>
+								<li class="text-point">
+									추첨제 신청하시기 전 <a href="/community/board/notice/boardDetail.do?seq=29194">"2026년 국립공원 시설예약 6차 추첨제 운영 알림"</a>을 확인하시기 바랍니다.
+								</li>
+								<li class="text-point">
+									추첨제 신청하시기 전 <a href="/community/board/notice/boardDetail.do?seq=29193">"2026년 국립공원 야영장 동절기 미운영 안내"</a>를 확인하시기 바랍니다.
+								</li>
+							</ul>
+						</dd>
+					</dl>
+					<dl>
+						<dt>유의사항</dt>
+						<dd>
+							<ul class="dot-list">
+								<li>추첨 접수 마감은 2026.10.06 [화] 10:00 까지입니다.(AM 10:00:00 까지 신청된 기록으로 추첨 진행합니다)</li>
+								<li>정부 방역지침, 기상특보 등으로 운영중단 조치가 이루어 질 경우 자동취소 및 환불처리 됩니다.(추가보상 없음)</li>
+							</ul>
+						</dd>
+					</dl>
+					<dl>
+						<dt>추첨제 시행 시설 현황[야영장]</dt>
+						<dd>
+							<div class="raffle">
+								<table class="table">
+		                            <caption>추첨제 시행 시설 현황[야영장]</caption>
+		                            <thead class="thead">
+		                            <tr>
+		                            	<th scope="col" rowspan="2">공원</th>
+		                            	<th scope="col" rowspan="2">조성야영장</th>
+		                            	<th scope="col" rowspan="2">추첨제진행대상</th>
+		                            	<th scope="col" colspan="2">야영장 영지<br>(동)</th>
+		                            	<th scope="col" colspan="2">체류시설<br>(동)</th>
+		                            </tr>
+		                            <tr>
+		                            	<th scope="col">일반/자동차</th>
+		                            	<th scope="col">카라반전용</th>
+		                            	<th scope="col">카라반</th>
+		                            	<th scope="col">특화야영장</th>
+		                            </tr>
+		                            <tr>
+		                            	<th colspan="2">계</th>
+		                            	<th>0</th>
+		                            	<th>0</th>
+		                            	<th>0</th>
+		                            	<th>0</th>
+		                            	<th>0</th>
+		                            </tr>
+		                            </thead>
+		                            <tbody class="tbody">
+		                            
+		                            
+		                            </tbody>
+								</table>
+								
+		                	</div>
+						</dd>
+					</dl>
+					<dl>
+						<dt id="empLinkTop"> 추첨제 대상 세부목록 - 전체 시설 현황 (장애인/국가유공자 포함)</dt>
+						<dd>
+							<div class="raffle">
+								<!-- 공원 목록 -->
+								<div class="btn-area">
+									<ul class="park-list">
+									
+									</ul>
+								</div>
+								
+								<div id="parkname" class="park-name">&nbsp;</div>								
+								
+								<!-- 공원별 추첨제 대상 상품 목록 -->
+	                            <table class="table" id="prdList">
+	                                <caption> 추첨제 대상 세부목록 - 전체 시설 현황 (장애인/국가유공자 포함)</caption>
+	                                <thead class="thead">
+	                                    <tr>
+	                                        <th scope="col">조성<br>야영장</th>
+	                                        <th scope="col">영지<br>(동)</th>
+	                                        <th scope="col">일반경쟁</th>
+	                                        <th scope="col">제한경쟁<br/>(장애인/국가유공자)</th>
+	                                        <th scope="col">시설<br>유형</th>
+	                                    </tr>
+	                                </thead>
+	                                <tbody class="tbody">
+	                                <tr>
+	                                	<td colspan='5' class='ta-l'>공원명을 클릭하여 추첨제 대상 시설을 조회하십시오.</td>
+	                                </tr>
+	                                </tbody>
+								</table>
+	                        </div>
+						</dd>
+					</dl>
+					<dl>
+						<dt>신청접수 기간</dt>
+						<dd>
+							<p class="text-point">
+								2026.10.01 [목] 10:00 ~ 
+								2026.10.06 [화] 10:00
+							</p>
+							<ul class="dot-list">
+								<li><em>선착순이 아니므로 추점신청 시간과 추첨 당첨 결과는 무관합니다.</em></li>
+								<li>추첨신청 시작일과 마감일은 신청자 폭주로 인해 접속이 원활하지 않을 수 있으므로 신청 접수 기간 내 편리한 시간에 이용하시기 바랍니다.</li>
+								<li>최대 신청 건수 : 야영장 4건/월 최대 신청 가능 ( 건당 2박 3일까지 신청 가능 )</li>
+								<li>
+									동일 날짜에 중복 신청 허용(당첨은 1건만 가능)됩니다.<br>
+									※ 당첨자 발표 후 접속자 폭주에 따라 실제 예약당첨 확인에 다소 시간이 소요될 수 있습니다.<br>
+									<font color="#006BDE"> ※ 개인 회원정보가 같은 예약자가 있는 경우 동일인의 신청으로 인식하여 최대 신청 횟수 4건 초과 로 나타날 수 있으며, 회원정보에서 휴대전화 번호, 이메일 주소를 수정한 후 다시 신청하시기 바랍니다.</font>
+								</li>
+							</ul>
+						</dd>
+					</dl>
+					<dl>
+						<dt>신청방법</dt>
+						<dd>온라인 신청</dd>
+					</dl>
+					<dl>
+						<dt>추첨일시</dt>
+						<dd>
+							<p class="text-point">
+								2026.10.06 [화] 13:00
+							</p>
+						</dd>
+					</dl>
+					<dl>
+						<dt>결과발표</dt>
+						<dd>
+							<p class="text-point">
+								2026.10.06 [화] 16:00
+							</p>
+							<ul class="dot-list">
+								<li>추첨결과는 추첨제 -&gt; 신청결과보기 또는 예약시스템 마이페이지 -&gt; 나의 예약목록에서 확인 가능합니다.</li>
+								<li>‘예약당첨’ 카카오 알림톡 또는 문자메세지는 부가서비스로, 반드시 예약시스템>나의예약목록에서 확인해 주세요.</li>
+								<li>당첨자 발표 후 실제 예약확인에 다소 시간이 소요될 수 있음을 양해 바랍니다.</li>
+								<li><em>당첨된 예약은 신청자 본인 외에 이용이 절대 불가하니 이점 유의해 주시기 바랍니다.</em></li>
+								<li>당첨시설은 빈자리 접수전까지 시설변경이 제한됩니다.</li>
+							</ul>
+						</dd>
+					</dl>
+					<dl>
+						<dt>결제기간</dt>
+						<dd>
+							<p class="text-point">
+								2026.10.06 [화] 16:00 ~ 
+								2026.10.07 [수] 22:00
+							</p>
+							<ul class="dot-list">
+								<li>결제 시 시간이 소요되는 경우가 있으므로 마감시간 1시간 이전에 결제 바랍니다. (미 결제 시 당첨이 자동 취소됩니다.)</li>
+							</ul>
+						</dd>
+					</dl>
+					<strong class="copy-notice">
+						추첨제 미 신청 건, 본인 취소 건, 시간 내 미 결제로 인하여 자동 취소 건 등으로 인한 빈자리는 아래와 같이 선착순 방식으로 접수하실 수 있습니다.</strong>
+					<dl>
+						<dt><em>장애인/국가유공자 추첨제</em> 운영 안내</dt>
+						<dd>
+							<div class="box-guide">
+								<ul class="dot-list">
+									<li>장애인/국가유공자 : 장애인, 국가유공자, 5·18 민주유공자</li>
+									<li>장애인/국가유공자 증빙서류 등록 기간 : 
+										2026.09.29 [화] 14:00 ~ 
+										2026.10.05 [월] 17:00 
+									</li>
+									<li>추첨제 신청접수 기간 : 
+										2026.10.01 [목] 10:00 ~ 
+										2026.10.06 [화] 10:00 
+									</li>
+									<!-- 
+									<li><font color="#006BDE">※ 신청하신 장애인/국가유공자 증빙서류는 1월 31일부터 순차적으로 확인 후 승인예정입니다.</font></li>
+									 -->
+								</ul>
+							</div>
+							<ul class="dot-list">
+								<li>
+									신청 방법 : 다음의 버튼을 클릭하여 해당 정보(신청자 정보 및 증빙자료)를 기입 후 신청
+									<ul>
+										<li>- 국립공원 홈페이지 회원 가입자 본인(장애인/국가유공자)에 한해서만 신청 가능합니다.</li>
+										<li>- "장애인/국가유공자 증빙서류 등록확인" 클릭 후 신청결과를 반드시 확인하시기 바랍니다.</li>
+										<li>- 장애인/국가유공자 증빙서류는 2가지 방식(온라인 자격 인증, 증빙서류 제출)이며, 인증 시 당해 연도까지 유지<br />
+											- 증빙서류는 등록기간 이전( 2026.10.05 [월] 17:00  )에 접수된 서류에 한해 인정되며, 마감 이후에는 2026.10.06 [화] 10:00 까지 일반경쟁으로 접수가능합니다.<br /> 
+											<p class="text-point">* 증빙서류 종류 : 장애인증, 국가유공자증, 국가유공자 유족증, 5·18민주유공자증(성명, 등급이 식별될 수 있어야 함)</p></li>
+									</ul>
+								</li>
+								<!-- <li>장애인/국가유공자 시설 중 특화형 시설은 물품대여를 통해 운영되는 시설물로써 국가유공자, 장애인, 그린카드 소지자 등에 대해서 이용료 감면 혜택이 적용되지 않습니다.</li> -->
+							</ul>
+							<br/>
+
+							<div class="board-bottom" style="float:left !important;">
+								
+							</div>
+							<table class="table open-info">
+								<caption>추첨제 운영 안내</caption>
+								<colgroup>
+									<col>
+									<col>
+									<col>
+								</colgroup>
+								<thead class="thead">
+								<tr>
+									<th scope="col">시설구분</th>
+									<th scope="col">빈자리 접수일</th>
+									<th scope="col">예약 대상 기간</th>
+								</tr>
+								</thead>
+								<tbody class="tbody">
+								<tr>
+									<td>야영장</td>
+									<td rowspan="3">2026.10.08(10:00)</td>
+									<td>2026.11.01 [일]  <br/>~<br/> 2026.12.31 [목] </td>
+								</tr>
+								</tbody>
+							</table>
+						</dd>
+					</dl>
+					<strong class="copy-notice ta-c">2026.10<br>국립공원공단</strong>
+					<div class="board-bottom">
+						<div class="center">
+							
+								
+								
+								
+								
+									
+								
+							
+						</div>
+					</div>
+					
+				</div>
+       		</div>
+
+		</div>
+	</div>
+	
+
+
+
+
+
+<style>
+.btn-cert-for-lotty {
+    /* display: flex; */
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    margin-right: 6px;
+    width: 86px;
+}
+
+/* -------------------------------------------------- */
+.modal-popup .btn-area {
+    padding: 10px 0 !important;
+}
+
+.modal-popup .popup-container {
+    padding: 15px 15px 0 !important;
+}
+
+.table-thin .thead th {
+    padding: 5px 10px !important;
+}
+.table-thin .tbody th {
+    padding: 5px 10px !important;
+}
+.table-thin .tbody td {
+    padding: 5px 10px !important;
+}
+.copy-notice {
+	padding: 1px 5px 1px 5px !important;
+	margin-top: 0px !important;
+}
+.box-content {
+	padding: 3px !important;
+	margin-top: 5px !important;
+	margin-bottom: 5px !important;
+}
+
+.modal-popup .popup-container .title-2 {
+    margin-bottom: 0px !important;
+    font-size: 19px;
+    font-weight: 500;
+}
+.modal-popup .popup-container .box-content-pia {
+    margin: 0px !important;
+    padding: 7px !important;
+    line-height: 22px !important;
+}
+.modal-popup .title-2 {
+    margin-top: 15px !important;
+    margin-bottom: 7px !important;
+    font-size: 16px  !important;
+}
+.pia-view-title-area {
+	float:left;
+	height: 38px;
+	padding-top: 0px;
+	padding-left: 5px;
+}
+.pia-view-btn-area {
+	float:left; 
+	height: 38px;
+	padding-top: 10px;
+	padding-left: 5px;
+}
+.pia-view-btn {
+	border: 1px solid;
+    padding: 2px 4px 2px 4px;
+}
+.pia-btn-area {
+	padding: 5px 10px !important;
+}
+#pia-agree-content .radio-area {
+	display: block;
+	width: 100%;
+    border: 1px solid #fff !important;
+    padding: 0 0 !important;
+    color:#0000ff !important;
+    font-weight: bold !important;
+    text-align:center;
+}
+
+@media screen and (max-width: 1023px) {
+	#pia-information0 .popup-wrap {
+		width: 100% !important; 
+	}
+	#pia-information0 .popup-container {
+		width: 100% !important; 
+	}
+	#pia-information0 .pia-content {
+		max-height:100%;
+	}
+	
+	#pia-agree-content .pac {
+		height: 90px;
+	}
+	
+	#pia-agree-content .pac-pia4 > .pia-view-title-area {
+		height: 60px;
+	}	
+}
+@media screen and (min-width: 1024px) {
+    #pia-information0 .popup-wrap {
+		width: 700px !important; 
+		top: 100px !important; 
+		bottom: 60px !important;
+	}
+	#pia-information0 .popup-container {
+		width: 700px !important;
+		height:650px !important;
+	}
+	#pia-information0 .pia-content {
+		height:550px !important;
+	}
+	
+	#pia-information1 .popup-wrap {
+		width: 500px !important; 
+	}
+	#pia-information1 .popup-container {
+		width: 500px !important;
+		height:300px !important;
+	}
+	#pia-information1 .pia-content {
+		height:200px !important;
+	}
+
+	#pia-information2 .popup-wrap {
+		width: 500px !important; 
+	}
+	#pia-information2 .popup-container {
+		width: 500px !important;
+		height:320px !important;
+	}
+	
+	#pia-agree-content .pac {
+		height: 40px;
+	}
+}
+
+</style>
+<script>
+
+    $(function () {
+
+        var mmbNm = '';
+        var birth = '';
+
+        if (mmbNm != null && mmbNm != '') {
+            $('#applyNm').val(mmbNm);
+            $('#birth').val(birth);
+        }
+
+        //생년월일 숫자만 입력 가능
+        $('#birth').on('keyup', function () {
+            $(this).val($(this).val().replace(/[^0-9]/g, ""));
+        });
+
+        //개인정보수집이용 동의 체크
+        $.each($('input[name="personPolicy"]'), function () {
+
+            if ($(this).is(':checked')) {
+                $(this).prop('checked', true);
+
+            } else {
+                $(this).prop('checked', false);
+            }
+
+        });
+
+        $(document).on("change", "input[type='file']", function () {
+            var maxSize = 10 * 1024 * 1024; // 10MB
+            var fileSize = $(this)[0].files[0].size;
+            var fileName = $(this)[0].files[0].name;
+            var fileExt = fileName.split('.').pop().toLowerCase();
+
+            if ($.inArray(fileExt, ['jpg', 'jpeg', 'png', 'pdf']) == -1) {
+                toastrMsg('JPG, JPEG, PNG, PDF 파일만 업로드 할수 있습니다.');
+                $(this).val("");
+                return;
+            }
+
+            if (fileSize > maxSize) {
+                toastrMsg("첨부파일 사이즈는 10MB 이내로 등록 가능합니다.");
+                $(this).val("");
+                return;
+            }
+
+            $(this).prev().attr('data-content', $(this)[0].files[0].name);
+
+            $('#chkFileBinding').val($(this)[0].files[0].name);
+            $('#changeFileFLag').val('Y');
+
+            validation();
+        });
+
+        
+        $("#pia-radio0-1").attr("disabled", true);
+    	$("#pia-radio0-2").attr("disabled", true);
+    	
+    	$("#pia-radio1-1").attr("disabled", true);
+    	$("#pia-radio1-2").attr("disabled", true);
+    	
+    	$("#pia-radio2-1").attr("disabled", true);
+    	$("#pia-radio2-2").attr("disabled", true);
+
+    })
+
+    function validation() {
+
+        var result = true;
+
+        var file_cnt = 0;
+
+        if ($("input[type='file']").val() == "") {
+            result = false;
+        }
+        file_cnt++;
+
+        return result;
+    }
+
+    function modalAct(flag) {
+
+        if (flag == '0') {
+            closePopup('cancellation-charge');
+        } 
+        else if (flag == '1') {
+
+            var chkFlag = false;
+
+            /* 필수 항목들 */
+            var applyNm 		= $('#applyNm').val();									//신청자명
+            var birth 			= $('#birth').val();									//생년월일
+            var reductionChkLen = $('input[name="reduction"]:checked').length;			//자격구분 체크여부
+            var certTextId 		= $('#certTextId').val();								//온라인자격검증 input
+
+            var personInfo 		= $('input[name="personPolicy"]:checked').val();		//개인정보 수집 동의 체크여부
+            var personInfoLen	= $('input[name="personPolicy"]:checked').length;
+            
+            var piaDiv5Yn		= $('input[name="piaDiv5Yn"]:checked').val();			//민감정보
+            var piaDiv5YnLen	= $('input[name="piaDiv5Yn"]:checked').length;
+            
+            var piaDiv6Yn		= $('input[name="piaDiv6Yn"]:checked').val();			//행정정보공동이용
+            var piaDiv6YnLen	= $('input[name="piaDiv6Yn"]:checked').length;
+            
+            var callPolicy 		= $('input[name="callPolicy"]:checked').val();			//이용만족도 조사 수신동의(선택항목)
+            var callPolicyLen 	= $('input[name="callPolicy"]:checked').length;			//이용만족도 조사 수신동의(선택항목) 체크여부
+
+            //신청자명 유효성
+            if (applyNm == null || applyNm == '') {
+                toastrMsg('신청자명을 입력해주세요.');
+                $('#applyNm').focus();
+                $('#applyNm').attr('readonly',false);
+                chkFlag = false;
+                return false;
+            }
+
+            //생년월일 유효성
+            if (birth == null || birth == '') {
+                toastrMsg('생년월일을 입력해주세요.');
+                $('#birth').focus();
+                $('#birth').attr('readonly',false);
+                chkFlag = false;
+                return false;
+            }
+
+            let userbirth = document.querySelector('#birth');
+
+            // 생년월일 유효성 검사
+            let birth_pattern = /^(19[0-9][0-9]|20\d{2})(0[0-9]|1[0-2])(0[1-9]|[1-2][0-9]|3[0-1])$/
+            if (!birth_pattern.test(userbirth.value)) {
+                toastrMsg('생년월일 정보를 정확히 입력해주세요.(YYYYMMDD 형태 - 예)19900131)');
+                userbirth.value = '';
+                userbirth.focus();
+                $('#birth').attr('readonly',false);
+                chkFlag = false;
+                return false;
+            }
+
+            //자격구분 체크 유효성
+            if (reductionChkLen == 0) {
+                toastrMsg('자격구분을 체크해주세요.');
+                chkFlag = false;
+                return false;
+            }
+
+            //온라인 자격검증 또는 증빙서류 둘 중 하나는 필수
+            if ((certTextId == null || certTextId == '') && ($('#entpe_file').val() == null || $('#entpe_file').val() == '')) {
+                //toastrMsg('온라인 자격검증 또는 증빙서류 둘 중 하나는 필수로 선택하셔야 합니다.');
+                toastrMsg('증빙서류는 필수로 첨부하셔야 합니다.');
+                chkFlag = false;
+                return false;
+            } 
+            else if ((certTextId != null && certTextId != '') || ($('#entpe_file').val() != null && $('#entpe_file').val() != '')) {
+                //사회적감면 대상자가 아닐 때
+                if ($('#certTextId').val() == '대상자가 아닙니다') {
+                    toastrMsg('장애인/국가유공자 감면 대상자가 아닙니다.');
+                    chkFlag = false;
+                    return false;
+                }
+                else{
+                    chkFlag = true;
+                }
+            }
+
+            // 개인정보 수집 동의(필수) - PIA2
+            if (personInfoLen == 0 || personInfo == 'N') {
+                toastrMsg('개인정보 수집·이용하는데 동의하셔야 신청이 가능합니다.');
+                chkFlag = false;
+                return false;
+            }
+            
+         	// 민감정보 수집동의 - PIA5
+            if (piaDiv5YnLen == 0 || piaDiv5Yn == 'N') {
+            	toastrMsg('민감정보 수집·이용하는데 동의하셔야 신청이 가능합니다.');
+                chkFlag = false;
+                return false;
+            }
+            
+            // 행정정보공동이용 동의 - PIA6
+            if (piaDiv6YnLen == 0) {
+            	toastrMsg('행정정보 공동이용을 동의함 혹은 동의안함을 선택하셔야 신청이 가능합니다.');
+                chkFlag = false;
+                return false;
+            }
+
+            //이용만족도 조사 유효성 - PIA4
+            if (callPolicyLen == 0) {
+                toastrMsg('이용만족도 조사 등을 위한 전화 수신에 동의함 혹은 동의안함을 선택하셔야 신청이 가능합니다.');
+                chkFlag = false;
+                return false;
+            }
+
+            //유효성 후
+            if (chkFlag) {
+                let spmbRtgCd = $('input[name="reduction"]:checked').val();
+                if (certTextId == null || certTextId == '') {
+                    $("#spmbAprvStcd").val("01");
+                    
+                    if(spmbRtgCd=='01'){          	//장애인중증(1~3)
+                        $('#spmbDvcd').val('01');
+                    }
+                    else if(spmbRtgCd=='03'){    	//장애인경증(4~6)
+                        $('#spmbDvcd').val('01');
+                    }
+                    else if(spmbRtgCd=='11'){    	//국가유공자(1~3)
+                        $('#spmbDvcd').val('02');
+                    }
+                    else if(spmbRtgCd=='13'){    	//국가유공자(4~7)
+                        $('#spmbDvcd').val('02');
+                    }
+                    else if(spmbRtgCd=='21'){    	//518
+                        $('#spmbDvcd').val('03');
+                    }
+                }
+                else{
+                    //온라인검증을 통해 들어오는 경우 최초값 승인으로
+                    $("#spmbAprvStcd").val("10");
+                }
+
+                $('#spmbRtgCd').val($('input[name="reduction"]:checked').val());
+                $('#spmbBrdt').val($('#birth').val());							//생년월일
+
+                $('#piaDiv2Yn').val(personInfo);			// [PIA2] 개인정보수집동의(필수)
+                $('#piaDiv4Yn').val(callPolicy);		 	// [PIA4] 이용만족도 전화수신동의 값(선택)	기존 agreement
+                $('#piaDiv5Yn').val(piaDiv5Yn);				// [PIA5] 민감정보 수집동의
+                $('#piaDiv6Yn').val(piaDiv6Yn);				// [PIA6] 행정정보공동이용 동의
+                
+                var gubunStr = '';
+
+                $('input[name="reduction"]').each(function () {
+                    if ($(this).is(':checked')) {
+                        gubunStr = $(this).next('label').text();
+                    }
+                });
+
+                $('#certTextIdStr').val(gubunStr);	//자격구분 텍스트
+
+                var formData = new FormData($("#frmSocialWeakReser")[0]);
+
+                if(!confirm("신청하시겠습니까?")) {
+                	return false;
+                }
+                
+                ajaxCall({
+                    url : '/lottery/mergeDisadvantaged.do',
+                    data : formData,
+                    contentType : false,
+                    processData : false,
+                    success: function (dat) {
+                        if(dat.result == 'nologin'){
+                            loginPopup("modalAct('1');");
+                        } 
+                        else {
+
+                            toastrMsg("장애인/국가유공자 신청을 완료하였습니다.");
+
+                            $('#resultTb tbody').empty();
+                            var myDisHtml = '';
+                            myDisHtml += '<tr>';
+                            myDisHtml += '	<th scope="row">신청자명</th>';
+                            myDisHtml += '	<td>'+dat.resultMap.mmbNm+'</td>';
+                            myDisHtml += '</tr>';
+                            myDisHtml += '<tr>';
+                            myDisHtml += '	<th scope="row">생년월일</th>';
+                            myDisHtml += '	<td>' + dat.resultMap.spmbBrdt + '</td>';
+                            myDisHtml += '</tr>';
+                            myDisHtml += '<tr>';
+                            myDisHtml += '  <th scope="row">증빙서류 첨부</th>';
+                            myDisHtml += '  <td><a href="/customer/fileAttchDown.do?spmbDtgId='+dat.resultMap.spmbDtgId+'">'+(dat.resultMap.atchFileNm != null ? dat.resultMap.atchFileNm : "")+'</a></td>';
+                            myDisHtml += '</tr>';
+                            myDisHtml += '<tr>';
+                            myDisHtml += '  <th scope="row">개인정보 수집⋅이용동의 여부</th>';
+                            myDisHtml += '  <td>동의함(' + dat.resultMap.agreeyDtm + ')</td>';
+                            myDisHtml += '</tr>';
+                            myDisHtml += '<tr>';
+                            myDisHtml += '  <th scope="row">신청결과</th>';
+                            myDisHtml += '  <td>';
+
+                            if(dat.resultMap.spmbAprvStcd =='10'){
+                                myDisHtml += dat.resultMap.spmbDvcdNm+' 승인완료 ('+dat.resultMap.spmbAprvYmd+')';
+                            }
+                            else if(dat.resultMap.spmbAprvStcd =='01'){
+                                myDisHtml += dat.resultMap.spmbDvcdNm+' 신청완료';
+                            }
+                            else if(dat.resultMap.spmbAprvStcd =='90'){
+                                myDisHtml += dat.resultMap.spmbDvcdNm+' 반려사유 ('+dat.resultMap.aprvRstCn+')';
+                            }
+                            else{
+                                myDisHtml += '코드 오류(관리자에게 문의바람)';
+                            }
+
+                            myDisHtml += '  </td>';
+                            myDisHtml += '</tr>';
+
+                            $('#resultTb tbody').append(myDisHtml);
+                            closePopup('cancellation-charge');
+                            openPopup('cancellation-charge2');
+                        }
+                    }
+                });
+            }
+        }
+    }
+    
+    // 개인정보 수집ㆍ이용
+    function fnViewPia0() {
+    	openPopup('pia-information0');
+    }
+    function fnOkPia0() {
+    	$("#pia-radio0-1").attr("disabled", false);
+    	$("#pia-radio0-2").attr("disabled", false);
+    	
+    	closePopup('pia-information0');
+    }
+    
+    // 민감정보
+    function fnViewPia1() {
+    	openPopup('pia-information1');
+    }
+    function fnOkPia1() {
+    	$("#pia-radio1-1").attr("disabled", false);
+    	$("#pia-radio1-2").attr("disabled", false);
+    	
+    	closePopup('pia-information1');
+    }
+
+    // 행정정보공동이용
+    function fnViewPia2() {
+    	openPopup('pia-information2');
+    }
+    function fnOkPia2() {
+    	$("#pia-radio2-1").attr("disabled", false);
+    	$("#pia-radio2-2").attr("disabled", false);
+    	
+    	closePopup('pia-information2');
+    }
+    
+    // 온라인 자격검증
+    function fnCertForLotty() {
+    	var piaDiv6Yn = $('input[name="piaDiv6Yn"]:checked').val();		//행정정보공동이용
+    	if(piaDiv6Yn != "Y") {
+    		toastrMsg('행정정보 공동이용 사전동의를 동의하여 주십시오.');
+            return false;
+    	}
+    	
+    	goCertForLotty();
+    }    
+
+</script>
+
+<form id="frmSocialWeakReser" name="frmSocialWeakReser" method="post" class="frm-select-reservation">
+    <input type="hidden" name="spmbRtgCd"		id="spmbRtgCd" 		value=""/>
+    <input type="hidden" name="spmbDvcd" 		id="spmbDvcd" 		value=""/>
+    <input type="hidden" name="certTextIdStr" 	id="certTextIdStr" 	value=""/>
+    <input type="hidden" name="spmbBrdt" 		id="spmbBrdt" 		value=""/>
+    <input type="hidden" name="chkFileBinding" 	id="chkFileBinding" value=""/>
+    <input type="hidden" name="changeFileFLag" 	id="changeFileFLag" value="N"/>
+    <input type="hidden" name="atchFileId" 		id="atchFileId" 	value=""/>
+    <input type="hidden" name="spmbAprvStcd" 	id="spmbAprvStcd" 	value="01"/>
+
+    <input type="hidden" name="piaDiv2Yn" 		id="piaDiv2Yn" 		value=""/>	<!-- PIA2 개인정보수집동의(필수) -->
+    <input type="hidden" name="piaDiv4Yn" 		id="piaDiv4Yn" 		value=""/>	<!-- PIA4 이용만족도수신동의(선택) -->
+    <input type="hidden" name="piaDiv5Yn" 		id="piaDiv5Yn" 		value=""/>	<!-- PIA5 민감정보 -->	
+    <input type="hidden" name="piaDiv6Yn" 		id="piaDiv6Yn" 		value=""/>	<!-- PIA6 행정정보 -->
+
+    <div class="modal-popup medium" id="cancellation-charge">
+        <div class="popup-wrap" style="top: 50px; bottom: 50px;">
+            <div class="popup-head">
+                <strong class="popup-title">장애인/국가유공자 신청서</strong>
+                <button type="button" class="btn-close" title="닫기">
+                    <i class="icon-close"></i>
+                </button>
+            </div>
+            <div class="popup-container">
+                <!-- <p class="copy-mid"></p> -->
+                <div id="pia-agree-content">
+	                <div class="pac" style="">	<!-- height: 40px; -->
+	                	<!-- PIA2 -->
+	                	<div class="pia-view-title-area"><strong class="title-2">※ 개인정보 수집ㆍ이용 동의 (필수)</strong></div>
+	                	<div class="pia-view-btn-area">
+	                		<button type="button" class="btn  pia-view-btn" onclick="fnViewPia0();">내용보기</button>
+	                		
+	                		<input type="radio" id="pia-radio0-1" name="personPolicy" value="N"><label for="pia-radio0-1">동의하지 않음</label>
+			                <input type="radio" id="pia-radio0-2" name="personPolicy" value="Y"><label for="pia-radio0-2">동의함</label> 
+			                
+			                <span>( 내용 확인 후 동의/미동의 가능합니다 )</span>
+	                	</div>
+	                </div>
+	                <div class="pac" style="">		<!-- height: 40px; -->
+	                	<!-- PIA5 -->
+	                	<div class="pia-view-title-area"><strong class="title-2">※ 민감정보 수집 및 이용동의 (필수)</strong></div>
+	                	<div class="pia-view-btn-area">
+	                		<button type="button" class="btn  pia-view-btn" onclick="fnViewPia1();">내용보기</button>
+	                		
+	                		<input type="radio" id="pia-radio1-1" name="piaDiv5Yn" value="N"><label for="pia-radio1-1">동의하지 않음</label>
+			                <input type="radio" id="pia-radio1-2" name="piaDiv5Yn" value="Y"><label for="pia-radio1-2">동의함</label>
+			                
+			                <span>( 내용 확인 후 동의/미동의 가능합니다 )</span> 
+	                	</div>
+	                </div>
+		            <div class="pac" style="">		<!-- height: 40px; -->
+		            	<!-- PIA6 -->
+	                	<div class="pia-view-title-area"><strong class="title-2">※ 행정정보 공동이용 사전동의 (선택)</strong></div>
+	                	<div class="pia-view-btn-area">
+	                		<button type="button" class="btn  pia-view-btn" onclick="fnViewPia2();">내용보기</button>
+	                		
+	                		<input type="radio" id="pia-radio2-1" name="piaDiv6Yn" value="N"><label for="pia-radio2-1">동의하지 않음</label>
+			                <input type="radio" id="pia-radio2-2" name="piaDiv6Yn" value="Y"><label for="pia-radio2-2">동의함</label>
+			                
+			                <span>( 내용 확인 후 동의/미동의 가능합니다 )</span> 
+	                	</div>
+	                </div>
+	                <div class="pac pac-pia4" style="">		<!-- height: 40px; -->
+	                	<!-- PIA4 -->
+	                	<div class="pia-view-title-area"><strong class="title-2">※ 이용만족도 조사 등을 위한 전화 수신에 동의하십니까? (선택)</strong></div>
+	                	<div class="pia-view-btn-area">
+	                		<input type="radio" id="radio3" name="callPolicy" value="N"><label for="radio3">동의하지 않음</label>
+			                <input type="radio" id="radio4" name="callPolicy" value="Y"><label for="radio4">동의함</label> 
+	                	</div>
+	                </div>
+				</div>
+				
+                <div class="box-content" style="height: 420px;">
+                    <table class="table">
+                        <caption>장애인/국가유공자 자격구분</caption>
+                        <colgroup>
+                            <col style="width: 20%;">
+                            <col style="width: 30%;">
+                            <col style="width: 20%;">
+                            <col style="width: 30%;">
+                        </colgroup>
+                        <tbody class="tbody">
+                        <tr>
+                            <th scope="row" style="font-weight: bold; text-align:center;">신청자명*</th>
+                            <td>
+                                <label for="applyNm" class="hidden-text">신청자명</label>
+                                <input type="text" name="applyNm" id="applyNm" value="" class="input-text" readonly="readonly" title="신청자명"/>
+                            </td>
+                            <th scope="row" style="font-weight: bold; text-align:center;">생년월일*</th>
+                            <td>
+                                <label for="birth" class="hidden-text">생년월일</label>
+                                <input type="text" name="birth" id="birth" value="" class="input-text" readonly="readonly" title="생년월일"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row" style="font-weight: bold; text-align:center;">자격구분*</th>
+                            <td colspan="3">
+                                <ul class="radio-list">
+                                    <li>
+	                                    <span class="radio-1">
+	                                        <input type="radio" id="radio1-2" name="reduction" class="redus" value="01">
+	                                        <label for="radio1-2">장애인(중증, 1~3급)</label>
+	                                    </span>
+                                    </li>
+                                    <li>
+	                                    <span class="radio-1" style="margin-top:10px;">
+	                                        <input type="radio" id="radio1-3" name="reduction" class="redus" value="03">
+	                                        <label for="radio1-3">장애인(경증, 4~6급)</label>
+	                                    </span>
+                                    </li>
+                                    <li>
+	                                    <span class="radio-1" style="margin-top:10px;">
+	                                        <input type="radio" id="radio1-4" name="reduction" class="redus" value="11">
+	                                        <label for="radio1-4">국가유공자(1~3급)</label>
+	                                    </span>
+                                    </li>
+                                    <li>
+	                                    <span class="radio-1" style="margin-top:10px;">
+	                                        <input type="radio" id="radio1-5" name="reduction" class="redus" value="13">
+	                                        <label for="radio1-5">국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)</label>
+	                                    </span>
+                                    </li>
+                                    <li>
+	                                    <span class="radio-1" style="margin-top:10px;">
+	                                        <input type="radio" id="radio1-6" name="reduction" class="redus" value="21">
+	                                        <label for="radio1-6">5·18 민주유공자</label>
+	                                    </span>
+                                    </li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row" style="font-weight: bold; text-align:center;">온라인 자격검증</th>
+                            <td colspan="3">
+                            	<div class="form">
+	                                <span>
+	                                    <button type="button" class="btn btn-cert-for-lotty" onclick="goCertForLotty();">자격검증</button>
+	                                    <input type="text" class="input-text" style="width:225px;" readonly="readonly" placeholder="자격검증 버튼을 눌러주세요." title="자격검증" id="certTextId">
+	                                </span>
+                            	</div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row" style="font-weight: bold; text-align:center;">증빙서류 첨부*</th>
+                            <td colspan="3">
+                                <div class="form">
+                                    <span class="file-upload">
+                                       <button type="button" class="btn-file">파일선택</button>
+                                       <label for="entpe_file" data-content="" class="change"></label>
+                                       <input type="file" id="entpe_file" name="entpe_file" multiple="" accept="image/*,.pdf">
+                                       <span class="copy" style="display: inline-block;">※ 첨부파일은 jpg, gif, pdf 확장자,10M이하로 업로드해 주십시오.</span>
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <p class="copy-notice">
+                    	※ 온라인 자격검증이 안되는 경우 반드시 증빙서류를 첨부해야 합니다. (둘 중 한가지 필수)<br>
+                    	※ 신청자 본인에 한해서만 신청이 가능하며, 자격이 검증되지 않을 경우 추첨제 신청이 제한됩니다.
+                    </p>
+                </div>
+                
+                <!-- 
+                <p class="check-txt" style="font-weight: bold;">개인정보 수집ㆍ이용하는데 동의하십니까? (필수항목)</p>
+                <div class="radio-area" style="margin-top:10px;">
+                    <span class="radio-1">
+                        <input type="radio" id="radio1" name="personPolicy" checked="checked" value="no">
+                        <label for="radio1">동의하지 않음</label>
+                    </span>
+                    <span class="radio-1">
+                        <input type="radio" id="radio2" name="personPolicy" value="ok">
+                        <label for="radio2">동의함</label>
+                    </span>
+                </div>
+
+                <div class="agree-area">
+                    <dl>
+                        <dt></dt>
+                        <dd>
+                            <div class="box-content" style="margin-top:10px;">
+                                <p>국립공원공단은 "국립공원 예약통합시스템 장애인/국가유공자 추첨제" 서비스를 제공하기 위하여 아래와 같이 개인정보를 수집⋅이용하고 있습니다.</p>
+                                <ol>
+                                    <li><br>가. 개인정보의 수집⋅이용 목적<br> 국립공원공단은 수집한 개인정보를 다음의 목적을 위해 활용합니다.
+                                        <ul>
+                                            <li><br>ㆍ웹사이트 운영 관리
+                                                <ul>
+                                                    <li>ㆍ회원제 서비스 이용 및 제한적 본인 확인절차에 따른 본인확인, 개인 식별, 부정 이용 방지, 비인가 이용방지, 가입의사 확인, 할인 내역 적용, 분쟁조정을 위한 민원처리, 고지사항 전달을 목절으로 개인정보를 처리
+                                                    </li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                    <li><br>나. 수집하는 개인정보 항목<br>국립공원공단은 아래와 같은 개인정보를 수집하고 있습니다.
+                                        <ul>
+                                            <li><br>항목</li>
+                                            <li>개인정보 파일명</li>
+                                            <li>수집항목</li>
+                                            <li>필수정보</li>
+                                            <li>추첨제 이용고객 정보</li>
+                                            <li>성명, 생년월일, 전화번호 또는 휴대전화번호, 국립공원공단 통합 ID</li>
+                                            <li>선택정보</li>
+                                            <li>장애인</li>
+                                            <li>성명, 장애등록번호, 장애취득일, 등급</li>
+                                            <li>국가보훈대상자</li>
+                                            <li>성명, 보훈번호, 등급</li>
+                                            <li>5.18민주유공자</li>
+                                            <li>성명, 보훈번호, 등급</li>
+                                            <li>선택정보</li>
+                                        </ul>
+                                    </li>
+                                    <li><br>다. 개인정보의 보유 및 이용 기간<br>수집한 개인정보는 개인정보처리방침에 따라 회원 탈퇴 또는 삭제 요청 시 까지(일부정보는 3년까지) 보관합니다.</li>
+                                    <li><br>라. 동의거부 권리<br> 필수정보는 국립공원공단의 서비스 제공을 위한 최소한의 정보로 동의하셔야 이용 가능합니다.</li>
+                                </ol>
+                            </div>
+                        </dd>
+                    </dl>
+
+                    <p class="check-txt">※ 개인정보 처리에 관한 자세한 사항은 홈페이지(https://www.knps.or.kr) 공개하고 있는 "개인정보처리방침"을 참고하시기 바랍니다.</p>
+                    <p class="check-txt" style="font-weight: bold;"><br><br>이용만족도 조사 등을 위한 전화 수신에 동의하십니까? (선택항목)</p>
+                    <div class="radio-area" style="margin-top:10px;">
+	                    <span class="radio-1">
+	                        <input type="radio" id="radio3" name="callPolicy" value="no">
+	                        <label for="radio3">동의하지 않음</label>
+	                    </span>
+                        <span class="radio-1">
+	                        <input type="radio" id="radio4" name="callPolicy" value="ok">
+	                        <label for="radio4">동의함</label>
+	                    </span>
+                    </div>
+                </div>
+                 -->
+                 
+                <div class="btn-area">
+                    <button type="button" class="btn btn-cancel" onclick="modalAct('0');">닫기</button>
+                    <button type="button" class="btn btn-confirm is-active" id="reserBtn" onclick="modalAct('1');">신청하기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- 개인정보 수집ㆍ이용 -->
+<div class="modal-popup midium" id="pia-information0">
+	<div class="popup-wrap"  style="">	<!-- width: 100%; top: 100px; bottom: 60px; -->		<!-- width: 700px; top: 100px; bottom: 60px; -->
+		<div class="popup-head">
+			<strong class="popup-title" id="alertTitle">개인정보 수집ㆍ이용</strong>
+			<button type="button" class="btn-close" title="닫기" onclick="closePopup('pia-information0');">
+				<i class="icon-close"></i>
+			</button>
+		</div>
+		<div class="popup-container" style="">	<!--width: 100%; height:100%;	<!-- width: 700px; height:650px; -->
+			<div class="pia-content" style="">	<!-- max-height:100%; -->	<!-- height:550px; -->
+				<p>국립공원공단은 "국립공원공단 예약시스템 장애인/국가유공자 추첨제" 서비스를 제공하기 위하여 아래와 같이 개인정보를 수집⋅이용하고 있습니다.</p>
+				<ol>
+	            	<li><br>가. 개인정보의 수집⋅이용 목적<br> 국립공원공단은 수집한 개인정보를 다음의 목적을 위해 활용합니다.
+	                	<ul>
+	                    	<li><br>ㆍ웹사이트 운영 관리
+	                        	<ul>
+	                            	<li>ㆍ회원제 서비스 이용 및 제한적 본인 확인절차에 따른 본인확인, 개인 식별, 부정 이용 방지, 비인가 이용방지, 가입의사 확인, 할인 내역 적용, 분쟁조정을 위한 민원처리, 고지사항 전달을 목절으로 개인정보를 처리
+	                                </li>
+								</ul>
+							</li>
+						</ul>
+					</li>
+					<li>
+	                	<br>나. 수집하는 개인정보 항목<br>국립공원공단은 아래와 같은 개인정보를 수집하고 있습니다.
+	                    <table class="table table-thin">
+							<caption>수집하는 개인정보 항목</caption>
+	                       	<colgroup>
+	                           	<col style="width: 15%;">
+	                           	<col style="width: 25%;">
+	                           	<col>
+	                       	</colgroup>
+	                       	<thead class="thead">
+	                           	<tr>
+	                               <th scope="col">항목</th>
+	                               <th scope="col">개인정보 파일명</th>
+	                               <th scope="col">수집항목</th>
+	                           	</tr>
+	                       	</thead>
+	                       	<tbody class="tbody">
+	                           	<tr>
+	                               <td>필수정보</td>
+	                               <td>추첨제 이용고객 정보</td>
+	                               <td>성명, 생년월일, 전화번호 또는 휴대전화번호, 국립공원공단 통합 ID</td>
+	                           	</tr>
+	                           	<tr>
+	                               <td rowspan="3">선택정보</td>
+	                               <td>장애인</td>
+	                               <td>성명, 장애등록번호, 장애취득일, 등급</td>
+	                           	</tr>
+	                           	<tr>
+	                               <td>국가보훈대상자</td>
+	                               <td>성명, 보훈번호, 등급</td>
+	                           	</tr>
+	                           	<tr>
+	                               <td>5.18민주유공자</td>
+	                               <td>성명, 보훈번호, 등급</td>
+	                           	</tr>
+	                       	</tbody>
+	                   	</table>
+					</li>
+					<li><br>다. 개인정보의 보유 및 이용 기간<br>수집한 개인정보는 개인정보처리방침에 따라 회원 탈퇴 또는 삭제 요청 시 까지(일부정보는 3년까지) 보관합니다.</li>
+					<li><br>라. 동의거부 권리<br> 필수정보는 국립공원공단의 서비스 제공을 위한 최소한의 정보로 동의하셔야 이용 가능합니다.</li>
+				</ol>
+				<p class="check-txt">※ 개인정보 처리에 관한 자세한 사항은 홈페이지(https://www.knps.or.kr) 공개하고 있는 "개인정보처리방침"을 참고하시기 바랍니다.</p>
+			</div>
+			<div class="btn-area pia-btn-area">
+				<button class="btn btn-cancel" onclick="closePopup('pia-information0');">취소</button>
+				<button class="btn btn-confirm is-active" onclick="fnOkPia0()">확인</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- 민감정보 수집 및 이용동의 -->
+<div class="modal-popup small" id="pia-information1">
+	<div class="popup-wrap"  style="">		<!-- width: 500px; -->
+		<div class="popup-head">
+			<strong class="popup-title" id="alertTitle">민감정보 수집 및 이용동의</strong>
+			<button type="button" class="btn-close" title="닫기" onclick="closePopup('pia-information1');">
+				<i class="icon-close"></i>
+			</button>
+		</div>
+		<div class="popup-container" style="">	<!-- width: 500px; height:300px; -->
+			<div class="pia-content" style="">	<!-- height:200px; -->
+				<span>※ 민감정보</span>
+				<div style="margin: 5px 0 5px 0;">
+					<ul>
+						<li>- 민감정보 수집 목적 : 자연공원법 제37조의1(입장료 및 사용료 징수)에 따른 공원시설 할인혜택 제공</li>
+						<li>- 민감정보 항목      : 장애인(유무, 장애등급), 국가보훈 대상자(유무, 대상자 등급 등), 5.18 민주 유공자(유무)</li>
+						<li>- 민감정보 보유기간  : 5년</li>
+					</ul>
+				</div>
+				
+				<span>※ 동의거부 권리</span>
+				<div style="margin: 0 0 0 0;">
+					귀하께서는 “국립공원예약시스템”의 민감정보 수집 및 이용에 대한 동의 거부권이 있으며 동의 거부 시에는 장애인 우선예약 및 공원시설 할인 혜택을 받으실 수 없습니다.
+				</div>
+			</div>
+			<div class="btn-area pia-btn-area">
+				<button class="btn btn-cancel" onclick="closePopup('pia-information1');">취소</button>
+				<button class="btn btn-confirm is-active" onclick="fnOkPia1()">확인</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- 행정정보 공동이용 사전동의서 -->
+<div class="modal-popup small" id="pia-information2">
+	<div class="popup-wrap"  style="">		<!-- width: 500px; -->
+		<div class="popup-head">
+			<strong class="popup-title" id="alertTitle">행정정보 공동이용 사전동의서</strong>
+			<button type="button" class="btn-close" title="닫기" onclick="closePopup('pia-information2');">
+				<i class="icon-close"></i>
+			</button>
+		</div>
+		<div class="popup-container" style="">	<!-- width: 500px; height:320px; -->
+			<div style="margin: 5px 0 5px 0;">
+				1. 이용기관 명칭 : 국립공원공단<br/>
+				2. 이용사무(이용목적) : 자연공원법 제37조의1(입장료 및 사용료 징수)에 따른 공원시설 할인혜택 제공<br/>
+				3. 공동이용 행정정보<br/>
+				&nbsp;&nbsp; 가. 장애인(유무, 장애등급)<br/>
+				&nbsp;&nbsp; 나. 국가보훈 대상자(유무, 대상자 등급 등), 5.18 민주 유공자(유무)<br/>
+				4. 정보주체(본인) 동의사항<br/>
+				&nbsp;&nbsp; ○ 본인은 위 사무의 처리를 위하여 「전자정부법」제36조에 따른 행정정보 공동이용을 통해 이용기관의 업무처리담당자가 전자적으로 본인의 구비서류(공동이용 행정정보)를 확인하는 것에 동의합니다.<br/> 
+				&nbsp;&nbsp; ※ 만일, 본인이 위 행정정보 이용에 대해 동의를 하지 아니할 경우에도 불이익은 없습니다. 다만, 동의하지 아니한 경우에는 본인이 해당 구비서류를 제출하여야 합니다.<br/>
+			</div>
+			<div class="btn-area pia-btn-area">
+				<button class="btn btn-cancel" onclick="closePopup('pia-information2');">취소</button>
+				<button class="btn btn-confirm is-active" onclick="fnOkPia2()">확인</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+
+
+
+
+
+<style>
+.personal-identification {
+	margin-top: 20px !important;
+	margin-bottom: 20px !important;
+}
+.modal-popup .personal-identification .auth-box {
+    height: 269px  !important;
+    padding: 16px 12px  !important;
+}
+.modal-popup .popup-container .box-content p + p {
+    margin-top: 10px !important;
+}
+</style>
+
+<script>
+$(document).ready(function(){
+    //다음
+    $('.selfAuthModal').click(function () {
+
+        var policyVal = $('input[name="policy"]:checked').val();
+        if (policyVal == '') {
+            toastrMsg('개인정보 제공 동의를 해주세요.');
+            return false;
+        }
+
+        // if ($('#usNmId').val() == '') {
+        if ($('#usNmId').text() == '') {
+            toastrMsg('본인인증을 진행해주세요.');
+            return false;
+        }
+
+
+        if ($('#usNm').val() == '') {
+            toastrMsg('주민등록번호 뒷자리를 입력해주세요.');
+            return false;
+        }
+        else {
+			// 주민번호 뒷자리에 다른 정보를 입력하는 경우 방지.
+			var check = /^[0-9]+$/; 
+			if (!check.test($('#usNm').val())) {
+				toastrMsg("주민등록번호 뒷자리에 숫자만 입력 가능합니다. [입력값:" + $('#usNm').val() + "]");
+				return false;
+			}
+		}
+
+        var param = {
+            "tgtrNm": $('#usNmId').text(),
+            "trtrNum": $('#usNumId').text() + $('#usNm').val(),
+            "authType": $('#authTypeId').val()
+        }
+
+        $.ajax({
+            url: "/common/authGpki.do",
+            type: "POST",
+            dataType: "json",
+            async: false,
+            data: param,
+            success: function (dat) {
+
+                if ($('#authTypeId').val() == 'A') { //장애인여부확인
+                    ReductionDisabledYn(dat);
+                } else {
+                    NaManMeritFamInfo(dat);
+                }
+
+            },
+            error: function (e1, e2, e3) {
+                $('#radio1-1').prop('checked', true);
+                alert('인증 중 오류발생.');
+            }
+        });
+    });
+
+
+    //취소
+    $('.selfAuthModalCancel').click(function () {
+        //감면인증정보 확인 모달 제거
+        $('#exemption-auth').removeClass('active');
+    });
+		
+});
+
+//국가유공자 등급확인
+function NaManMeritFamInfo(dat){
+	
+	var retData 	 = dat.dat;
+	var retCd   	 = retData.rMsg;
+	var dcTargetYn 	 = retData.dcTargetYn;
+	var authoriPsnYn = retData.authoriPsnYn;
+	
+	var cnt = retData.cnt;
+	// var chkPass = false;
+
+    if (($('#usNmId').text() == '')) {
+        if (retCd == 'T') {
+            if ("0" != cnt) {
+            	//감면대상일때
+            	if(dcTargetYn == 'Y') {
+	            	/*
+	            	alertPopup({
+	                    title: '알림',
+	                    subTitle: $('#usNmId').text() + '님은 감면대상자입니다.',
+	                    content: '',
+	                    type: ''
+	                });
+	                */
+	
+	                var wondClassCd = retData.wondClassCd;
+	                var subjKbnCd = retData.subjKbnCd;
+	
+	                /* Ver1.
+	                if ('00011' == wondClassCd || '00012' == wondClassCd
+	                    || '00013' == wondClassCd || '00020' == wondClassCd
+	                    || '00030' == wondClassCd || '00G01' == wondClassCd
+	                    || '00G02' == wondClassCd || '00G03' == wondClassCd) { //1~3급
+	
+	                    $('#radio1-4').prop('checked', true);
+	                    $('#certTextId').val('대상자 확인완료');
+	                    $('#certTextIdStr').val('국가유공자(1~3급)');
+	                    $('#spmbDvcd').val('02');
+	                } 
+	                else if ('00017' == subjKbnCd || '00018' == subjKbnCd || '00019' == subjKbnCd) { //518 민주화운동자.
+	                    $('#radio1-5').prop('checked', true);
+	                    $('#certTextId').val('대상자 확인완료');
+	                    $('#certTextIdStr').val('5.18 민주운동자');
+	                    $('#spmbDvcd').val('03');
+	                } 
+	                else { //그 외
+	                    $('#radio1-6').prop('checked', true);
+	                    $('#certTextId').val('대상자 확인완료');
+	                    $('#certTextIdStr').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+	                    $('#spmbDvcd').val('02');
+	                }
+	                */
+	                var bChk = false;
+	                if(subjKbnCd != "" && subjKbnCd != null) {
+		            	// 518 민주화운동자 별도 분리
+	                	if ('00017' == subjKbnCd || '00018' == subjKbnCd || '00019' == subjKbnCd) {		// 518 민주화운동자.
+		            		$('#radio1-6').prop('checked', true);
+		                    $('#certTextId').val('대상자 확인완료');
+		                    $('#certTextIdStr').val('5.18 민주유공자');
+		                    $('#spmbDvcd').val('03');
+		            		
+		                    bChk = true;
+		            	}
+		            	// 나머지는 등급에 따라(등급이 없으면 등급외로)
+		            	else {
+		            		if("00011" == wondClassCd || "00012" == wondClassCd || "00013" == wondClassCd ||		//1급 1항~3항
+		                       "00020" == wondClassCd || "00030" == wondClassCd ||                                  //2급 3급
+		                       "00G01" == wondClassCd || "00G02" == wondClassCd || "00G03" == wondClassCd) {   		//장해 1급~3급
+		            			
+		            			$('#radio1-4').prop('checked', true);
+		                        $('#certTextId').val('대상자 확인완료');
+		                        $('#certTextIdStr').val('국가유공자(1~3급)');
+		                        $('#spmbDvcd').val('02');
+		            			
+		                    	bChk = true;
+		            		}
+		            		else if("00040" == wondClassCd || "00050" == wondClassCd ||                             //4~5급
+		                            "00061" == wondClassCd || "00062" == wondClassCd || "00063" == wondClassCd ||  	//6급1항~3항,
+		                            "00070" == wondClassCd || "00G04" == wondClassCd || "00G05" == wondClassCd || "00G06" == wondClassCd || "00G07" == wondClassCd){	//7급, 장해 4~7급
+		
+		            			$('#radio1-5').prop('checked', true);
+		                    	$('#certTextId').val('대상자 확인완료');
+		                        $('#certTextIdStr').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+		                        $('#spmbDvcd').val('02');
+		            			
+		                    	bChk = true;
+		                    }
+		            		else if("00081" == wondClassCd || "00082" == wondClassCd || "00083" == wondClassCd ||  	//고도, 중증도, 경도
+		                            "00510" == wondClassCd || "00511" == wondClassCd || "00512" == wondClassCd || "00513" == wondClassCd || "00514" == wondClassCd || "00580" == wondClassCd || "00590" == wondClassCd || //10~14급, 8급, 9급
+		                            "00G08" == wondClassCd || "00G09" == wondClassCd || "00G10" == wondClassCd || "00G11" == wondClassCd || "00G12" == wondClassCd || "00G13" == wondClassCd || "00G14" == wondClassCd || "90001" == wondClassCd) { // 장해 8~13급 , 등외
+		            			
+		            			$('#radio1-5').prop('checked', true);
+		                    	$('#certTextId').val('대상자 확인완료');
+		                        $('#certTextIdStr').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+		                        $('#spmbDvcd').val('02');
+		                    
+		            			bChk = true;
+		                    }
+		            		else {
+		            			// 대상자이긴하나 등급값이 없는 경우
+		            			$('#radio1-5').prop('checked', true);
+		                    	$('#certTextId').val('대상자 확인완료');
+		                        $('#certTextIdStr').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+		                        $('#spmbDvcd').val('02');
+		                    
+		            			bChk = true;
+		            		}
+		            	}
+	                }
+	                else {
+	                	// subjKbnCd 값없이 등급만 오는 경우
+	                	// 등급값도 없으면 대상 외로.
+	                	if("00011" == wondClassCd || "00012" == wondClassCd || "00013" == wondClassCd ||		//1급 1항~3항
+	                       "00020" == wondClassCd || "00030" == wondClassCd ||                                  //2급 3급
+	                       "00G01" == wondClassCd || "00G02" == wondClassCd || "00G03" == wondClassCd) {   		//장해 1급~3급
+	            			
+	            			$('#radio1-4').prop('checked', true);
+	                        $('#certTextId').val('대상자 확인완료');
+	                        $('#certTextIdStr').val('국가유공자(1~3급)');
+	                        $('#spmbDvcd').val('02');
+	            			
+	                    	bChk = true;
+	            		}
+	            		else if("00040" == wondClassCd || "00050" == wondClassCd ||                             //4~5급
+	                            "00061" == wondClassCd || "00062" == wondClassCd || "00063" == wondClassCd ||  	//6급1항~3항,
+	                            "00070" == wondClassCd || "00G04" == wondClassCd || "00G05" == wondClassCd || "00G06" == wondClassCd || "00G07" == wondClassCd){	//7급, 장해 4~7급
+	
+	            			$('#radio1-5').prop('checked', true);
+	                    	$('#certTextId').val('대상자 확인완료');
+	                        $('#certTextIdStr').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+	                        $('#spmbDvcd').val('02');
+	            			
+	                    	bChk = true;
+	                    }
+	            		else if("00081" == wondClassCd || "00082" == wondClassCd || "00083" == wondClassCd ||  	//고도, 중증도, 경도
+	                            "00510" == wondClassCd || "00511" == wondClassCd || "00512" == wondClassCd || "00513" == wondClassCd || "00514" == wondClassCd || "00580" == wondClassCd || "00590" == wondClassCd || //10~14급, 8급, 9급
+	                            "00G08" == wondClassCd || "00G09" == wondClassCd || "00G10" == wondClassCd || "00G11" == wondClassCd || "00G12" == wondClassCd || "00G13" == wondClassCd || "00G14" == wondClassCd || "90001" == wondClassCd) { // 장해 8~13급 , 등외
+	            			
+	            			$('#radio1-5').prop('checked', true);
+	                    	$('#certTextId').val('대상자 확인완료');
+	                        $('#certTextIdStr').val('국가유공자(4~7급), 등급 외(무공·보훈수훈자, 배우자, 유족 등)');
+	                        $('#spmbDvcd').val('02');
+	                    
+	            			bChk = true;
+	                    }
+	                }
+            	}
+                
+            	if(bChk) {
+            		alertPopup({
+                        title: '알림',
+                        subTitle: $('#usNmId').text() + '님은 감면대상자입니다.',
+                        content: '',
+                        type: ''
+                    });
+            		
+                    closePopup('exemption-auth');
+            	}
+            	else {
+            		alertPopup({
+                        title: '알림',
+                        subTitle: $('#usNmId').text() + '님은 감면대상자가 아닙니다.',
+                        content: '',
+                        type: 'error'
+                    });
+
+                    $('#radio1-1').prop('checked', true);
+                    $('#certTextId').css('color', 'red').val('대상자가 아닙니다');
+                    $('#certTextIdStr').val('');
+                    $('#spmbDvcd').val('');
+
+                    self.close();
+            	}
+            }
+            else {
+                alertPopup({
+                    title: '알림',
+                    subTitle: $('#usNmId').text() + '님은 감면대상자가 아닙니다.',
+                    content: '',
+                    type: 'error'
+                });
+
+                $('#radio1-1').prop('checked', true);
+                //자격검증결과 출력 대상자가 아닐 때 추가
+                $('#certTextId').css('color', 'red').val('대상자가 아닙니다');
+                $('#certTextIdStr').val('');
+                $('#spmbDvcd').val('');
+
+                self.close();
+            }
+
+        } 
+        else {
+            $('#radio1-1').prop('checked', true);
+            self.close();
+            alert('처리 중 에러발생.');
+        }
+    } else {
+        alertPopup({
+            title: '알림',
+            subTitle: '예약자 본인이 아니므로 <br>자격확인을 할 수 없습니다.',
+            content: '현장 방문 시 증빙을 지참하시고 할인 받으시기 바랍니다.',
+            type: 'error'
+        });
+    }
+}
+
+//장애인 등급확인
+function ReductionDisabledYn(dat){
+	
+	var qufyYn = dat.dat.QUFY_YN;
+	// var chkPass = false;
+	
+    if (($('#usNmId').text() == '')) {
+        if (dat.dat.rMsg == 'T') {
+            if (qufyYn == 'Y') {
+                var mainCode = dat.dat.OVL_DSBTY_GO;
+                if(mainCode == null || mainCode == "") {
+                	mainCode = dat.dat.MNDSB_RTG_CD;
+                }
+
+                if (mainCode == '00' || mainCode == '98' || mainCode == '99') {
+
+                    var strMsg = '';
+                    if (mainCode == '00') {
+                        strMsg = '장애 미해당';
+                    } else if (mainCode == '98') {
+                        strMsg = '결정보류';
+                    } else if (mainCode == '99') {
+                        strMsg = '확인불가';
+                    }
+
+                    alertPopup({
+                        title: '알림',
+                        subTitle: $('#usNmId').text() + '님은 장애등급은' + strMsg + ' 상태입니다',
+                        content: '',
+                        type: ''
+                    });
+
+                    $('#radio1-1').prop('checked', true);
+                    $('#spmbDvcd').val('');
+                    self.close();
+                } 
+                else {
+                    alertPopup({
+                        title: '알림',
+                        subTitle: $('#usNmId').text() + '님은 감면 대상자입니다.',
+                        content: '',
+                        type: ''
+                    });
+
+                    if ('10' == mainCode) {
+                        $('#radio1-2').prop('checked', true);
+                        $('#certTextId').val('대상자 확인완료');
+                        $('#certTextIdStr').val('장애인(중증, 1~3급)');
+                    } 
+                    else if ('20' == mainCode) {
+                        $('#radio1-3').prop('checked', true);
+                        $('#certTextId').val('대상자 확인완료');
+                        $('#certTextIdStr').val('장애인(경증, 4~6급)');
+                    }
+                    $('#spmbDvcd').val('01');
+                    
+                    closePopup('exemption-auth');
+                }
+            } 
+            else {
+                alertPopup({
+                    title: '알림',
+                    subTitle: $('#usNmId').text() + '님은 대상자가 아닙니다.',
+                    content: '',
+                    type: 'error'
+                });
+                $('#radio1-1').prop('checked', true);
+                //자격검증결과 출력 대상자가 아닐 때 추가
+                $('#certTextId').css('color', 'red').val('대상자가 아닙니다');
+                $('#certTextIdStr').val('');
+                $('#spmbDvcd').val('');
+                
+                self.close();
+            }
+        } 
+        else {
+            alert('인증 중 오류발생.');
+            $('#radio1-1').prop('checked', true);
+            self.close();
+        }
+    } else {
+        alertPopup({
+            title: '알림',
+            subTitle: '예약자 본인이 아니므로 <br>자격확인을 할 수 없습니다.',
+            content: '현장 방문 시 증빙을 지참하시고 할인 받으시기 바랍니다.',
+            type: 'error'
+        });
+    }
+}
+
+
+//휴대폰 인증
+function goAuth(){
+	$.ajax({
+		url:"/pay/checkPlusForPay.do",
+		type: "POST", 
+		dataType: "json",
+		async : false ,
+		data: {},
+		success: function(dat) {
+
+			//인증요청 암호화 데이터가 없을 경우 오류발생
+            if(dat.result.sEncData == ''){
+                toastrMsg(dat.result.sRtnMsg);
+            }else{
+                $("#EncodeData").val(dat.result.sEncData);
+                window.open('', 'popupChk', 'width=500, height=550, top=100, left=100, fullscreen=no, menubar=no, status=no, toolbar=no, titlebar=yes, location=no, scrollbar=no');
+                document.form_chk.target = "popupChk";
+                document.form_chk.action = "https://nice.checkplus.co.kr/CheckPlusSafeModel/checkplus.cb;jsessionid=MASKED";
+                document.form_chk.submit();
+            }
+		},
+		error: function(e1,e2,e3) {
+			console.log(e1);
+			console.log(e2);
+			console.log(e3);
+		}
+	});
+}
+
+//아이핀 인증
+function goAuthiPin(){
+    $.ajax({
+        url:"/pay/iPinForPay.do",
+        type: "POST",
+        dataType: "json",
+        async : false ,
+        data: {},
+        success: function(dat) {
+            //인증요청 암호화 데이터가 없을 경우 오류발생
+            if(dat.result.sEncData == ''){
+                toastrMsg(dat.result.sRtnMsg);
+            }else{
+                $("#enc_data").val(dat.result.sEncData);
+                window.open('', 'popupIPIN2', 'width=450, height=550, top=100, left=100, fullscreen=no, menubar=no, status=no, toolbar=no, titlebar=yes, location=no, scrollbar=no');
+                document.form_ipin.target = "popupIPIN2";
+                document.form_ipin.action = "https://cert.vno.co.kr/ipin.cb";
+                document.form_ipin.submit();
+            }
+        },
+        error: function(e1,e2,e3) {
+        	console.log(e1);
+			console.log(e2);
+			console.log(e3);
+        }
+    });
+}
+
+</script>
+
+<div class="modal-popup small" id="exemption-auth">
+	
+		<input type="hidden" id="authTypeId" value=""/>
+		
+        <div class="popup-wrap" style="top: 40px; bottom: 40px;">
+            <div class="popup-head">
+                <strong class="popup-title">온라인 자격 검증</strong>
+                <button type="button" class="btn-close" title="닫기">
+                    <i class="icon-close"></i>
+                </button>
+            </div>
+            <div class="popup-container">
+                <strong class="title-2">개인정보 제공 동의</strong>
+                <div class="box-content">
+                    <p>* 본 포털은 본인확인 및 공공시설 이용요금 감면서비스 대상여부 확인, 제한경쟁신청 자격여부 확인, 감면자격 정보 저장 만료일 안내를 목적으로 개인정보(이름, 주민번호, 휴대전화 번호)를 수집합니다.</p>
+                    <p>* 개인정보 수집 이용에 동의를 거부할 권리가 있으며, 거부 시 공공시설 이용요금 감면서비스 및 제한결쟁신청 대상 여부 확인이 제한 될 수 있습니다.</p>
+                </div>
+                <div class="radio-area">
+                    <label for="policy2">위 내용에 동의하십니까?</label>
+                    <span class="radio-1">
+                        <input type="radio" id="policy1" name="policy"  value="">
+                        <label for="policy1">동의하지 않음</label>
+                    </span>
+                    <span class="radio-1">
+                        <input type="radio" id="policy2" name="policy"  value="T">
+                        <label for="policy2">동의함</label>
+                    </span>
+                </div>
+                
+                <div class="personal-identification">
+                    <div class="auth-box phone">
+                        <strong>휴대폰 인증</strong>
+                        <p>본인 명의 휴대폰으로 인증 후 자격검증을 받을 수 있습니다.</p>
+                        <button type="button" class="btn" onclick="goAuth();">휴대폰 인증</button>
+                    </div>
+                    <div class="auth-box ipin">
+                        <strong>아이핀(I-PIN) 인증</strong>
+                        <p>본인 명의 아이핀 으로 인증 후 자격검증을 받을 수 있습니다.</p>
+                        <button type="button" class="btn" onclick="goAuthiPin();">아이핀 인증</button>
+                    </div>
+                </div>
+                <!-- 
+                <div class="box-content">
+                	<p>* 개인인증 후 이름/주민번호가 표시 되지 않으면, 온라인 자격검증 창을 닫고 재 로그인 후 다시 시도해 보십시오.</p>
+                    <p>* 개인인증 후 이름/주민번호가 표시 된 후 자격확인을 진행해 주십시오.</p>
+                </div>
+                 -->
+                
+                <table class="table">
+                    <caption>개인정보 입력</caption>
+                    <colgroup>
+                        <col style="width: 140px;">
+                        <col>
+                    </colgroup>
+                    <tbody class="tbody">
+                        <tr>
+                            <th scope="row">이름</th>
+                            <td id="usNmId"></td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="usNm">주민번호</label></th>
+                            <td class="form flex">
+                                <span id="usNumId"></span> - 
+                                <label for="usNm" class="hidden-text">주민번호 뒷자리</label>
+                                <input type="password" class="input-text" id="usNm" placeholder="뒷자리를 입력 해주세요." title="주민번호 뒷자리">
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="btn-area">
+                    <button class="btn btn-cancel selfAuthModalCancel">취소</button>
+                    <button class="btn btn-confirm is-active selfAuthModal">자격확인</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+<script>
+
+$(function(){
+})
+
+function closePop () {
+	$('#cancellation-charge2').removeClass('active');
+}
+
+</script>
+
+	<div class="modal-popup medium" id="cancellation-charge2">
+		<div class="popup-wrap" style="top: 40px; bottom: 40px;">
+            <div class="popup-head">
+                <strong class="popup-title">장애인/국가유공자 증빙 신청확인</strong>
+                <button type="button" class="btn-close" title="닫기">
+                    <i class="icon-close"></i>
+                </button>
+            </div>
+            <div class="popup-container">
+                <table class="table" id="resultTb">
+                    <caption>개인정보 입력</caption>
+                    <colgroup>
+                        <col style="width: 220px;">
+                        <col>
+                    </colgroup>
+                    <tbody class="tbody">
+                    	<!-- 아래 내용은 신청 처리쪽에서 다시 만들어짐 -->
+                        <tr>
+                            <th scope="row">신청자명</th>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">생년월일</th>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">증빙서류 첨부</th>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">개인정보 수집⋅이용동의 여부</th>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">이용만족도 조사 등을 위한<br>전화 수신에 동의여부</th>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">신청결과</th>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <strong class="title-2">개인정보 제공 동의 사항</strong>
+                <div class="box-content" style="height: 160px">
+                    <p>국립공원공단은 "국립공원 예약통합시스템 추첨제" 서비스를 제공하기 위하여 아래와 같이 개인정보를 수집⋅이용하고 있습니다.</p>
+                    <strong>가. 개인정보의 수집⋅이용 목적</strong>
+                    <p>국립공원공단은 수집한 개인정보를 다음의 목적을 위해 활용합니다.</p>
+                    <ul>
+                        <li>- 웹사이트 운영관리</li>
+                        <li>- 회원제 서비스 이용 및 제한적 본인 확인절차에 따른 본인확인, 개인 식별, 부정 이용 방지, 비인가 이용방지, 가입의사 확인, 할인 내역 적용, 분쟁조정을 위한 민원처리, 고지사항 전달을 목절으로 개인정보를 처리</li>
+                    </ul>
+                    <strong>나. 수집하는 개인정보 항목</strong>
+                    <p>국립공원공단은 아래와 같은 개인정보를 수집하고 있습니다.</p>
+                    <table class="table">
+                        <caption>수집하는 개인정보 항목</caption>
+                        <colgroup>
+                            <col style="width: 20%;">
+                            <col>
+                            <col>
+                        </colgroup>
+                        <thead class="thead">
+                            <tr>
+                                <th scope="col">항목</th>
+                                <th scope="col">개인정보 파일명</th>
+                                <th scope="col">수집항목</th>
+                            </tr>
+                        </thead>
+                        <tbody class="tbody">
+                            <tr>
+                                <td>필수정보</td>
+                                <td>추첨제 이용고객 정보</td>
+                                <td>성명, 생년월일, 전화번호 또는 휴대전화번호, 국립공원공단 통합 ID</td>
+                            </tr>
+                            <tr>
+                                <td rowspan="3">선택정보</td>
+                                <td>장애인</td>
+                                <td>성명, 장애등록번호, 장애취득일, 등급</td>
+                            </tr>
+                            <tr>
+                                <td>국가보훈대상자</td>
+                                <td>성명, 보훈번호, 등급</td>
+                            </tr>
+                            <tr>
+                                <td>5.18민주유공자</td>
+                                <td>성명, 보훈번호, 등급</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <strong>다. 개인정보의 보유 및 이용 기간</strong>
+                    <p>수집한 개인정보는 개인정보처리방침에 따라 회원 탈퇴 또는 삭제 요청 시 까지(일부정보는 3년까지) 보관합니다.</p>
+                    <strong>라. 동의거부 권리</strong>
+                    <p>필수정보는 국립공원공단의 서비스 제공을 위한 최소한의 정보로 동의하셔야 이용 가능합니다.</p>
+                </div>
+                <p class="copy-notice">※ 개인정보 처리에 관한 자세한 사항은 홈페이지(https://www.knps.or.kr) 공개하고 있는 "개인정보처리방침"을 참고하시기 바랍니다.</p>
+                
+                <div class="btn-area">
+                    <button class="btn btn-confirm is-active" onclick="closePop();">확인</button>
+                </div>
+            </div>
+        </div>
+	</div>
+
+
+
+
+
+			</div>
+			
+		<footer id="footer">
+            <ul class="content">
+                <li>
+                    <address>(국립공원공단) 강원도 원주시 혁신로 22 (우)26466</address>
+                </li>
+                <li>사업자등록번호: 211-82-06541</li>
+                <li>탐방·시설 예약안내: <a href="tel:1670-9201">1670-9201</a> (평일 09-18시, 점심시간 12-13시)</li>
+                <li>FAX: 033-769-9719</li>
+            <!--     <li>이메일: csnp&#64;knps.or.kr</li> -->
+            </ul>
+            <p class="copyright">Copyright@Korea National Park Service. All Rights Reserved.</p>
+            <div class="policy-area">
+                <a href="/contents/copyrightPolicy.do" class="btn">저작권정책</a>
+                <a href="http://www.knps.or.kr/portal/main/contents.do?menuNo=7020135" class="btn" target="_blank" rel="noopener noreferrer" style="font-weight: bold; color: #0033cc; background: #ffffff;">개인정보처리방침</a>
+            </div>
+        </footer>
+
+<!-- AceCounter Log Gathering Script V.8.0.AMZ2019080601 -->
+<!-- 2020-06-15 -->
+<script language='javascript'>
+	var _AceGID=(function(){var Inf=['gtp14.acecounter.com','8080','AH6A44218380733','AW','0','NaPm,Ncisy','ALL','0']; var _CI=(!_AceGID)?[]:_AceGID.val;var _N=0;var _T=new Image(0,0);if(_CI.join('.').indexOf(Inf[3])<0){ _T.src ="https://"+ Inf[0] +'/?cookie'; _CI.push(Inf);  _N=_CI.length; } return {o: _N,val:_CI}; })();
+	var _AceCounter=(function(){var G=_AceGID;var _sc=document.createElement('script');var _sm=document.getElementsByTagName('script')[0];if(G.o!=0){var _A=G.val[G.o-1];var _G=(_A[0]).substr(0,_A[0].indexOf('.'));var _C=(_A[7]!='0')?(_A[2]):_A[3];var _U=(_A[5]).replace(/\,/g,'_');_sc.src='https:'+'//cr.acecounter.com/Web/AceCounter_'+_C+'.js?gc='+_A[2]+'&py='+_A[4]+'&gd='+_G+'&gp='+_A[1]+'&up='+_U+'&rd='+(new Date().getTime());_sm.parentNode.insertBefore(_sc,_sm);return _sc.src;}})();
+</script>
+<noscript><img src='https://gtp14.acecounter.com:8080/?uid=AH6A44218380733&je=n&' border='0' width='0' height='0' alt=''></noscript>	
+<!-- AceCounter Log Gathering Script End -->
+
+
+<div class="modal-popup small" id="confirmPop">
+    <div class="popup-wrap">
+        <div class="popup-head">
+            <strong class="popup-title" id="confirmTitle"></strong>
+            <button type="button" class="btn-close" title="닫기" onclick="closePopup('confirmPop');">
+                <i class="icon-close"></i>
+            </button>
+        </div>
+        <div class="popup-container">
+            <div class="center">
+                <i class="icon-error"></i>
+                <strong class="title-1" id="confirmSubTitle"></strong>
+                <p class="copy-mid" id="confirmContent"></p>
+                <p class="copy-sm" id="confirmSubContent"></p>
+            </div>
+            <div class="btn-area">
+                <button class="btn btn-cancel forMypageClass" onclick="closePopup('confirmPop');">취소</button>
+                <button class="btn btn-confirm is-active" id="btn-confirm">확인</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal-popup small" id="alertPop">
+    <div class="popup-wrap">
+        <div class="popup-head">
+            <strong class="popup-title" id="alertTitle">로그인</strong>
+            <button type="button" class="btn-close" title="닫기" onclick="closePopup('alertPop');">
+                <i class="icon-close"></i>
+            </button>
+        </div>
+        <div class="popup-container">
+            <div class="center">
+                <i class="icon-error"></i>
+                <strong class="title-1" id="alertSubTitle"></strong>
+                <p class="copy-mid" id="alertContent"></p>
+                <p class="copy-sm" id="alertSubContent"></p>
+            </div>
+            <div class="btn-area">
+                <button class="btn btn-confirm is-active" onclick="closePopup('alertPop');">확인</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-popup small" id="loginPopup">
+    <div class="popup-wrap">
+        <div class="popup-head">
+            <strong class="popup-title" id="loginTitle">로그인</strong>
+            <button type="button" class="btn-close" title="닫기" onclick="closePopup('loginPopup');">
+                <i class="icon-close"></i>
+            </button>
+        </div>
+        <div class="popup-container" id="loginPopupDiv">
+        </div>
+    </div>
+</div>
+<!-- 아이핀 가상주민번호 서비스 팝업 호출 form -->
+<form name="form_ipin" id="form_ipin" method="post">
+    <!-- 요청모드 (필수 데이터) -->
+    <input type="hidden" name="m" value="pubmain">
+    <!-- 인증요청 암호화 데이터 -->
+    <input type="hidden" name="enc_data" id="enc_data" value="">
+</form>
+<!-- 본인인증 서비스 팝업을 호출하기 위해서는 다음과 같은 form이 필요합니다. -->
+<form name="form_chk" id="form_chk" method="post">
+    <!-- 필수 데이타로, 누락하시면 안됩니다. -->
+    <input type="hidden" name="m" value="checkplusService">
+    <!-- 인증요청 암호화 데이터 -->
+    <input type="hidden" name="EncodeData" id="EncodeData" value="">
+</form>
+	</div>
+	<img id="loadingImage" src="/assets/img/preloader.gif" alt="로딩이미지" style="position: absolute; left: 924.5px; top: 539.5px; z-index: 100000; display: none;">
+<script>
+	$(function(){
+		let responseMessage = "";
+		if(responseMessage != ""){
+			toastrMsg(responseMessage);
+		}
+		let retChk = "";
+		if(retChk == "Y"){
+			alert(responseMessage);
+			history.back();
+		}
+	})
+</script>
+</body>
+</html>

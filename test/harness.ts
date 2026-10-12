@@ -329,6 +329,8 @@ export function knpsServer(
     listStatus?: number;
     /** `/assets/js/lib/netfunnel.js` 본문. 기본은 기록한 버전(2.2.19)과 `TS_HOST`다. */
     script?: string;
+    /** selectCampLottery.do 응답. 기본은 기록한 화면의 발췌(6차, 야영장 0 개소)다. */
+    lottery?: () => TransportResponse;
   } = {},
 ) {
   const calls = { keys: 0, queue: new Map<string, number>() };
@@ -347,6 +349,9 @@ export function knpsServer(
     if (url.hostname !== "reservation.knps.or.kr") return { status: 404, body: "" };
     if (url.pathname === "/reservation/searchSimpleCampReservation.do") {
       return { status: 200, body: fixture("knps-searchSimpleCampReservation.htm"), setCookie: ["JSESSIONID=sess1; Path=/; HttpOnly"] };
+    }
+    if (url.pathname === "/reservation/selectCampLottery.do") {
+      return opts.lottery ? opts.lottery() : { status: 200, body: fixture("knps-selectCampLottery.htm") };
     }
     if (url.pathname === "/reservation/campsiteList.do") {
       const form = new URLSearchParams(req.body ?? "");

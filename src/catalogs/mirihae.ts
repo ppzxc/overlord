@@ -1,5 +1,5 @@
 // 미리해(mirihae.com, 소스팜) 시설·구역 카탈로그. 정적 목록이며 어댑터 로직과 네트워크 코드는 두지 않는다. 읽는 방법과 판정은 어댑터(`src/adapters/mirihae.ts`) 머리에 있다.
-// 시설 `ref`는 `{ tenant, pageId }`다(예약 화면 `https://mirihae.com/<tenant>/camping/<pageId>`). 구역 = 달력 칸 `dl.schedule`의 `dd`다(구역 이름이 코드이고 범례의 `야영장 A`와 다르다). 자리 목록은 없다.
+// 시설 `ref`는 `{ tenant, pageId }`다(예약 화면 `https://mirihae.com/<tenant>/camping/<pageId>`). `tenant`는 미리해에 입점한 운영 기관의 경로 접두어이고(단양관광공사 `dytc`) 예약처가 시설을 가리키는 값이다. 구역 = 달력 칸 `dl.schedule`의 `dd`다(구역 이름이 코드이고 범례의 `야영장 A`와 다르다). 자리 목록은 없다.
 // 출처: 천동은 2026-10-13 09:24 ~ 09:31 KST 기록, 다리안·소선암·대강은 같은 날 09:47 ~ 09:49 KST에 `catalog mirihae <시설> --live`로 확인했다. 조사 기록과 원문은 research/raw/mirihae/README.md.
 // 넣지 않은 시설: 여주 대신·금은모래·강천섬은 예약 화면이 자체 도메인이라, 포천 비둘기낭은 화면 구조가 달라서다. 충주·이천·성남은 예약 링크를 확인하지 못했다.
 import type { FacilityInfo, ZoneInfo } from "../types.js";

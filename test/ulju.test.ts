@@ -583,6 +583,13 @@ describe("catalog ulju", () => {
     return { code, out: out.join(""), err: err.join(""), requests };
   };
 
+  it("대운산하늘숲의 구역 유형은 맨 단어 사이트 대신 크기별 구역으로 보인다", async () => {
+    const r = await run("daeunsan");
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("크기별 구역");
+    expect(r.out).not.toContain("사이트");
+  });
+
   it("시설을 안 고르면 시설 목록을 보이고 요청은 보내지 않는다", async () => {
     const r = await run();
     expect(r.code).toBe(0);

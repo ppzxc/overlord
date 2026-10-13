@@ -192,7 +192,7 @@ export interface ProviderAdapter {
   /**
    * 조회 창이 날짜 규칙(openingRule로 쓸 수 없는 것)으로 정해지는 어댑터가 구현한다. false인 조회 단위는 코어가 이번 바퀴에서 빼서
    * 어댑터에 넘기지 않는다. 열리지 않은 날짜를 openingRule이 거르는 것과 같게, 단위가 하나도 남지 않아 요청이 없는 바퀴는
-   * 성공으로 기록하지 않는다(바퀴 수·마지막 성공·헬스 상태에 끼지 않는다). now는 한국 시각이 아니라 절대 시각이다.
+   * 성공으로 기록하지 않는다(바퀴 수·마지막 성공·예약처 상태에 끼지 않는다). now는 한국 시각이 아니라 절대 시각이다.
    */
   isQueryable?(q: AvailabilityQuery, now: Date): boolean;
   deepLink(q: AvailabilityQuery): string;

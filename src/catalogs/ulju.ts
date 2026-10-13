@@ -37,7 +37,7 @@
 // - 다른 시설(2026-10-16, #74가 카탈로그에 넣음): 등억알프스(`C0000002`) 68행: `F0000001` 오토캠핑장 48, `F0000006` 카라반(일반) 10, `F0000007` 카라반(테마) 10.
 //   작천정달빛(`C0000003`) 47행: `F0000001` 오토캠핑장 35, `F0000018` 야영데크(8.5*6.5) 12. 대운산하늘숲(`C0000005`) 20행: `F0000015` 7.3m × 7m 10, `F0000008` 7.2m × 7m 4, `F0000009`~`F0000014` 한 자리씩.
 //   `FACILITY_ID`는 시설 사이에 공유된다(`F0000001`은 별빛·등억·달빛 모두). 구역은 (시설, `FACILITY_ID`)로 가린다. 응답의 `FACILITY_NAME`은 `카라반(일반) `처럼 끝에 공백이 붙는 때가 있어 카탈로그는 다듬어 적는다.
-//   대운산하늘숲은 구역 이름이 크기(예 `7.2m × 7m`)라 구역 유형을 따로 알 수 없어 "크기별 사이트"로 적는다. 자리 이름은 `A1`~`A20` 꼴이다.
+//   대운산하늘숲은 구역 이름이 크기(예 `7.2m × 7m`)라 구역 유형을 따로 알 수 없어 "크기별 구역"로 적는다. 자리 이름은 `A1`~`A20` 꼴이다.
 //   추첨 기간 날짜: 이 기록에서는 즉시결제 데이터에 추첨 날짜가 `Y`로 나오는지 **미관찰, 해당 여부 미확정**이다(11/1~11/10에 관찰 가능). 어댑터는 다음 달 날짜를 11일 10:00 전에는 조회하지 않아 추첨 날짜를 알리지 않는다.
 import type { FacilityInfo, ZoneInfo } from "../types.js";
 
@@ -66,14 +66,14 @@ const jakcheonDalbitZones: ZoneInfo[] = [
 const aSeats = (from: number, to = from) => Array.from({ length: to - from + 1 }, (_, i) => `A${from + i}`);
 
 const daeunsanZones: ZoneInfo[] = [
-  { code: "F0000015", name: "7.3m × 7m", type: "크기별 사이트", seats: aSeats(5, 14) },
-  { code: "F0000008", name: "7.2m × 7m", type: "크기별 사이트", seats: [...aSeats(1), ...aSeats(16, 18)] },
-  { code: "F0000009", name: "8m × 5.8m", type: "크기별 사이트", seats: aSeats(2) },
-  { code: "F0000010", name: "7.1m × 7m", type: "크기별 사이트", seats: aSeats(3) },
-  { code: "F0000011", name: "7.1m × 6.9m", type: "크기별 사이트", seats: aSeats(4) },
-  { code: "F0000012", name: "2.5m × 12m, 8m × 8m", type: "크기별 사이트", seats: aSeats(15) },
-  { code: "F0000013", name: "7.2m × 7.2m", type: "크기별 사이트", seats: aSeats(19) },
-  { code: "F0000014", name: "7.2m × 6.9m", type: "크기별 사이트", seats: aSeats(20) },
+  { code: "F0000015", name: "7.3m × 7m", type: "크기별 구역", seats: aSeats(5, 14) },
+  { code: "F0000008", name: "7.2m × 7m", type: "크기별 구역", seats: [...aSeats(1), ...aSeats(16, 18)] },
+  { code: "F0000009", name: "8m × 5.8m", type: "크기별 구역", seats: aSeats(2) },
+  { code: "F0000010", name: "7.1m × 7m", type: "크기별 구역", seats: aSeats(3) },
+  { code: "F0000011", name: "7.1m × 6.9m", type: "크기별 구역", seats: aSeats(4) },
+  { code: "F0000012", name: "2.5m × 12m, 8m × 8m", type: "크기별 구역", seats: aSeats(15) },
+  { code: "F0000013", name: "7.2m × 7.2m", type: "크기별 구역", seats: aSeats(19) },
+  { code: "F0000014", name: "7.2m × 6.9m", type: "크기별 구역", seats: aSeats(20) },
 ];
 
 export const facilities: FacilityInfo[] = [

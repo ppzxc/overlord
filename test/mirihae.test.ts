@@ -1150,7 +1150,7 @@ describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지�
     { title: "예약 화면 429", srv: () => server(() => status(429)) },
     { title: "예약 화면의 로그인 리다이렉트", srv: () => server(() => ({ status: 302, body: "", location: "https://mirihae.com/dytc/login.do" })) },
     { title: "예약 화면의 captcha 표지", srv: () => server(() => status(200, mirihaePageWith({}, ($) => void $("body").append("<div class='captcha'></div>")))) },
-  ])("첫 시설의 $title 은 사이트 전체의 차단이라 다음 시설의 요청 없이 둘 다 blocked다", async ({ srv }) => {
+  ])("첫 시설의 $title 은 예약처 전체의 차단이라 다음 시설의 요청 없이 둘 다 blocked다", async ({ srv }) => {
     const p = start(srv());
     await settle();
     expect(failedKinds(p)).toEqual(["blocked", "blocked"]);
@@ -1159,7 +1159,7 @@ describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지�
     await p.stop();
   });
 
-  it("첫 시설의 calendar.do가 차단(403)이면 사이트 전체의 차단이라 다음 시설의 요청 없이 둘 다 blocked다", async () => {
+  it("첫 시설의 calendar.do가 차단(403)이면 예약처 전체의 차단이라 다음 시설의 요청 없이 둘 다 blocked다", async () => {
     const yaml = configWith(watch({ from: "2026-11-02" }, ["야영장A"], "danyang-cheondong"), watch({ from: "2026-10-14" }, ["데크야영장C"], "danyang-darian"));
     const p = start(server(ok, { calendar: () => status(403) }), yaml);
     await settle();
@@ -1168,7 +1168,7 @@ describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지�
     await p.stop();
   });
 
-  it("게이트 연결 실패는 사이트 전체의 문제라 다음 시설의 요청 없이 둘 다 transient다", async () => {
+  it("게이트 연결 실패는 예약처 전체의 문제라 다음 시설의 요청 없이 둘 다 transient다", async () => {
     const p = start(
       server(ok, {
         intercept: (req) => {
@@ -1183,7 +1183,7 @@ describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지�
     await p.stop();
   });
 
-  it("예약 화면 연결 실패도 사이트 전체의 문제라 다음 시설의 요청 없이 둘 다 transient다", async () => {
+  it("예약 화면 연결 실패도 예약처 전체의 문제라 다음 시설의 요청 없이 둘 다 transient다", async () => {
     const p = start(
       server(ok, {
         intercept: (req) => {

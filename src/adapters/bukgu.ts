@@ -69,8 +69,8 @@ interface UnattributedRow {
 /**
  * 봇 탐지 장치·captcha 표지는 `BOT_DETECTION`이다. 북구의 조회 흐름에는 없었고(기록한 화면·스크립트·조회 응답 어디에도 없다), 나타나면 새 신호로 보고 멈춘다.
  * 로그인 요구: 조회 응답의 로그인 요구 원문은 기록이 없다. 확인한 것은 화면 JS(`subIdx`)가 로그인 안 한 방문자를 `/login.do`로 보내는 모양(`location.href="/login.do"`)뿐이라,
- * 표 없이 그런 이동 스크립트(또는 meta refresh)가 오면 로그인 요구다. 기록한 사이트 전체 화면은 머리말에 `<a class="login_btn" href="/login.do">` 링크를 달고 예약 화면은 위 스크립트도 함께 가진다.
- * 그래서 로그인 링크나 이동 스크립트가 있어도 사이트 틀(`login_btn`)이 보이면 로그인 요구가 아니라 알 수 없는 화면(`unrecognized`)이다. 로그인 경로로의 리다이렉트(Location)는 HTTP 층이 접근 금지로 막는다.
+ * 표 없이 그런 이동 스크립트(또는 meta refresh)가 오면 로그인 요구다. 기록한 예약처 화면은 머리말에 `<a class="login_btn" href="/login.do">` 링크를 달고 예약 화면은 위 스크립트도 함께 가진다.
+ * 그래서 로그인 링크나 이동 스크립트가 있어도 예약처 틀(`login_btn`)이 보이면 로그인 요구가 아니라 알 수 없는 화면(`unrecognized`)이다. 로그인 경로로의 리다이렉트(Location)는 HTTP 층이 접근 금지로 막는다.
  */
 const LOGIN_REDIRECT = /(?:location(?:\.href)?\s*=|location\.(?:replace|assign)\s*\()\s*['"]\/?login\.do|http-equiv\s*=\s*["']?refresh["']?[^>]*login\.do/i;
 const SITE_FRAME = /class="login_btn"/;
@@ -200,7 +200,7 @@ function openForFirstCome(date: string, today: string, gate: LotteryGate): boole
 
 /**
  * 선착순 개시 시각이 지났는데도 달력 상한이 다음 달 1일 이하(추첨 기간의 한계)에 머물면 다음 달 날짜의 알림이 나가지 않는다. 안전한 쪽으로 실패하지만 선착순 알림을 놓는 일이라 경고를 남긴다.
- * 경고는 로그 한 줄이다(같은 달에 한 번). 헬스 상태는 바꾸지 않는다(예약처가 응답하고 있고 이달 날짜는 정상이라 멈추거나 구조 변경으로 알릴 일이 아니다).
+ * 경고는 로그 한 줄이다(같은 달에 한 번). 예약처 상태는 바꾸지 않는다(예약처가 응답하고 있고 이달 날짜는 정상이라 멈추거나 구조 변경으로 알릴 일이 아니다).
  */
 function warnIfGateStuck(gate: LotteryGate, nextMonth: string, ctx: AdapterContext, now: Date): void {
   if (gate.firstComeAtMs === undefined || now.getTime() < gate.firstComeAtMs || gate.limitDate > `${nextMonth}-01`) return;

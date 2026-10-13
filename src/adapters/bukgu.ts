@@ -9,7 +9,7 @@ import {
   type ProviderInfo,
 } from "../types.js";
 import { facilities, rowClassZones } from "../catalogs/bukgu.js";
-import { resolveFacility } from "../facility.js";
+import { resolveFacility, zoneName } from "../facility.js";
 import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
 import { warnDriftOnce } from "../netfunnel.js";
 import { addDays, kstDate, nextMonthOf, weekdayKey } from "../schedule.js";
@@ -55,6 +55,7 @@ interface RawRow {
 }
 
 interface Row {
+  /** 구역 코드(`priceCode`). 색 클래스에서 카탈로그가 가른 값이다. */
   zone: string;
   name: string;
   open: boolean;
@@ -258,7 +259,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       const missing = perNight.find((t) => !t.rows.some((r) => r.zone === q.zone));
       if (missing) {
         const why = missing.unattributed > 0 ? `(구역을 알 수 없는 행 ${missing.unattributed}개)` : "";
-        throw new UnitStructureError(`reservationCntAjax.do: 표에 감시하는 구역 ${q.zone}의 행이 없다${why}`);
+        throw new UnitStructureError(`reservationCntAjax.do: 표에 감시하는 구역 ${zoneName(INFO, q.facility, q.zone)}(${q.zone})의 행이 없다${why}`);
       }
       // 여러 박이면 같은 사이트명이 밤마다 예약가능일 때만 빈자리다.
       const open = perNight.map((t) => new Set(t.rows.filter((r) => r.zone === q.zone && r.open).map((r) => r.name)));
@@ -294,17 +295,19 @@ export const bukguAdapter: ProviderAdapter = {
 
   /**
    * `catalog --live`: 내일(KST) 밤의 시설 전체 표를 한 번 받아 구역과 자리를 읽는다. 예약 화면은 받지 않고 추첨 대상 날짜도 가리지 않는다(표의 모양만 본다).
-   * 구역 코드는 예약처가 응답에 싣지 않으므로(이름이 코드다) 비운다. 예약현황 값은 구역·자리 대조에 쓰지 않아 보지 않는다.
+   * 표의 행은 구역 코드(`priceCode`)를 싣지 않고 색 클래스로만 구역을 가르므로 코드는 비운다(카탈로그의 코드를 되돌려 보이면 대조가 되지 않는다). 구역은 카탈로그의 이름으로 맞춘다.
+   * 예약현황 값은 구역·자리 대조에 쓰지 않아 보지 않는다.
    * 표를 읽지 못한 것(표·열·사이트명 없음, 조회 실패)만 실패다. 모르는 색 클래스의 행은 구역 이름 없이 따로 보고해 차이로 친다(실패가 아니다).
    * 카탈로그에는 자리 목록이 없어 자리는 참고로만 보인다.
    */
   async observeFacility(facility, ctx): Promise<FacilityObservation> {
     const { rows, unattributed } = attribute(facility, await fetchTable(facility, addDays(kstDate(ctx.clock.now()), 1), ctx));
+    const nameOf = (code: string) => zoneName(INFO, facility, code);
     const zones: FacilityObservation["zones"] = [];
     for (const r of rows) {
-      const found = zones.find((z) => z.name === r.zone);
+      const found = zones.find((z) => z.name === nameOf(r.zone));
       if (found) found.seats.push(r.name);
-      else zones.push({ name: r.zone, codes: [], seats: [r.name] });
+      else zones.push({ name: nameOf(r.zone), codes: [], seats: [r.name] });
     }
     const unknown: NonNullable<FacilityObservation["unattributed"]> = [];
     for (const u of unattributed) {

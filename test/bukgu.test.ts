@@ -12,11 +12,13 @@ import { ENV, bukguPage, bukguServer, bukguTable, configWith, settle, startPolle
 // 당사현대차오션캠프(dangsa, siteKindCode=010200)의 기록은 같은 때 받았다. 10/14는 20자리 가운데 17자리가 예약가능이고 10/17은 2자리다.
 // 가짜 시계는 기록한 때(2026-10-13 00:10 KST)다. 그때 10월 날짜는 이달이라 이미 선착순이고 11월 날짜는 추첨 대상이다.
 const NOW = "2026-10-13T00:10:00+09:00";
-const watch = (checkIn: { from: string; to?: string }, zones: string[] = ["일반데크"], facility = "gangdong") => `
+// 구역 코드는 예약처의 `priceCode`(시설종류 선택 목록의 값)다. 앞의 0이 살도록 설정에서는 따옴표로 감싼다.
+// 강동: 040100 일반데크, 040200 필로티, 040300 카라반. 당사: 040400 일반데크(단독형), 040500 복층데크(단독형), 040600 일반데크(당사), 040700 복층데크(당사).
+const watch = (checkIn: { from: string; to?: string }, zones: string[] = ["040100"], facility = "gangdong") => `
   - name: ${facility} ${checkIn.from}
     provider: bukgu
     facility: ${facility}
-    zones: [${zones.join(", ")}]
+    zones: [${zones.map((z) => `"${z}"`).join(", ")}]
     checkIn: { from: ${checkIn.from}, to: ${checkIn.to ?? checkIn.from} }
     nights: 1
     notify: [default]`;
@@ -73,7 +75,7 @@ describe("북구 폴러", () => {
 
   describe("요청 흐름", () => {
     it("(시설, 밤)마다 POST 한 번이고 본문은 페이지(addTable)와 같으며 예약 화면 GET은 없다", async () => {
-      const p = run({ from: "2026-10-14", to: "2026-10-17" }, { server: anyDay(), zones: ["일반데크", "필로티", "카라반"] });
+      const p = run({ from: "2026-10-14", to: "2026-10-17" }, { server: anyDay(), zones: ["040100", "040200", "040300"] });
       await settle();
       expect(p.allRequests.map((r) => `${r.method} ${new URL(r.url).host}${new URL(r.url).pathname}`)).toEqual(
         Array(4).fill("POST camping.ubimc.or.kr/ajax/reservationCntAjax.do"),
@@ -88,7 +90,7 @@ describe("북구 폴러", () => {
     });
 
     it("구역 셋을 감시해도 그 밤은 한 번만 조회하고 메시지는 한 건이며 구역마다 자기 자리만 담긴다", async () => {
-      const p = run({ from: "2026-10-14" }, { zones: ["일반데크", "필로티", "카라반"] });
+      const p = run({ from: "2026-10-14" }, { zones: ["040100", "040200", "040300"] });
       await settle();
       expect(p.allRequests).toHaveLength(1);
       expect(p.sent).toHaveLength(1);
@@ -100,7 +102,7 @@ describe("북구 폴러", () => {
     });
 
     it("무장애카라반은 카라반 구역의 자리로 읽는다", async () => {
-      const p = run({ from: "2026-10-20" }, { zones: ["카라반"] }); // 기록한 10/20은 25행 가운데 22행이 예약가능이다
+      const p = run({ from: "2026-10-20" }, { zones: ["040300"] }); // 기록한 10/20은 25행 가운데 22행이 예약가능이다
       await settle();
       expect(p.sent[0]!.text).toContain("무장애카라반5");
       await p.stop();
@@ -372,7 +374,7 @@ describe("북구 폴러", () => {
         expect(p.sent[0]!.text).toContain("일반데크1");
         expect(p.logs.filter((l) => l.msg === "bukgu zone drift").map((l) => l.fields)).toEqual([
           { facility: "gangdong", change: "unknown-class", class: "line_green", seats: ["필로티1", "필로티2", "필로티3"] },
-          { facility: "gangdong", change: "gone", zone: "필로티" }, // 알려진 클래스로는 필로티 행이 더 이상 없다
+          { facility: "gangdong", change: "gone", zone: "040200" }, // 알려진 클래스로는 필로티 행이 더 이상 없다
         ]);
         await p.stop();
       });
@@ -382,7 +384,7 @@ describe("북구 폴러", () => {
         await settle();
         expect(failedKinds(p)).toEqual(["unrecognized"]);
         expect(p.sent).toHaveLength(0);
-        expect(p.logs.find((l) => l.msg === "query failed")!.fields?.message).toMatch(/감시하는 구역 일반데크의 행이 없다\(구역을 알 수 없는 행 13개\)/);
+        expect(p.logs.find((l) => l.msg === "query failed")!.fields?.message).toMatch(/감시하는 구역 일반데크\(040100\)의 행이 없다\(구역을 알 수 없는 행 13개\)/);
         await p.stop();
       });
 
@@ -410,7 +412,7 @@ describe("북구 폴러", () => {
       await settle();
       expect(failedKinds(unused)).toEqual([]);
       expect(unused.sent).toHaveLength(1);
-      expect(unused.logs.filter((l) => l.msg === "bukgu zone drift").map((l) => l.fields)).toEqual([{ facility: "gangdong", change: "gone", zone: "필로티" }]);
+      expect(unused.logs.filter((l) => l.msg === "bukgu zone drift").map((l) => l.fields)).toEqual([{ facility: "gangdong", change: "gone", zone: "040200" }]);
       await unused.stop();
     });
   });
@@ -460,7 +462,7 @@ describe("북구 폴러: 추첨 대상 날짜", () => {
   });
 
   it("강동과 당사를 함께 감시해도 예약 화면은 한 번만 받는다", async () => {
-    const p = run({ from: "2026-11-01" }, { extraWatches: watch({ from: "2026-11-01" }, ["복층데크(단독형)"], "dangsa") });
+    const p = run({ from: "2026-11-01" }, { extraWatches: watch({ from: "2026-11-01" }, ["040500"], "dangsa") });
     await settle();
     expect(pageGets(p)).toHaveLength(1);
     expect(p.sent).toHaveLength(0);
@@ -581,8 +583,8 @@ describe("북구 폴러: 추첨 대상 날짜", () => {
 describe("북구 폴러: 당사현대차오션캠프", () => {
   const dangsa = (zones: string[], from = "2026-10-14") => run({ from }, { facility: "dangsa", zones });
 
-  it("구역 이름이 구역 코드이고 사이트명 칸의 색 클래스로 가른다. 같은 색 클래스도 시설마다 다른 구역이다(line_yellow는 강동에서는 일반데크, 당사에서는 복층데크(단독형))", async () => {
-    const p = dangsa(["복층데크(단독형)"]);
+  it("구역 코드는 예약처의 priceCode이고 요청은 priceCode 없이 한 번이며, 행은 사이트명 칸의 색 클래스로 가른다. 같은 색 클래스도 시설마다 다른 구역이다(line_yellow는 강동에서는 일반데크, 당사에서는 복층데크(단독형))", async () => {
+    const p = dangsa(["040500"]);
     await settle();
     expect(p.allRequests.map((r) => r.body)).toEqual(["resDate=2026-10-14&siteKindCode=010200&priceCode="]);
     expect(p.sent).toHaveLength(1);
@@ -595,7 +597,7 @@ describe("북구 폴러: 당사현대차오션캠프", () => {
   });
 
   it("구역 넷은 한 번의 조회에서 자기 자리만 담아 한 건으로 알리고 예약종료 자리는 알리지 않는다", async () => {
-    const p = dangsa(["일반데크(단독형)", "복층데크(단독형)", "일반데크(당사)", "복층데크(당사)"]);
+    const p = dangsa(["040400", "040500", "040600", "040700"]);
     await settle();
     expect(p.allRequests).toHaveLength(1);
     expect(p.sent).toHaveLength(1);
@@ -610,7 +612,7 @@ describe("북구 폴러: 당사현대차오션캠프", () => {
   });
 
   it("강동과 당사를 함께 감시하면 siteKindCode가 다른 요청이 각각 나간다", async () => {
-    const p = run({ from: "2026-10-14" }, { extraWatches: watch({ from: "2026-10-14" }, ["복층데크(단독형)"], "dangsa") });
+    const p = run({ from: "2026-10-14" }, { extraWatches: watch({ from: "2026-10-14" }, ["040500"], "dangsa") });
     await settle();
     expect(p.allRequests.map((r) => r.body)).toEqual(["resDate=2026-10-14&siteKindCode=010100&priceCode=", "resDate=2026-10-14&siteKindCode=010200&priceCode="]);
     const text = p.sent.map((m) => m.text).join("\n"); // 재시작 직후 현황으로 한 건에 묶여 온다
@@ -621,10 +623,44 @@ describe("북구 폴러: 당사현대차오션캠프", () => {
 
   it("같은 색 클래스도 시설마다 다른 구역이라, 당사에서 클래스가 바뀌어 감시 구역의 행이 모두 사라지면 unrecognized다", async () => {
     const server = bukguServer({ table: (f) => ({ status: 200, body: bukguTable(f.resDate, f.siteKindCode).replace(/line_orange/g, "line_green") }) });
-    const p = run({ from: "2026-10-14" }, { server, facility: "dangsa", zones: ["일반데크(단독형)"] });
+    const p = run({ from: "2026-10-14" }, { server, facility: "dangsa", zones: ["040400"] });
     await settle();
     expect(p.logs.filter((l) => l.msg === "query failed").map((l) => l.fields?.kind)).toEqual(["unrecognized"]);
     expect(p.sent).toHaveLength(0);
+    await p.stop();
+  });
+});
+
+describe("북구 폴러: 구역 코드(priceCode)와 색 클래스", () => {
+  // 독립된 근거: `priceCode`로 거른 기록(reservationCntAjax.do_<siteKindCode>_<priceCode>_2026-10-14.html)은 그 구역의 행만 담는다.
+  // 구역 코드로 감시하면 시설 전체 표(priceCode 빈 값 한 번)에서 가른 예약가능 자리가 그 거른 기록의 예약가능 자리와 같아야 한다.
+  const openSeatsOf = (file: string) =>
+    [...readFileSync(new URL(`../research/raw/bukgu/${file}`, import.meta.url), "utf8").matchAll(/<span class="link line_\w+">([^<]+)<\/span>[\s\S]*?<\/tr>/g)]
+      .filter((m) => m[0].includes("예약가능"))
+      .map((m) => m[1]!.trim());
+  const allSeatsOf = (siteKindCode: string) =>
+    [...bukguTable("2026-10-14", siteKindCode).matchAll(/<span class="link line_\w+">([^<]+)<\/span>/g)].map((m) => m[1]!.trim());
+  const mentions = (text: string, seat: string) => new RegExp(`(?<![가-힣])${seat.replace(/[()]/g, "\\$&")}(?!\\d)`).test(text);
+
+  it.each([
+    ["gangdong", "010100", "040100", "일반데크"],
+    ["gangdong", "010100", "040200", "필로티"],
+    ["gangdong", "010100", "040300", "카라반"],
+    ["dangsa", "010200", "040400", "일반데크(단독형)"],
+    ["dangsa", "010200", "040500", "복층데크(단독형)"],
+    ["dangsa", "010200", "040600", "일반데크(당사)"],
+    ["dangsa", "010200", "040700", "복층데크(당사)"],
+  ])("%s %s의 구역 코드 %s(%s)는 priceCode로 거른 기록과 같은 예약가능 자리를 가리고 요청은 priceCode 없이 한 번이다", async (facility, siteKindCode, code, name) => {
+    const expected = openSeatsOf(`reservationCntAjax.do_${siteKindCode}_${code}_2026-10-14.html`);
+    expect(expected.length).toBeGreaterThan(0);
+    const p = run({ from: "2026-10-14" }, { facility, zones: [code] });
+    await settle();
+    expect(p.allRequests.map((r) => r.body)).toEqual([`resDate=2026-10-14&siteKindCode=${siteKindCode}&priceCode=`]);
+    expect(p.sent).toHaveLength(1);
+    const text = p.sent[0]!.text;
+    expect(text).toContain(`· ${name} ·`); // 메시지는 코드가 아니라 구역 이름을 보인다
+    expect(text).not.toContain(code);
+    for (const seat of allSeatsOf(siteKindCode)) expect(mentions(text, seat), seat).toBe(expected.includes(seat));
     await p.stop();
   });
 });
@@ -647,27 +683,31 @@ ${lines}
     checkIn: { from: 2026-10-14, to: 2026-10-14 }
     notify: [default]`);
 
-  it("provider: bukgu, facility: gangdong, 구역 이름, 1박 감시 조건을 받는다", () => {
-    expect(problems(block("    facility: gangdong\n    zones: [일반데크, 필로티, 카라반]\n    nights: 1"))).toBe("");
+  it("provider: bukgu, facility: gangdong, 구역 코드(priceCode), 1박 감시 조건을 받는다", () => {
+    expect(problems(block("    facility: gangdong\n    zones: [\"040100\", \"040200\", \"040300\"]\n    nights: 1"))).toBe("");
   });
 
-  it("당사현대차오션캠프의 구역 이름도 받는다", () => {
-    expect(problems(block("    facility: dangsa\n    zones: [일반데크(단독형), 복층데크(단독형), 일반데크(당사), 복층데크(당사)]\n    nights: 1"))).toBe("");
-    expect(problems(block("    facility: dangsa\n    zones: [일반데크]\n    nights: 1"))).toMatch(/없는 구역 "일반데크"다\. 쓸 수 있는 값: 일반데크\(단독형\), 복층데크\(단독형\), 일반데크\(당사\), 복층데크\(당사\)/);
+  it("당사현대차오션캠프의 구역 코드도 받는다", () => {
+    expect(problems(block("    facility: dangsa\n    zones: [\"040400\", \"040500\", \"040600\", \"040700\"]\n    nights: 1"))).toBe("");
+    expect(problems(block("    facility: dangsa\n    zones: [\"040100\"]\n    nights: 1"))).toMatch(/\d+번째 줄 watches\.0\.zones: 없는 구역 "040100"다\. 쓸 수 있는 값: 040400, 040500, 040600, 040700/); // 강동의 코드는 당사에서 쓸 수 없다
   });
 
   it("facility 없는 감시 조건은 위치와 쓸 수 있는 시설 코드와 함께 거부된다", () => {
-    expect(problems(block("    zones: [일반데크]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: gangdong, dangsa$/);
+    expect(problems(block("    zones: [\"040100\"]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: gangdong, dangsa$/);
   });
 
-  it("없는 구역 이름은 위치와 쓸 수 있는 구역 이름과 함께 거부된다", () => {
-    expect(problems(block("    facility: gangdong\n    zones: [복층데크]"))).toMatch(
-      /\d+번째 줄 watches\.0\.zones: 없는 구역 "복층데크"다\. 쓸 수 있는 값: 일반데크, 필로티, 카라반/,
+  it("없는 구역 코드는 위치와 쓸 수 있는 구역 코드와 함께 거부된다(구역 이름은 코드가 아니다)", () => {
+    expect(problems(block("    facility: gangdong\n    zones: [일반데크]"))).toMatch(
+      /\d+번째 줄 watches\.0\.zones: 없는 구역 "일반데크"다\. 쓸 수 있는 값: 040100, 040200, 040300/,
     );
   });
 
+  it("따옴표 없는 숫자 코드는 앞의 0이 사라지므로 위치와 따옴표 안내와 함께 거부된다", () => {
+    expect(problems(block("    facility: gangdong\n    zones: [040100]"))).toMatch(/\d+번째 줄 watches\.0\.zones\.0: .*따옴표.*"040100"/);
+  });
+
   it("2박은 최대 박수와 함께 위치를 짚어 거부한다", () => {
-    expect(problems(block("    facility: gangdong\n    zones: [일반데크]\n    nights: 2"))).toMatch(
+    expect(problems(block("    facility: gangdong\n    zones: [\"040100\"]\n    nights: 2"))).toMatch(
       /\d+번째 줄 watches\.0\.nights: bukgu는 최대 1박까지 예약할 수 있다\(설정값 2\)/,
     );
   });
@@ -706,7 +746,7 @@ describe("catalog bukgu", () => {
     const r = await catalog("dangsa");
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/^bukgu \(최대 1박\)$/m);
-    for (const z of ["일반데크(단독형) 일반데크(단독형)", "복층데크(단독형) 복층데크(단독형)", "일반데크(당사) 일반데크(당사)", "복층데크(당사) 복층데크(당사)"]) expect(r.out.replace(/ +/g, " ")).toContain(z);
+    for (const z of ["040400 일반데크(단독형)", "040500 복층데크(단독형)", "040600 일반데크(당사)", "040700 복층데크(당사)"]) expect(r.out.replace(/ +/g, " ")).toContain(z);
     expect(r.requests).toEqual([]);
   });
 
@@ -714,7 +754,7 @@ describe("catalog bukgu", () => {
     const r = await catalog("gangdong");
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/^bukgu \(최대 1박\)$/m);
-    for (const z of ["일반데크 일반데크", "필로티 필로티", "카라반 카라반"]) expect(r.out.replace(/ +/g, " ")).toContain(z);
+    for (const z of ["040100 일반데크", "040200 필로티", "040300 카라반"]) expect(r.out.replace(/ +/g, " ")).toContain(z);
     expect(r.requests).toEqual([]);
   });
 
@@ -766,8 +806,8 @@ describe("catalog bukgu <시설> --live", () => {
   it("구역마다 실제 자리를 보인다(자리 목록은 카탈로그에 두지 않았다)", async () => {
     const s = setup();
     expect(await s.run("dangsa")).toBe(0);
-    expect(s.out()).toContain("복층데크(단독형): 고정 목록이 없다. 실제 6자리");
-    expect(s.out()).toContain("일반데크(당사): 고정 목록이 없다. 실제 4자리");
+    expect(s.out()).toContain("040500: 고정 목록이 없다. 실제 6자리");
+    expect(s.out()).toContain("040600: 고정 목록이 없다. 실제 4자리");
   });
 
   it("시설 없이 --live를 걸면 요청 없이 쓸 수 있는 시설 코드와 함께 1이다", async () => {
@@ -785,14 +825,14 @@ describe("catalog bukgu <시설> --live", () => {
     });
     const s = setup(bukguServer({ table: withoutSky }));
     expect(await s.run("gangdong")).toBe(0);
-    expect(s.out()).toContain("필로티: 예약처 응답에 구역이 없다(필로티)");
+    expect(s.out()).toContain("040200: 예약처 응답에 구역이 없다(필로티)");
     expect(s.out()).toContain("차이 있는 구역 1곳: 카탈로그를 갱신해야 한다");
   });
 
   it("모르는 색 클래스의 행은 구역 이름 없이 자리로만 보고하고 차이로 치되 종료 코드는 0이다", async () => {
     const s = setup(bukguServer({ table: (f) => ({ status: 200, body: bukguTable(f.resDate, f.siteKindCode).replace(/line_sky/g, "line_green") }) }));
     expect(await s.run("gangdong")).toBe(0);
-    expect(s.out()).toContain("필로티: 예약처 응답에 구역이 없다(필로티)");
+    expect(s.out()).toContain("040200: 예약처 응답에 구역이 없다(필로티)");
     expect(s.out()).toContain("구역을 가릴 수 없는 자리 필로티1-필로티3: 색 클래스 line_green");
     expect(s.out()).not.toMatch(/새로 생긴 구역/); // 이름 없는 자리를 구역으로 꾸미지 않는다
     expect(s.out()).toContain("차이 있는 구역 2곳");

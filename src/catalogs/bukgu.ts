@@ -1,8 +1,10 @@
 // 울산 북구 캠핑장 예약처(camping.ubimc.or.kr) 시설·구역 카탈로그. 정적 목록이며 어댑터 로직과 네트워크 코드는 두지 않는다. 읽는 방법과 판정은 어댑터(`src/adapters/bukgu.ts`) 머리에 있다.
 // 시설 `ref`는 `{ bid, siteKindCode }`다. `siteKindCode`는 예약 화면의 시설 버튼(`data-code`)이고 `reservationCntAjax.do`가 받는다.
 // `bid`는 예약 조회 흐름이 쓰지 않는다. 공지사항 게시판(`BBS_000List.do`)의 시설 필터 `BID`(1 강동오토캠핑장, 2 당사현대차오션캠프)에만 나오는 값이라 참고로만 적는다.
-// 구역 이름 = 구역 코드(스펙이 정한 것). 예약처는 화면의 "시설종류" 필터에 코드(`priceCode` `040100` …)를 주지만 사용자는 표의 이름으로 구역을 고르므로 이름이 구역 코드다
-// (CONTEXT.md의 "구역 코드는 예약처의 원래 값" 규칙과 어긋난다. 사용자가 정했다). 자리 = 사이트명(`일반데크8`)이고 자리 id는 사이트명이다. 자리 목록은 카탈로그에 두지 않았다.
+// 구역 = 화면의 "시설종류" 필터 값. 코드는 예약처의 `priceCode`(`040100` …)를 그대로 쓰고 이름은 선택 목록의 표시 이름이다(CONTEXT.md의 구역 규칙). 설정의 `zones:`는 이 코드를 받는다.
+// 숫자처럼 보여도 문자열이라 설정에서는 따옴표로 감싼다(`zones: ["040100"]`). 따옴표가 없으면 YAML이 숫자로 읽어 앞의 0이 사라진다.
+// 단, 표의 행은 `priceCode`를 싣지 않는다. 행은 사이트명 칸의 색 클래스로 구역을 가르고(아래 `ZONE_ROWS`) 어댑터는 `priceCode`를 비운 요청 하나로 시설 전체 표를 받는다(필터를 보내지 않는다).
+// 자리 = 사이트명(`일반데크8`)이고 자리 id는 사이트명이다. 자리 목록은 카탈로그에 두지 않았다.
 // 출처: 강동은 2026-10-12 23:56 ~ 10-13 00:06 KST(월요일 밤~화요일 새벽) 기록(research/raw/bukgu, #81)이다. 당사현대차오션캠프(`bid=2`, `siteKindCode=010200`)는 같은 날 00:14 ~ 00:17 KST에 #82가 기록했다.
 //
 // 기록으로 확인한 것(#81, 강동오토캠핑장 `siteKindCode=010100`):
@@ -10,8 +12,8 @@
 //   조각은 "시설종류" 선택(`select#priceCode`)과 표 `table#tableSite`(열: 사이트명, 예약현황, 예약하기)이고 한 번에 그 시설의 모든 자리가 온다(밤마다 25행, 예약 여부와 무관).
 // - `priceCode`: "시설종류" 필터다. 비우면 시설 전체(25행), 값을 주면 그 구역 행만 온다(`040100` 일반데크 13행, `040200` 필로티 3행, `040300` 카라반 9행). 페이지 기본값은 빈 값이다. 선택 목록의 값은
 //   강동 `040100` 일반데크 · `040200` 필로티 · `040300` 카라반, 당사 `040400` 일반데크(단독형) · `040500` 복층데크(단독형) · `040600` 일반데크(당사) · `040700` 복층데크(당사)다.
-// - 행 → 구역: 행에 구역 값이 없다. 사이트명 칸의 `<span class="link line_…">`의 색 클래스가 구역을 나눈다. `line_yellow` = 일반데크(`일반데크1~13`), `line_sky` = 필로티(`필로티1~3`),
-//   `line_pink` = 카라반(`카라반1~4,7~9`와 `무장애카라반5,6`). `priceCode`로 거른 세 응답이 각각 이 클래스 하나만 담아 확인했다. 이름 접두어는 무장애카라반 때문에 믿을 수 없다.
+// - 행 → 구역: 행에 구역 값이 없다. 사이트명 칸의 `<span class="link line_…">`의 색 클래스가 구역을 나눈다. `line_yellow` = 일반데크 `040100`(`일반데크1~13`), `line_sky` = 필로티 `040200`(`필로티1~3`),
+//   `line_pink` = 카라반 `040300`(`카라반1~4,7~9`와 `무장애카라반5,6`). `priceCode`로 거른 세 응답이 각각 이 클래스 하나만 담아 확인했다. 이름 접두어는 무장애카라반 때문에 믿을 수 없다.
 // - 판정 값: 예약현황 칸이 `예약가능`(뒤에 공백이 붙는다)이면 빈자리이고 그 행에만 `subIdx('<번호>')` "예약신청" 버튼이 붙는다. `예약종료`(앞에 공백)는 빈자리가 아니다. 예약 완료와 운영 안 함을 가르지 않는다.
 //   값은 이 둘뿐이었다(2026-10-14·17·18·20·22·25·31, 11-01 여덟 날짜 200행).
 // - 쿠키 세션은 필요 없다. 쿠키·페이지 GET 없이 보낸 POST가 쿠키를 싣고 보낸 응답과 바이트까지 같았다(서버는 `JSESSIONID`를 주지만 쓰지 않는다). 요청 헤더는 페이지의 jQuery ajax처럼 `X-Requested-With`, `Referer`, `Origin`을 싣는다.
@@ -45,9 +47,10 @@
 // - 쿠키 없이 응답한다고 본다(강동에서 확인한 것과 같은 엔드포인트. 쿠키 없이만 보냈다). 봇 탐지·captcha 호출은 없었다.
 import type { FacilityInfo, ZoneInfo } from "../types.js";
 
-/** 구역 하나의 표 모양: 표의 사이트명 칸 색 클래스(`<span class="link line_…">`)와 그 구역의 이름(= 코드)·유형. 구역을 더하는 일은 이 목록에 한 줄을 더하는 것이다. */
+/** 구역 하나의 표 모양: 표의 사이트명 칸 색 클래스(`<span class="link line_…">`)와 그 구역의 코드(`priceCode`)·이름·유형. 구역을 더하는 일은 이 목록에 한 줄을 더하는 것이다. */
 interface ZoneRow {
   cls: string;
+  code: string;
   name: string;
   type: "오토캠핑" | "카라반";
 }
@@ -55,26 +58,26 @@ interface ZoneRow {
 /** 시설마다 구역 목록. 같은 색 클래스가 시설마다 다른 구역을 가리키므로(당사의 `line_yellow`는 강동과 다르다) 시설별로 둔다. */
 const ZONE_ROWS: Record<string, ZoneRow[]> = {
   gangdong: [
-    { cls: "line_yellow", name: "일반데크", type: "오토캠핑" },
-    { cls: "line_sky", name: "필로티", type: "오토캠핑" },
-    { cls: "line_pink", name: "카라반", type: "카라반" },
+    { cls: "line_yellow", code: "040100", name: "일반데크", type: "오토캠핑" },
+    { cls: "line_sky", code: "040200", name: "필로티", type: "오토캠핑" },
+    { cls: "line_pink", code: "040300", name: "카라반", type: "카라반" },
   ],
   dangsa: [
-    { cls: "line_orange", name: "일반데크(단독형)", type: "오토캠핑" },
-    { cls: "line_yellow", name: "복층데크(단독형)", type: "오토캠핑" },
-    { cls: "line_pink", name: "일반데크(당사)", type: "오토캠핑" },
-    { cls: "line_sky", name: "복층데크(당사)", type: "오토캠핑" },
+    { cls: "line_orange", code: "040400", name: "일반데크(단독형)", type: "오토캠핑" },
+    { cls: "line_yellow", code: "040500", name: "복층데크(단독형)", type: "오토캠핑" },
+    { cls: "line_pink", code: "040600", name: "일반데크(당사)", type: "오토캠핑" },
+    { cls: "line_sky", code: "040700", name: "복층데크(당사)", type: "오토캠핑" },
   ],
 };
 
-const zonesOf = (facility: string): ZoneInfo[] => (ZONE_ROWS[facility] ?? []).map(({ name, type }): ZoneInfo => ({ code: name, name, type }));
+const zonesOf = (facility: string): ZoneInfo[] => (ZONE_ROWS[facility] ?? []).map(({ code, name, type }): ZoneInfo => ({ code, name, type }));
 
 export const facilities: FacilityInfo[] = [
   { code: "gangdong", name: "강동오토캠핑장", ref: { bid: "1", siteKindCode: "010100" }, zones: zonesOf("gangdong") },
   { code: "dangsa", name: "당사현대차오션캠프", ref: { bid: "2", siteKindCode: "010200" }, zones: zonesOf("dangsa") },
 ];
 
-/** 시설마다 표의 사이트명 칸 색 클래스가 가리키는 구역 이름. `ZONE_ROWS`에서 나온다. 목록에 없는 클래스의 행은 구역을 알 수 없다(어댑터가 경고로 남긴다). */
+/** 시설마다 표의 사이트명 칸 색 클래스가 가리키는 구역 코드(`priceCode`). `ZONE_ROWS`에서 나온다. 목록에 없는 클래스의 행은 구역을 알 수 없다(어댑터가 경고로 남긴다). */
 export const rowClassZones: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(ZONE_ROWS).map(([facility, rows]) => [facility, Object.fromEntries(rows.map((r) => [r.cls, r.name]))]),
+  Object.entries(ZONE_ROWS).map(([facility, rows]) => [facility, Object.fromEntries(rows.map((r) => [r.cls, r.code]))]),
 );

@@ -11,7 +11,7 @@ import {
   type TransportResponse,
 } from "../types.js";
 import { facilities } from "../catalogs/xticket.js";
-import { assertOk } from "../adapter-signals.js";
+import { assertOk, warnDriftOnce } from "../adapter-signals.js";
 import { BlockedPathError, RedirectLimitError } from "../http.js";
 
 const ORIGIN = "https://camp.xticket.kr";
@@ -59,7 +59,7 @@ const mainUrl = (shopEncode: string) => `${ORIGIN}/web/main?shopEncode=${shopEnc
  */
 const LOGIN_OR_BLOCK_PAGE = /MemberLogin|login_id|login_passwd|접근이 (차단|제한)|비정상적인 접근|botmanager|crawlingCheck|dynapath|\/jcaptcha/i;
 /** 시설 화면에 있으면 안 되는 봇 탐지 장치. captcha는 예약 폼이 원래 싣고 있어 여기서는 보지 않는다. */
-const BOT_DETECTION = /botmanager|crawlingCheck|dynapath/i;
+const FACILITY_PAGE_BOT_DETECTION = /botmanager|crawlingCheck|dynapath/i;
 
 /**
  * 시설 화면 요청이 리다이렉트 상한을 넘은 횟수(시설별, 연속). 세션을 열 때마다 바퀴를 넘어 이어져야 하므로 HTTP 클라이언트(예약처 수명)에 매단다.
@@ -92,7 +92,7 @@ async function openSession(facility: string, ctx: AdapterContext): Promise<strin
   }
   assertOk(res, "시설 화면");
   // 사후 검사다: 시설 화면 요청은 이미 나갔고 본문을 받은 뒤에야 본다. 봇 탐지를 피하는 장치가 아니라, 보이면 다음 요청부터 멈추기 위한 것이다.
-  if (BOT_DETECTION.test(res.body)) throw new AdapterError("blocked", "시설 화면에 봇 탐지 장치가 보인다");
+  if (FACILITY_PAGE_BOT_DETECTION.test(res.body)) throw new AdapterError("blocked", "시설 화면에 봇 탐지 장치가 보인다");
   streaks.delete(facility);
   return shopEncode;
 }
@@ -177,6 +177,7 @@ async function fetchOpenSites(q: AvailabilityQuery, shopEncode: string, ctx: Ada
   const list = productListOf(data);
   // 응답은 예약 여부와 관계없이 상품군의 모든 자리를 준다(기록: 14·40·15곳). 빈 목록은 그 상품군이 없어졌다는 뜻이다.
   if (list.length === 0) throw new AdapterError("unrecognized", `상품군 ${q.zone}이(가) 응답에서 사라졌다`);
+  warnSeatDrift(q, list as { product_name?: unknown }[], ctx);
   const sites: AvailableSite[] = [];
   for (const p of list as { product_name?: unknown; status_code?: unknown; select_yn?: unknown }[]) {
     if (typeof p?.product_name !== "string") throw new AdapterError("unrecognized", "bookProductList 항목에 product_name이 없다");
@@ -184,6 +185,20 @@ async function fetchOpenSites(q: AvailabilityQuery, shopEncode: string, ctx: Ada
     if (p.status_code === "0" && p.select_yn === "1") sites.push({ id: p.product_name, name: p.product_name });
   }
   return sites;
+}
+
+/**
+ * 바퀴가 이미 받은 자리 목록으로 카탈로그와의 자리 차이를 한 번만 경고한다. 요청·예약처 상태는 바꾸지 않는다.
+ * 카탈로그에 자리 목록이 없는 상품군은 견주지 않는다. 쓰지 않는 상품군 자체의 차이는 `catalog xticket --live`의 몫이다.
+ */
+function warnSeatDrift(q: AvailabilityQuery, list: { product_name?: unknown }[], ctx: AdapterContext): void {
+  const known = facilities.find((f) => f.code === q.facility)?.zones.find((z) => z.code === q.zone)?.seats;
+  if (!known) return;
+  const seen = new Set(list.flatMap((p) => (typeof p?.product_name === "string" ? [p.product_name] : [])));
+  const drift = (change: "new" | "gone", seat: string) =>
+    warnDriftOnce(ctx, `xticket:${q.facility}:${q.zone}:${change}:${seat}`, "xticket seat drift", { facility: q.facility, zone: q.zone, change, seat });
+  for (const seat of seen) if (!known.includes(seat)) drift("new", seat);
+  for (const seat of known) if (!seen.has(seat)) drift("gone", seat);
 }
 
 /** 페이지 JS(getProductAlt)가 따로 다루는 status_code와 기록으로 본 값. 그 밖의 값은 예약완료로 치고 한 번만 경고한다. */

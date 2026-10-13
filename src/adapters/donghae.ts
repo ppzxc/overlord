@@ -10,8 +10,9 @@ import {
 } from "../types.js";
 
 import { facilities } from "../catalogs/donghae.js";
-import { resolveFacility } from "../facility.js";
-import { warnDriftOnce } from "../adapter-signals.js";
+import { fieldsRef } from "../facility.js";
+import { nightsOf } from "../schedule.js";
+import { queryOneViaBatch, warnDriftOnce } from "../adapter-signals.js";
 import { acquireKey, forgetKey, netfunnelScriptCheck, releaseKey, type NetFunnelQueue, type QueuePass } from "../netfunnel.js";
 
 const WWW = "https://www.campingkorea.or.kr";
@@ -19,11 +20,7 @@ const RESERVATION = `${WWW}/user/reservation`;
 const NF: NetFunnelQueue = { tsUrl: "https://nf.campingkorea.or.kr/ts.wseq", sid: "service_1", aid: "reserve" };
 
 /** 동해시 예약처의 관광지 코드는 카탈로그가 시설 ref로 갖고 있다. 카탈로그에 없는 시설은 요청 전에 던진다. */
-function trrsrtCodeOf(facility: string): string {
-  const { ref } = resolveFacility(INFO, facility);
-  if (typeof ref === "object" && ref.trrsrtCode) return ref.trrsrtCode;
-  throw new Error(`donghae 시설 ${facility}에 trrsrtCode가 없다`);
-}
+const trrsrtCodeOf = (facility: string): string => fieldsRef(INFO, facility, ["trrsrtCode"]).trrsrtCode!;
 
 /** 예약처가 정한 키 수명. 이 안에서만 같은 세션이 키를 다시 쓴다. */
 const KEY_TTL_MS = 2 * 60 * 60 * 1000;
@@ -64,10 +61,6 @@ const netfunnelScript = netfunnelScriptCheck({ provider: "donghae", url: `${WWW}
 const CLOSED_VALUES = new Set(["예약완료", "예약불가", "준비중"]);
 const AUTH_MARKER = /로그인|인증/;
 
-const addDays = (date: string, days: number) =>
-  new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-
-const nightsOf = (q: AvailabilityQuery) => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 
 /** 조회 단위 하나의 실패로 담을 오류인지. NOPASS는 바퀴 전체를 다시 진입해야 하므로 던져 올린다. */
 const isUnitFailure = (e: unknown): e is AdapterError => e instanceof AdapterError && !(e instanceof NoPassError);
@@ -357,11 +350,7 @@ export const donghaeAdapter: ProviderAdapter = {
 
   describe: () => INFO,
 
-  async queryAvailability(q, ctx) {
-    const result = (await this.queryAvailabilityBatch!([q], ctx)).get(q);
-    if (result instanceof Error) throw result;
-    return result ?? [];
-  },
+  queryAvailability: (q, ctx) => queryOneViaBatch("donghae", (units, c) => withNoPassRetry(c, () => runBatch(units, c)), q, ctx),
 
   /**
    * 같은 세션의 키가 2시간 안이고 서버가 받아 주면 다시 쓰고, 아니면 새로 대기열에 들어가 필요한 밤을 한 번씩 읽는다. 첫 실패에서 멈추고,

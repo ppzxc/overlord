@@ -10,11 +10,11 @@ import {
 } from "../types.js";
 import { facilities } from "../catalogs/knps.js";
 import { assertOk } from "../adapter-signals.js";
-import { resolveFacility } from "../facility.js";
+import { fieldsRef, resolveFacility } from "../facility.js";
 import { filterSeats } from "../seats.js";
 import { isLotteryHeld, parseLottery, type LotterySchedule } from "../knps-lottery.js";
 import { kstDate } from "../schedule.js";
-import { warnDriftOnce } from "../adapter-signals.js";
+import { queryOneViaBatch, warnDriftOnce } from "../adapter-signals.js";
 import { completeQueue, enterQueue, netfunnelScriptCheck, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "reservation.knps.or.kr";
@@ -160,13 +160,12 @@ function parseGrid(html: string): ParsedList {
 
 /** 시설 하나를 대기열 `reservation2`로 들어가 `campsiteList.do`로 읽는다. 성공하면 5004를 보낸다. */
 async function readFacility(facility: string, ctx: AdapterContext): Promise<ParsedList> {
-  const { ref } = resolveFacility(INFO, facility);
-  if (typeof ref !== "object" || !ref.dept_id) throw new Error(`knps 시설 ${facility}에 dept_id가 없다`);
+  const ref = fieldsRef(INFO, facility, ["dept_id"]);
   const pass = await enterQueue(ctx, RESERVATION2);
   setNetFunnelCookie(ctx.http, HOST, pass.result);
   const res = await ctx.http.post(
     LIST,
-    { dept_id: ref.dept_id, dept_name: ref.dept_name ?? "", parent_dept_name: ref.parent_dept_name ?? "", prd_ctg_id: "", isGreenpoint: "N" },
+    { dept_id: ref.dept_id!, dept_name: ref.dept_name ?? "", parent_dept_name: ref.parent_dept_name ?? "", prd_ctg_id: "", isGreenpoint: "N" },
     { headers: PAGE_HEADERS },
   );
   assertOk(res, "campsiteList.do");
@@ -285,11 +284,7 @@ export const knpsAdapter: ProviderAdapter = {
 
   describe: () => INFO,
 
-  async queryAvailability(q, ctx) {
-    const result = (await runBatch([q], ctx)).get(q);
-    if (result instanceof Error) throw result;
-    return result ?? [];
-  },
+  queryAvailability: (q, ctx) => queryOneViaBatch("knps", runBatch, q, ctx),
 
   /** 같은 시설은 조회 단위가 몇 개든 응답 하나로 판정한다. */
   queryAvailabilityBatch: (units, ctx) => runBatch(units, ctx),

@@ -1,4 +1,4 @@
-import { addDays, kstDate } from "../schedule.js";
+import { addDays, kstDate, nightsOf } from "../schedule.js";
 import {
   AdapterError,
   type AdapterContext,
@@ -11,7 +11,8 @@ import {
   type TransportResponse,
 } from "../types.js";
 import { facilities } from "../catalogs/xticket.js";
-import { assertOk, warnDriftOnce } from "../adapter-signals.js";
+import { stringRef } from "../facility.js";
+import { assertOk, queryOneViaBatch, warnDriftOnce } from "../adapter-signals.js";
 import { BlockedPathError, RedirectLimitError } from "../http.js";
 
 const ORIGIN = "https://camp.xticket.kr";
@@ -44,11 +45,7 @@ const INFO: ProviderInfo = {
 
 const ymd = (date: string) => date.replaceAll("-", "");
 
-const shopEncodeOf = (facility: string): string => {
-  const ref = facilities.find((f) => f.code === facility)?.ref;
-  if (typeof ref !== "string") throw new AdapterError("unrecognized", `xticket 시설 ${facility}에 shopEncode가 없다`);
-  return ref;
-};
+const shopEncodeOf = (facility: string): string => stringRef(INFO, facility, "shopEncode");
 
 const mainUrl = (shopEncode: string) => `${ORIGIN}/web/main?shopEncode=${shopEncode}`;
 
@@ -216,7 +213,6 @@ function warnStatusCode(facility: string, code: unknown, ctx: AdapterContext): v
 }
 
 /** 박수만큼 이어지는 밤의 날짜(YYYY-MM-DD). */
-const nightsOf = (q: AvailabilityQuery) => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 const lastNight = (q: AvailabilityQuery) => addDays(q.checkIn, q.nights - 1);
 const monthOf = (date: string) => ymd(date).slice(0, 6);
 
@@ -301,11 +297,7 @@ export const xticketAdapter: ProviderAdapter = {
 
   describe: () => INFO,
 
-  async queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]> {
-    const found = (await queryBatch([q], ctx)).get(q);
-    if (found instanceof AdapterError) throw found;
-    return found ?? [];
-  },
+  queryAvailability: (q, ctx) => queryOneViaBatch("xticket", queryBatch, q, ctx),
 
   /** 시설마다 세션을 열고 달마다 날짜 목록을 읽어 자리가 남은 조회 단위만 자리 조회로 넘어간다. */
   queryAvailabilityBatch: queryBatch,

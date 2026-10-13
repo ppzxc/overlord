@@ -9,8 +9,8 @@ import {
   type ProviderInfo,
 } from "../types.js";
 import { facilities, rowClassZones } from "../catalogs/bukgu.js";
-import { resolveFacility, zoneName } from "../facility.js";
-import { BOT_DETECTION, UnitStructureError, assertOk, send, warnDriftOnce } from "../adapter-signals.js";
+import { fieldsRef, resolveFacility, zoneName } from "../facility.js";
+import { BOT_DETECTION, UnitStructureError, queryOneViaBatch, assertOk, send, warnDriftOnce } from "../adapter-signals.js";
 import { addDays, kstDate, nextMonthOf, weekdayKey } from "../schedule.js";
 import { tlsStreakRound } from "../tls-streak.js";
 
@@ -38,11 +38,7 @@ const INFO: ProviderInfo = {
   facilityRequired: true,
 };
 
-const siteKindCodeOf = (facility: string): string => {
-  const ref = resolveFacility(INFO, facility).ref;
-  if (typeof ref !== "object" || !ref.siteKindCode) throw new Error(`bukgu 시설 ${facility}에 siteKindCode가 없다`);
-  return ref.siteKindCode;
-};
+const siteKindCodeOf = (facility: string): string => fieldsRef(INFO, facility, ["siteKindCode"]).siteKindCode!;
 
 
 /** 표의 한 행. 구역은 사이트명 칸의 색 클래스에서 읽는다. */
@@ -242,39 +238,32 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
   };
   let stopped: AdapterError | undefined;
   for (const q of units) {
-    // 최대 박수는 1이라 설정이 2박 이상을 거부한다. 아래 여러 박 처리는 최대 박수를 올리면 그대로 쓰인다.
-    const max = resolveFacility(INFO, q.facility).maxNights ?? INFO.maxNights;
-    if (q.nights > max) throw new Error(`bukgu ${q.facility}는 최대 ${max}박만 읽는다(${q.nights}박)`);
+    // 1박만 읽는다. 설정이 2박 이상을 거부하므로 여기까지 오지 않는다. 최대 박수를 올릴 때는 여러 박 교집합 처리를 다시 넣는다.
+    if (q.nights !== 1) throw new Error(`bukgu ${q.facility}는 1박만 읽는다(${q.nights}박)`);
     if (stopped) {
       results.set(q, stopped);
       continue;
     }
     try {
-      const dates = Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
+      const date = q.checkIn;
       // 이달 안의 밤만 걸린 단위는 예약 화면을 받지 않는다.
-      if (dates.some((d) => d.slice(0, 7) > today.slice(0, 7))) {
+      if (date.slice(0, 7) > today.slice(0, 7)) {
         const g = await gateOf();
-        if (dates.some((d) => d.slice(0, 7) === nextMonth)) warnIfGateStuck(g, nextMonth, ctx, now);
-        if (!dates.every((d) => openForFirstCome(d, today, g))) {
+        if (date.slice(0, 7) === nextMonth) warnIfGateStuck(g, nextMonth, ctx, now);
+        if (!openForFirstCome(date, today, g)) {
           results.set(q, []); // 추첨 대상(또는 아직 예약을 받지 않는) 밤이 낀 단위: 표를 조회하지 않는다.
           continue;
         }
       }
-      const perNight: Table[] = [];
-      for (const date of dates) {
-        const key = `${q.facility}|${date}`;
-        if (!tables.has(key)) tables.set(key, await readTable(q.facility, date, ctx)); // 직렬: 요청은 HTTP 층이 한 줄로 보낸다.
-        perNight.push(tables.get(key)!);
-      }
+      const key = `${q.facility}|${date}`;
+      if (!tables.has(key)) tables.set(key, await readTable(q.facility, date, ctx)); // 직렬: 요청은 HTTP 층이 한 줄로 보낸다.
+      const table = tables.get(key)!;
       // 응답이 왔는데 감시하는 구역의 행이 없으면 화면 모양이 바뀐 것이다. 빈자리 없음으로 넘기지 않는다.
-      const missing = perNight.find((t) => !t.rows.some((r) => r.zone === q.zone));
-      if (missing) {
-        const why = missing.unattributed > 0 ? `(구역을 알 수 없는 행 ${missing.unattributed}개)` : "";
+      if (!table.rows.some((r) => r.zone === q.zone)) {
+        const why = table.unattributed > 0 ? `(구역을 알 수 없는 행 ${table.unattributed}개)` : "";
         throw new UnitStructureError(`reservationCntAjax.do: 표에 감시하는 구역 ${zoneName(INFO, q.facility, q.zone)}(${q.zone})의 행이 없다${why}`);
       }
-      // 여러 박이면 같은 사이트명이 밤마다 예약가능일 때만 빈자리다.
-      const open = perNight.map((t) => new Set(t.rows.filter((r) => r.zone === q.zone && r.open).map((r) => r.name)));
-      results.set(q, [...open[0]!].filter((n) => open.every((s) => s.has(n))).map((name) => ({ id: name, name })));
+      results.set(q, table.rows.filter((r) => r.zone === q.zone && r.open).map((r) => ({ id: r.name, name: r.name })));
     } catch (e) {
       if (e instanceof UnitStructureError) {
         results.set(q, e); // 이 단위만의 구조 변경이다. 요청은 실패하지 않았으니 다른 단위는 계속 읽는다.
@@ -295,11 +284,7 @@ export const bukguAdapter: ProviderAdapter = {
 
   describe: () => INFO,
 
-  async queryAvailability(q, ctx) {
-    const found = (await runBatch([q], ctx)).get(q);
-    if (found instanceof Error) throw found;
-    return found ?? [];
-  },
+  queryAvailability: (q, ctx) => queryOneViaBatch("bukgu", runBatch, q, ctx),
 
   /** 같은 (시설, 밤)은 구역이 여럿이어도 한 번만 조회한다. */
   queryAvailabilityBatch: runBatch,

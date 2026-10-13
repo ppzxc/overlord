@@ -23,9 +23,9 @@ import {
   type ZoneObservation,
 } from "../types.js";
 import { facilities } from "../catalogs/mirihae.js";
-import { resolveFacility } from "../facility.js";
-import { BOT_DETECTION, ConnectionFailure, UnitStructureError, assertOk, redirectOf, send, unknownRedirect, warnDriftOnce } from "../adapter-signals.js";
-import { addDays } from "../schedule.js";
+import { fieldsRef, resolveFacility } from "../facility.js";
+import { BOT_DETECTION, ConnectionFailure, queryOneViaBatch, UnitStructureError, assertOk, redirectOf, send, unknownRedirect, warnDriftOnce } from "../adapter-signals.js";
+import { nightsOf as nightDates } from "../schedule.js";
 
 const ORIGIN = "https://mirihae.com";
 /** 게이트의 정적 화면(`entering.html`, `waiting.html`)이 있는 곳. API는 이 화면의 JS가 `https://cdn.mirihae.com`으로 보낸다. */
@@ -80,8 +80,7 @@ const INFO: ProviderInfo = {
 };
 
 const pageUrlOf = (facility: string): string => {
-  const ref = resolveFacility(INFO, facility).ref;
-  if (typeof ref !== "object" || !ref.tenant || !ref.pageId) throw new Error(`mirihae 시설 ${facility}에 tenant·pageId가 없다`);
+  const ref = fieldsRef(INFO, facility, ["tenant", "pageId"]);
   return `${ORIGIN}/${ref.tenant}/camping/${ref.pageId}`;
 };
 
@@ -388,7 +387,6 @@ type Results = Map<AvailabilityQuery, AvailableSite[] | AdapterError>;
 const monthOf = (date: string) => date.slice(0, 7);
 
 /** 입실일부터 밤마다의 날짜(입실일 포함, 퇴실일 제외). */
-const nightDates = (q: AvailabilityQuery): string[] => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 
 /**
  * 조회 단위 하나를 달력으로 판정한다. 밤마다 칸에 `click`이 있고 구역의 남은 수가 1 이상이어야 빈자리이며 남은 수는 밤마다의 최솟값이다(같은 자리가 이어진다는 보장은 없다).
@@ -471,11 +469,7 @@ export const mirihaeAdapter: ProviderAdapter = {
 
   describe: () => INFO,
 
-  async queryAvailability(q, ctx) {
-    const found = (await runBatch([q], ctx)).get(q);
-    if (found instanceof Error) throw found;
-    return found ?? [];
-  },
+  queryAvailability: (q, ctx) => queryOneViaBatch("mirihae", runBatch, q, ctx),
 
   queryAvailabilityBatch: runBatch,
 

@@ -34,6 +34,8 @@ export interface RequestOptions {
   contentType?: string;
   /** 중단 신호가 서 있어도 보낸다. 종료 때 대기열에 마무리를 알리는 요청용이다. */
   ignoreAbort?: boolean;
+  /** false면 리다이렉트를 따라가지 않고 3xx 응답(`location` 포함)을 그대로 돌려준다. 접근 금지 경로 검사는 요청 주소에만 적용된다. 미리해 게이트처럼 `Location`의 값만 읽을 때 쓴다. */
+  followRedirects?: false;
   /** 이 요청에만 더하는 헤더. Referer·Origin처럼 예약처가 브라우저 요청인지 보는 값에 쓴다. */
   headers?: Record<string, string>;
 }

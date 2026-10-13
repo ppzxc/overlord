@@ -1,0 +1,1 @@
+{"timestamp":1791851162424,"requestId":null,"path":"GET /api/entering","status":401,"message":"400 BAD_REQUEST \"Required header 'X-Mirihae-Reservation-Token' is not present.\""}

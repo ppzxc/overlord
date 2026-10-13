@@ -1,0 +1,3 @@
+status 302
+location https://cdn.mirihae.com:9443/entering.html?uri=https://mirihae.com/dytc/camping/V39628874
+

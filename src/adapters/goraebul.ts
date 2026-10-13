@@ -7,7 +7,8 @@ import {
   type ProviderAdapter,
   type ProviderInfo,
 } from "../types.js";
-import { facilities, seatPrefix } from "../catalogs/goraebul.js";
+import { facilities } from "../catalogs/goraebul.js";
+import { seatPrefix } from "../goraebul-seat.js";
 
 const BASE = "https://stay.yd.go.kr/pages";
 const NAV_CODE = "gor1501675800";

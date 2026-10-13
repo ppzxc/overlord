@@ -164,6 +164,58 @@ describe("미리해 폴러: 여주 자체 도메인(대신 오토)", () => {
     await p.stop();
   });
 
+  it("재사용한 토큰을 서버가 게이트로 되돌려 보내면 같은 바퀴에서 게이트를 새로 지나 조회를 마친다", async () => {
+    let pageHits = 0;
+    const gate302 = { status: 302, body: "", location: `https://cdn.mirihae.com/entering.html?uri=${PAGE}` };
+    const p = run("2026-10-14", { pollIntervalSeconds: 120, server: yeojuServer({ page: () => (++pageHits === 2 ? gate302 : undefined) }) });
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    await p.clock.advance(144_000);
+    await settle();
+    expect(p.allRequests.map(line).slice(6)).toEqual([
+      `GET ${HOST}/camping/epoc/camping/Z65332353?gateToken`,
+      "GET cdn.mirihae.com/api/entering",
+      "POST cdn.mirihae.com/api/waiting",
+      "GET cdn.mirihae.com/api/waiting",
+      "GET cdn.mirihae.com/api/entering",
+      `GET ${HOST}/camping/epoc/camping/Z65332353?gateToken`,
+    ]);
+    expect(failedKinds(p)).toEqual([]);
+    expect(p.logs.filter((l) => l.msg === "mirihae gateToken rejected")).toHaveLength(1);
+    await p.stop();
+  });
+
+  it("단양과 여주를 함께 감시하면 토큰을 호스트마다 따로 쓰고 쿠키도 섞이지 않는다", async () => {
+    const danyang = mirihaeServer();
+    const yeoju = yeojuServer();
+    const server = (r: TransportRequest) => (new URL(r.url).host === HOST ? yeoju(r) : danyang(r));
+    const base = configWith(
+      `
+  - name: 천동
+    provider: mirihae
+    facility: danyang-cheondong
+    zones: [야영장A]
+    checkIn: { from: 2026-10-14, to: 2026-10-14 }
+    nights: 1
+    notify: [default]`,
+      watch("2026-10-14"),
+    );
+    const p = startPoller(() => ({ status: 404, body: "" }), { yaml: base.replace("providers:\n", "providers:\n  mirihae: { pollIntervalSeconds: 120 }\n"), server, now: NOW });
+    await settle();
+    const firstRound = p.allRequests.length;
+    await p.clock.advance(144_000);
+    await settle();
+    const second = p.allRequests.slice(firstRound);
+    // 둘째 바퀴는 게이트를 지나지 않고 시설마다 자기 호스트의 화면만 gateToken과 함께 연다.
+    expect(second.map(line).sort()).toEqual([`GET ${HOST}/camping/epoc/camping/Z65332353?gateToken`, "GET mirihae.com/dytc/camping/V39628874?gateToken"].sort());
+    const cookieOf = (host: string) => second.find((r) => new URL(r.url).host === host)!.headers.Cookie ?? "";
+    expect(cookieOf(HOST)).not.toContain("mirihae=sess1");
+    expect(cookieOf("mirihae.com")).not.toContain("yeoju-sess");
+    expect(p.logs.filter((l) => l.msg === "mirihae gateToken reused")).toHaveLength(2);
+    expect(failedKinds(p)).toEqual([]);
+    await p.stop();
+  });
+
   describe("접근 금지 경로", () => {
     const redirected = (location: string) => yeojuServer({ page: () => ({ status: 302, body: "", location }) });
 

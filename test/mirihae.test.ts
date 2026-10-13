@@ -620,8 +620,101 @@ describe("catalog mirihae", () => {
   });
 
   it("없는 시설은 쓸 수 있는 값을 보이며 거부한다", async () => {
-    const r = await catalog("danyang-darian");
+    const r = await catalog("danyang-nowhere");
     expect(r.code).toBe(1);
     expect(r.err).toContain("danyang-cheondong");
+  });
+});
+
+describe("catalog mirihae <시설> --live", () => {
+  // 가짜 시계는 기록한 때(2026-10-13 09:30 KST)다. --live는 바퀴와 같은 게이트와 예약 화면 한 번을 지나고 달력의 구역 이름 집합을 카탈로그와 대조한다.
+  const setup = (server = mirihaeServer()) => {
+    const out: string[] = [];
+    const err: string[] = [];
+    const requests: TransportRequest[] = [];
+    const sleeps: number[] = [];
+    const run = (facility?: string) =>
+      runCatalog(
+        { kind: "catalog", provider: "mirihae", ...(facility ? { facility } : {}), live: true },
+        {
+          adapters,
+          transport: async (r) => (requests.push(r), server(r)),
+          version: "0.1.0",
+          now: () => new Date(NOW),
+          sleep: async (ms) => void sleeps.push(ms),
+          random: () => 0.5,
+          out: (s) => void out.push(s),
+          err: (s) => void err.push(s),
+        },
+      );
+    return { run, out: () => out.join(""), err: () => err.join(""), requests, sleeps };
+  };
+  const edited = (edit: ($: Parameters<NonNullable<Parameters<typeof mirihaePageWith>[1]>>[0]) => void) =>
+    mirihaeServer({ page: () => ({ status: 200, body: mirihaePageWith({}, edit) }) });
+
+  it("게이트를 지나 예약 화면을 한 번 열고 카탈로그와 같으면 구역 일치(3곳)이고 종료 코드 0이다", async () => {
+    const s = setup();
+    expect(await s.run("danyang-cheondong")).toBe(0);
+    expect(s.requests.map((r) => `${r.method} ${new URL(r.url).host}${new URL(r.url).pathname}`)).toEqual([
+      "GET mirihae.com/dytc/camping/V39628874",
+      "GET cdn.mirihae.com/api/entering",
+      "POST cdn.mirihae.com/api/waiting",
+      "GET cdn.mirihae.com/api/waiting",
+      "GET cdn.mirihae.com/api/entering",
+      "GET mirihae.com/dytc/camping/V39628874",
+    ]);
+    expect(s.requests[5]!.url).toBe(`${PAGE}?gateToken=${MIRIHAE_ENTERING_TOKEN}`);
+    expect(s.out()).toContain("실제 예약처와 비교");
+    expect(s.out()).toContain("구역 일치 (3곳)");
+    expect(s.err()).toBe("");
+    expect(s.sleeps).toEqual([6_500]); // 예약 화면 두 요청 사이만 5초 + 지터, 게이트 요청은 기다리지 않는다
+    for (const r of s.requests) expect(r.headers["User-Agent"]).toBe("overlord-availability-poller/0.1.0");
+  });
+
+  it("시설 없이 --live를 걸면 요청 없이 쓸 수 있는 시설 코드와 함께 1이다", async () => {
+    const s = setup();
+    expect(await s.run(undefined)).toBe(1);
+    expect(s.err()).toContain("시설을 골라야 한다");
+    expect(s.err()).toContain("danyang-cheondong");
+    expect(s.requests).toEqual([]);
+  });
+
+  it("예약처에서 구역이 사라지거나 새로 생기면 차이로 보고하고 종료 코드는 0이다", async () => {
+    const s = setup(
+      edited(($) => {
+        $("div.td dl.schedule").filter((_, el) => $(el).find("dd").text().trim() === "야영장C").remove();
+        $('div.td[id="2026-10-20"] div.district').append('<dl class="schedule color4 "><dt>5</dt><dd>야영장D</dd></dl>');
+      }),
+    );
+    expect(await s.run("danyang-cheondong")).toBe(0);
+    expect(s.out()).toContain("예약처에서 사라진 구역 야영장C");
+    expect(s.out()).toContain("예약처에 새로 생긴 구역 야영장D");
+    expect(s.out()).not.toContain("구역 일치");
+  });
+
+  it("남은 수가 숫자가 아니면 모르는 값: 구역=값으로 보고하고 구조 변경으로 실패하지 않는다", async () => {
+    const s = setup(edited(($) => void $('div.td[id="2026-10-14"] dl.schedule dt').first().text("매진")));
+    expect(await s.run("danyang-cheondong")).toBe(0);
+    expect(s.out()).toContain("모르는 값: 야영장A=매진");
+    expect(s.err()).toBe("");
+  });
+
+  it("달력에 구역이 하나도 없으면(예: 휴장) 비교할 것이 없다고 알리고 구역이 모두 사라졌다고 보고하지 않는다", async () => {
+    const s = setup(edited(($) => void $("div.td dl.schedule").remove()));
+    expect(await s.run("danyang-cheondong")).toBe(0);
+    expect(s.out()).toContain("구역이 하나도 보이지 않아");
+    expect(s.out()).not.toContain("사라진");
+    expect(s.out()).not.toContain("구역 일치");
+  });
+
+  it.each([
+    { title: "게이트가 500", server: () => mirihaeServer({ entering: (n) => (n === 0 ? { status: 500, body: "" } : undefined) }), kind: "transient" },
+    { title: "게이트가 403(사전 대기)", server: () => mirihaeServer({ entering: (n) => (n === 0 ? { status: 403, body: "" } : undefined) }), kind: "unavailable" },
+    { title: "달력 칸이 없음", server: () => mirihaeServer({ page: () => ({ status: 200, body: "<html><body>점검 중</body></html>" }) }), kind: "unrecognized" },
+    { title: "예약 화면이 403", server: () => mirihaeServer({ page: () => ({ status: 403, body: "" }) }), kind: "blocked" },
+  ])("$title 이면 조회 실패($kind)로 보고하고 종료 코드 1이다", async ({ server, kind }) => {
+    const s = setup(server());
+    expect(await s.run("danyang-cheondong")).toBe(1);
+    expect(s.out()).toContain(`조회 실패(${kind})`);
   });
 });

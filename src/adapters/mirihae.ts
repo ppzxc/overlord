@@ -16,6 +16,7 @@ import {
   type AvailableSite,
   type ProviderAdapter,
   type ProviderInfo,
+  type ZoneObservation,
 } from "../types.js";
 import { facilities } from "../catalogs/mirihae.js";
 import { resolveFacility } from "../facility.js";
@@ -205,7 +206,7 @@ const LOGIN_SCREEN = /type\s*=\s*["']?password|(?:location(?:\.href)?\s*=|locati
  * 안의 `dl.schedule`마다 `dd`가 구역 이름, `dt`가 남은 수다. 격자는 앞 달의 칸도 그리지만 그 칸은 `click`도 `dl`도 없어서 달에 속한 칸만 읽는다.
  * 칸이 없거나 달 표시·구역 이름·남은 수가 읽히지 않으면 구조 변경이다.
  */
-function parseCalendar(html: string): Calendar {
+function parseCalendar(html: string, unknownValues?: { zone: string; value: string }[]): Calendar {
   const where = "예약 화면";
   if (BOT_DETECTION.test(html)) throw new AdapterError("blocked", `${where}: 봇 탐지·captcha 표지가 왔다`);
   const $ = cheerio.load(html);
@@ -229,6 +230,12 @@ function parseCalendar(html: string): Calendar {
       const name = $(dl).find("dd").first().text().trim();
       const count = $(dl).find("dt").first().text().trim();
       if (name === "") throw new AdapterError("unrecognized", `${where}: ${id} 칸의 구역 이름(dd)이 없다`);
+      if (!/^\d+$/.test(count) && unknownValues) {
+        // catalog --live는 모르는 값을 실패로 치지 않고 구역 이름과 함께 보고한다. 바퀴는 이 인자를 주지 않아 구조 변경으로 던진다.
+        unknownValues.push({ zone: name, value: count });
+        zones.set(name, 0);
+        return;
+      }
       if (!/^\d+$/.test(count)) throw new AdapterError("unrecognized", `${where}: ${id} 칸 ${name}의 남은 수가 숫자가 아니다(${JSON.stringify(count)})`);
       zones.set(name, Number(count));
     });
@@ -334,6 +341,21 @@ export const mirihaeAdapter: ProviderAdapter = {
   },
 
   queryAvailabilityBatch: runBatch,
+
+  /**
+   * catalog --live용. 게이트를 지나 예약 화면을 한 번 열고 달력의 구역 이름 집합과 모르는 값(숫자가 아닌 남은 수)을 돌려준다. 바퀴와 같은 파서를 쓴다.
+   * 닫힌 날짜 칸은 `dl`이 없으므로 이번 달 칸 가운데 `dl`이 있는 칸의 구역을 모은다. 하나도 없으면(예: 휴장) 비교할 수 없다고 알린다.
+   */
+  async listZones(q, ctx): Promise<ZoneObservation> {
+    const unknown: ZoneObservation["unknown"] = [];
+    const calendar = parseCalendar(await openReservationPage(ctx, q.facility), unknown);
+    const zones = new Set<string>();
+    for (const day of calendar.days.values()) for (const name of day.zones.keys()) zones.add(name);
+    if (zones.size === 0) {
+      return { zones: [], unknown, nothingToCompare: `${calendar.month} 달력에 구역이 하나도 보이지 않아 카탈로그와 비교할 수 없다(예약할 수 있는 날이 없거나 휴장일 수 있다)` };
+    }
+    return { zones: [...zones], unknown };
+  },
 
   deepLink: (q) => pageUrlOf(q.facility),
 };

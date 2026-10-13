@@ -140,6 +140,8 @@ export interface AvailableSite {
 
 /** 예약처 응답에서 실제로 본 구역 이름과, 어댑터가 모르는 값을 준 구역. */
 export interface ZoneObservation {
+  /** 비교할 구역을 응답에서 볼 수 없던 이유(예: 달력에 구역이 하나도 없다). 있으면 `zones`는 비어 있고 catalog --live는 비교 없이 이 이유를 알리며 실패로 치지 않는다. */
+  nothingToCompare?: string;
   zones: string[];
   unknown: { zone: string; value: string }[];
 }

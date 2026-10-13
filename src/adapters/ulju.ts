@@ -47,8 +47,12 @@ const classesOf = (facility: string): string => {
   return ref;
 };
 
-/** 로그인 화면·차단 안내·봇 탐지·captcha가 JSON 자리에 온 것을 알아보는 표지. 표지가 없는 JSON 아님은 unrecognized다. */
-const LOGIN_OR_BLOCK_PAGE = /memberIntro\/login|접근이 (차단|제한)|비정상적인 접근|botmanager|crawlingCheck|dynapath|captcha/i;
+/**
+ * 로그인 폼·차단 안내·봇 탐지·captcha 경로가 JSON 자리에 온 것을 알아보는 구체 표지(로그인 폼 action·비밀번호 입력, 차단 안내 문구, 봇 탐지 장치 이름, captcha 경로).
+ * 메뉴의 로그인 링크(memberIntro/login)와 맨 낱말 captcha는 기록한 모든 화면에 있어 표지가 아니다. 표지가 없는 JSON 아님은 unrecognized다.
+ * 로그인 경로로 가는 리다이렉트는 blockedPaths와 공통 리다이렉트 판정이 잡는다.
+ */
+const LOGIN_OR_BLOCK_PAGE = /<form[^>]*action=["'][^"']*memberIntro\/login|type=["']?password|접근이 (차단|제한)|비정상적인 접근|botmanager|crawlingCheck|dynapath|\/captcha/i;
 
 /** 이번 달과 다음 달만 조회시킨다. 다음 달 날짜는 이번 달 11일 10:00 KST부터 선착순이고 그 전은 추첨 기간이다. */
 const FCFS_DAY = 11;

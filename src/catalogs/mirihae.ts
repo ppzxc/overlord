@@ -1,6 +1,6 @@
 // 미리해(mirihae.com, 소스팜) 시설·구역 카탈로그. 정적 목록이며 어댑터 로직과 네트워크 코드는 두지 않는다. 읽는 방법과 판정은 어댑터(`src/adapters/mirihae.ts`) 머리에 있다.
 // 시설 `ref`는 `{ tenant, pageId }`이고 자체 도메인 시설은 `host`·`pathPrefix`를 더한다(예약 화면 `https://<host=mirihae.com><pathPrefix>/<tenant>/camping/<pageId>`). `tenant`는 미리해에 입점한 운영 기관의 경로 접두어이고(단양관광공사 `dytc`) 예약처가 시설을 가리키는 값이다. 구역 = 달력 칸 `dl.schedule`의 `dd`다(구역 이름이 코드이고 범례의 `야영장 A`와 다르다). 자리 목록은 없다.
-// 출처: 천동은 2026-10-13 09:24 ~ 09:31 KST 기록, 다리안·소선암·대강은 같은 날 09:47 ~ 09:49 KST에 `catalog mirihae <시설> --live`로 확인했다. 여주 대신 오토·웰빙·금은모래는 같은 날 13:09 ~ 13:15 KST 기록(자체 도메인 `yeojuuc.or.kr`, 게이트 443), 강천섬은 `camp.yjcf.or.kr`(게이트 9443)이다. 여주 구역 이름은 기록한 화면의 달력 칸 `dd`이고 `--live` 대조는 사람 확인 몫이다. `--live` 대조는 사람 확인 몫이다. 조사 기록과 원문은 research/raw/mirihae/README.md.
+// 출처: 천동은 2026-10-13 09:24 ~ 09:31 KST 기록, 다리안·소선암·대강은 같은 날 09:47 ~ 09:49 KST에 `catalog mirihae <시설> --live`로 확인했다. 여주 대신 오토·웰빙·금은모래는 같은 날 13:09 ~ 13:15 KST 기록(자체 도메인 `yeojuuc.or.kr`, 게이트 443), 강천섬은 `camp.yjcf.or.kr`(게이트 9443)이다. 여주 구역 이름은 기록한 화면의 달력 칸 `dd`이고 `--live` 대조는 사람 확인 몫이다. 조사 기록과 원문은 research/raw/mirihae/README.md.
 // 넣지 않은 시설: 포천 비둘기낭은 화면 구조가 달라서다(`/campsite/`, 날짜 칸 없음). 충주 목계솔밭·이천 농업테마공원·성남 율동공원은 공식 예약 링크를 확인하지 못했다. 칠곡보는 땡큐캠핑(ADR 0002 제외)으로 옮겨 갔다. 여주 시설은 모두 robots가 예약 화면을 막지 않아(`yeojuuc.or.kr`은 `/camping/` 허용, `camp.yjcf.or.kr`은 robots.txt 없음) 넣었다.
 import type { FacilityInfo, ZoneInfo } from "../types.js";
 

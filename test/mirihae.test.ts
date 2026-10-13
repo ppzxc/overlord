@@ -912,7 +912,7 @@ describe("catalog mirihae", () => {
     expect(r.requests).toEqual([]);
   });
 
-  it("시설 목록에 확인한 단양 시설 넷이 구역 수와 함께 나온다(포천 비둘기낭처럼 구조가 다른 시설은 없다)", async () => {
+  it("시설 목록에 천동 말고 다리안·소선암·대강이 구역 수와 함께 나온다(포천 비둘기낭처럼 구조가 다른 시설은 없다)", async () => {
     const r = await catalog();
     expect(r.out).toMatch(/^danyang-darian\s+단양 다리안 캠핑장\s+3곳$/m);
     expect(r.out).toMatch(/^danyang-soseonam\s+단양 소선암 오토캠핑장\s+4곳$/m);
@@ -1083,6 +1083,19 @@ describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지�
   const start = (srv: ReturnType<typeof mirihaeServer>, yaml = both()) => startPoller(() => ({ status: 404, body: "" }), { yaml, server: srv, now: NOW });
   const touchedDarian = (p: ReturnType<typeof start>) => p.allRequests.some((r) => r.url.includes("G24526799"));
   const darianAlert = "2026-10-14(수) 1박 · 단양 다리안 캠핑장 · 데크야영장C · 남은 18";
+
+  it("앞 시설이 심은 입장 토큰 쿠키는 다음 시설의 첫 게이트 요청에 실리지 않는다(cdn.mirihae.com 쿠키는 시설끼리 공유된다)", async () => {
+    const p = start(server(ok));
+    await settle();
+    const darianPage = p.allRequests.findIndex((r) => r.url === `https://mirihae.com${DARIAN}`);
+    const firstEntering = p.allRequests.findIndex((r, i) => i > darianPage && r.url.startsWith("https://cdn.mirihae.com/api/entering"));
+    expect(darianPage).toBeGreaterThan(0);
+    // 앞 시설은 게이트를 지나며 토큰 쿠키를 심었다(전제).
+    expect(p.allRequests.slice(0, darianPage).some((r) => (r.headers.Cookie ?? "").includes("X-Mirihae-Reservation-Token"))).toBe(true);
+    expect(p.allRequests[firstEntering]!.headers.Cookie ?? "").not.toContain("X-Mirihae-Reservation-Token");
+    expect(p.allRequests[firstEntering]!.headers["X-Mirihae-Reservation-Token"]).toBeUndefined();
+    await p.stop();
+  });
 
   it("기준: 두 시설이 모두 정상이면 둘 다 알린다", async () => {
     const p = start(server(ok));

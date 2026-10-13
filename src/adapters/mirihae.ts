@@ -146,8 +146,8 @@ function gateStatusError(status: number, where: string): AdapterError {
 }
 
 /** 예약 화면 주소에서 게이트가 되돌려 주는 `uri`를 읽는다. 리다이렉트는 따라가지 않고 `Location`의 `uri`만 읽는다. */
-async function readGateUri(ctx: AdapterContext, pageUrl: string): Promise<Gate> {
-  return gateUriOf(await send("예약 화면", () => ctx.http.get(pageUrl, { followRedirects: false })), pageUrl);
+async function readGate(ctx: AdapterContext, pageUrl: string): Promise<Gate> {
+  return gateOf(await send("예약 화면", () => ctx.http.get(pageUrl, { followRedirects: false })), pageUrl);
 }
 
 /** 예약 화면이 알려 준 게이트. `uri`는 게이트가 되돌려 주는 예약 화면 주소이고 `pages`는 게이트 화면의 origin(호스트·포트)이다. */
@@ -157,7 +157,7 @@ interface Gate {
 }
 
 /** 게이트로 보내는 3xx 응답에서 게이트 화면 주소와 `uri`를 읽는다. 게이트로 보내지 않으면 응답 상태로 신호를 가른다. */
-function gateUriOf(res: TransportResponse, pageUrl: string): Gate {
+function gateOf(res: TransportResponse, pageUrl: string): Gate {
   const to = redirectOf(res, pageUrl, "예약 화면");
   if (!to) {
     assertOk(res, "예약 화면");
@@ -376,11 +376,11 @@ async function openReservationPage(ctx: AdapterContext, facility: string): Promi
     held.delete(facility);
     ctx.log?.("mirihae gateToken rejected", { facility, status: reused.rejected.status });
     // 302는 게이트 주소(`uri`)를 알려 준다. 401은 알려 주지 않으므로 아래에서 예약 화면의 302로 읽는다.
-    if (reused.rejected.status !== 401) gate = gateUriOf(reused.rejected, pageUrl);
+    if (reused.rejected.status !== 401) gate = gateOf(reused.rejected, pageUrl);
   } else {
     held.delete(facility);
   }
-  gate ??= await readGateUri(ctx, pageUrl);
+  gate ??= await readGate(ctx, pageUrl);
   const token = await passGate(ctx, gate);
   held.set(facility, { token, gate, receivedAt: now() });
   const fresh = await fetchReservationPage(ctx, gate, token);
@@ -439,18 +439,16 @@ type Results = Map<AvailabilityQuery, AvailableSite[] | AdapterError>;
 
 const monthOf = (date: string) => date.slice(0, 7);
 
-/** 입실일부터 밤마다의 날짜(입실일 포함, 퇴실일 제외). */
-
-/**
- * 조회 단위 하나를 달력으로 판정한다. 밤마다 칸에 `click`이 있고 구역의 남은 수가 1 이상이어야 빈자리이며 남은 수는 밤마다의 최솟값이다(같은 자리가 이어진다는 보장은 없다).
- * 어느 밤이든 `click`이 없으면 빈자리 없음이다. 밤이 속한 달의 달력을 받지 못했으면 그 달을 읽다 난 오류(`monthFailure`)가 이 단위의 결과다.
- */
 /**
  * 강천섬은 남은 수가 없는 구역의 `dl`을 그 날짜 칸에서 뺀다(2026-10-13 기록 10/17: 5구역 중 3구역만 나온다). 카탈로그 `ref.soldOutOmitted`가 있는 시설은 `click` 칸에서 안 보이는 구역을 남은 수 0으로 읽는다.
  * 다른 시설은 모든 구역을 보여 주므로 구역이 안 보이면 구조 변경이다. 구역 이름이 바뀐 경우는 `warnZoneDrift`의 경고로 드러난다.
  */
 const omitsSoldOut = (facility: string): boolean => fieldsRef(INFO, facility, ["tenant", "pageId"]).soldOutOmitted === "true";
 
+/**
+ * 조회 단위 하나를 달력으로 판정한다. 밤마다 칸에 `click`이 있고 구역의 남은 수가 1 이상이어야 빈자리이며 남은 수는 밤마다의 최솟값이다(같은 자리가 이어진다는 보장은 없다).
+ * 어느 밤이든 `click`이 없으면 빈자리 없음이다. 밤이 속한 달의 달력을 받지 못했으면 그 달을 읽다 난 오류(`monthFailure`)가 이 단위의 결과다.
+ */
 function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, monthFailure: AdapterError | undefined): AvailableSite[] | AdapterError {
   let remaining = Infinity;
   for (const night of nightsOf(q)) {

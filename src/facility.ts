@@ -1,4 +1,4 @@
-import type { FacilityInfo, ProviderInfo } from "./types.js";
+import { AdapterError, type FacilityInfo, type ProviderInfo } from "./types.js";
 
 /**
  * 예약처 안의 시설 하나를 고른다. 코드를 안 주면 첫 시설이다(시설이 하나인 예약처용).
@@ -24,4 +24,31 @@ export function defaultFacility(info: Pick<ProviderInfo, "facilities" | "facilit
 export function zoneName(info: Pick<ProviderInfo, "facilities">, facilityCode: string, zoneCode: string): string {
   const facility = info.facilities.find((f) => f.code === facilityCode);
   return facility?.zones.find((z) => z.code === zoneCode)?.name ?? zoneCode;
+}
+
+/** 구역의 자리 목록(카탈로그). 모르는 시설·구역이거나 자리 목록이 없으면 undefined다. */
+export function zoneSeats(info: Pick<ProviderInfo, "facilities">, facilityCode: string, zoneCode: string): readonly string[] | undefined {
+  return info.facilities.find((f) => f.code === facilityCode)?.zones.find((z) => z.code === zoneCode)?.seats;
+}
+
+/**
+ * 시설의 `ref`를 문자열로 읽는다. 시설이 카탈로그에 없거나 `ref`가 문자열이 아니면 `AdapterError("unrecognized")`다.
+ * `what`은 오류 메시지에 쓰는 값 이름이다. 메시지는 `… 시설 X에 값이 없다: what` 꼴이라 이름 뒤에 조사가 붙지 않는다.
+ */
+export function stringRef(info: Pick<ProviderInfo, "id" | "facilities">, facility: string, what: string): string {
+  const ref = info.facilities.find((f) => f.code === facility)?.ref;
+  if (typeof ref !== "string" || !ref) throw new AdapterError("unrecognized", `${info.id} 시설 ${facility}에 값이 없다: ${what}`);
+  return ref;
+}
+
+/**
+ * 시설의 `ref`를 키-값으로 읽는다. 시설이 카탈로그에 없거나 `ref`가 객체가 아니거나 `required` 키 중 하나라도 비면 `AdapterError("unrecognized")`다.
+ * 돌려주는 객체는 `ref` 전체라 선택 키도 읽을 수 있다.
+ */
+export function fieldsRef<K extends string>(info: Pick<ProviderInfo, "id" | "facilities">, facility: string, required: readonly K[]): Record<K, string> & Record<string, string> {
+  const ref = info.facilities.find((f) => f.code === facility)?.ref;
+  if (typeof ref !== "object" || required.some((k) => !ref[k])) {
+    throw new AdapterError("unrecognized", `${info.id} 시설 ${facility}에 ${required.join("·")}가 없다`);
+  }
+  return ref as Record<K, string> & Record<string, string>;
 }

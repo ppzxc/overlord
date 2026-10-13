@@ -254,6 +254,35 @@ describe("xticket 여러 박·여러 시설", () => {
     await p.stop();
   });
 
+  it("둘째 시설이 403(blocked)이면 첫 시설의 빈자리는 알리고, 차단 알림을 보내고, 403 뒤로는 요청이 없다", async () => {
+    const server = xticketServer({ intercept: (r) => (path(r) === "/Web/Book/GetBookPlayDate.json" && (r.headers.Referer ?? "").includes(XTICKET_NAJEONG) ? { status: 403, body: "" } : undefined) });
+    const p = startPoller(() => ({ status: 404, body: "" }), { yaml: two(), server });
+    await settle();
+    expect(p.sent.some((m) => m.text.includes("카라반-11"))).toBe(true);
+    expect(p.sent.some((m) => /차단|blocked/.test(m.text))).toBe(true);
+    expect(p.logs.some((l) => l.msg === "query failed" && l.fields?.kind === "blocked")).toBe(true);
+    const idx = p.allRequests.findIndex((r) => path(r) === "/Web/Book/GetBookPlayDate.json" && (r.headers.Referer ?? "").includes(XTICKET_NAJEONG));
+    expect(idx).toBeGreaterThan(0);
+    expect(p.allRequests.length).toBe(idx + 1);
+    const before = p.allRequests.length;
+    await p.clock.advance(300_000);
+    await settle();
+    expect(p.allRequests.length).toBe(before);
+    await p.stop();
+  });
+
+  it("같은 시설에서 앞 조회 단위가 성공하고 뒤 단위가 blocked여도 앞 단위의 빈자리는 알리고 그 뒤로는 요청이 없다", async () => {
+    const server = xticketServer({ intercept: (r) => (path(r) === "/Web/Book/GetBookProduct010001.json" && form(r).start_date === "20261016" ? { status: 403, body: "" } : undefined) });
+    const p = startPoller(() => ({ status: 404, body: "" }), { yaml: configWith(watch("2026-10-15") + watch("2026-10-16")), server });
+    await settle();
+    expect(p.sent.some((m) => m.text.includes("카라반-11"))).toBe(true);
+    expect(p.sent.some((m) => /차단|blocked/.test(m.text))).toBe(true);
+    const last = p.allRequests.at(-1)!;
+    expect(path(last)).toBe("/Web/Book/GetBookProduct010001.json");
+    expect(form(last).start_date).toBe("20261016");
+    await p.stop();
+  });
+
   it("뒤 시설이 실패해도 앞 시설에서 이미 받은 빈자리는 알린다", async () => {
     const server = xticketServer({ intercept: (r) => (path(r) === "/Web/Book/GetBookPlayDate.json" && (r.headers.Referer ?? "").includes(XTICKET_NAJEONG) ? { status: 503, body: "" } : undefined) });
     const p = startPoller(() => ({ status: 404, body: "" }), { yaml: two(), server });
@@ -276,6 +305,7 @@ describe("xticket 신호 분류", () => {
   it.each([
     ["error1 + redirect(로그인 요구)", html(JSON.stringify({ error1: { message: "로그인이 필요합니다." }, redirect: true, returnUrl: "/web/main" }))],
     ["로그인 화면 HTML", html('<html><form action="/Web/Member/MemberLogin.json"><input id="login_id"><input id="login_passwd"></form></html>')],
+    ["HTTP 401", { status: 401, body: "" }],
     ["HTTP 403", { status: 403, body: "" }],
     ["HTTP 429", { status: 429, body: "" }],
     ["차단 화면", html("<html><title>접근이 차단되었습니다</title><body>비정상적인 접근이 감지되어 차단되었습니다.</body></html>")],

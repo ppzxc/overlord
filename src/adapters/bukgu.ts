@@ -9,9 +9,9 @@ import {
   type ProviderInfo,
 } from "../types.js";
 import { facilities, rowClassZones } from "../catalogs/bukgu.js";
-import { resolveFacility, zoneName } from "../facility.js";
+import { fieldsRef, resolveFacility, zoneName } from "../facility.js";
 import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
-import { warnDriftOnce } from "../netfunnel.js";
+import { warnDriftOnce } from "../drift.js";
 import { addDays, kstDate, nextMonthOf, weekdayKey } from "../schedule.js";
 import { tlsStreakRound } from "../tls-streak.js";
 
@@ -39,12 +39,7 @@ const INFO: ProviderInfo = {
   facilityRequired: true,
 };
 
-const siteKindCodeOf = (facility: string): string => {
-  const ref = resolveFacility(INFO, facility).ref;
-  if (typeof ref !== "object" || !ref.siteKindCode) throw new Error(`bukgu 시설 ${facility}에 siteKindCode가 없다`);
-  return ref.siteKindCode;
-};
-
+const siteKindCodeOf = (facility: string): string => fieldsRef(INFO, facility, ["siteKindCode"]).siteKindCode;
 
 /** 표의 한 행. 구역은 사이트명 칸의 색 클래스에서 읽는다. */
 interface RawRow {
@@ -70,11 +65,11 @@ interface UnattributedRow {
 /**
  * 봇 탐지 장치·captcha 표지는 `BOT_DETECTION`이다. 북구의 조회 흐름에는 없었고(기록한 화면·스크립트·조회 응답 어디에도 없다), 나타나면 새 신호로 보고 멈춘다.
  * 로그인 요구: 조회 응답의 로그인 요구 원문은 기록이 없다. 확인한 것은 화면 JS(`subIdx`)가 로그인 안 한 방문자를 `/login.do`로 보내는 모양(`location.href="/login.do"`)뿐이라,
- * 표 없이 그런 이동 스크립트(또는 meta refresh)가 오면 로그인 요구다. 기록한 사이트 전체 화면은 머리말에 `<a class="login_btn" href="/login.do">` 링크를 달고 예약 화면은 위 스크립트도 함께 가진다.
- * 그래서 로그인 링크나 이동 스크립트가 있어도 사이트 틀(`login_btn`)이 보이면 로그인 요구가 아니라 알 수 없는 화면(`unrecognized`)이다. 로그인 경로로의 리다이렉트(Location)는 HTTP 층이 접근 금지로 막는다.
+ * 표 없이 그런 이동 스크립트(또는 meta refresh)가 오면 로그인 요구다. 기록한 예약처 화면은 머리말에 `<a class="login_btn" href="/login.do">` 링크를 달고 예약 화면은 위 스크립트도 함께 가진다.
+ * 그래서 로그인 링크나 이동 스크립트가 있어도 예약처 틀(`login_btn`)이 보이면 로그인 요구가 아니라 알 수 없는 화면(`unrecognized`)이다. 로그인 경로로의 리다이렉트(Location)는 HTTP 층이 접근 금지로 막는다.
  */
 const LOGIN_REDIRECT = /(?:location(?:\.href)?\s*=|location\.(?:replace|assign)\s*\()\s*['"]\/?login\.do|http-equiv\s*=\s*["']?refresh["']?[^>]*login\.do/i;
-const SITE_FRAME = /class="login_btn"/;
+const PROVIDER_FRAME = /class="login_btn"/;
 
 /** 표를 읽는다. 표 구조(표, 사이트명·예약현황 열, 사이트명, 행)가 깨지면 구조 변경이다. 값의 뜻(구역, 예약현황)은 보지 않는다. */
 function parseTable(html: string): RawRow[] {
@@ -83,7 +78,7 @@ function parseTable(html: string): RawRow[] {
   const $ = cheerio.load(html);
   const table = $("table#tableSite");
   if (table.length === 0) {
-    if (LOGIN_REDIRECT.test(html) && !SITE_FRAME.test(html)) throw new AdapterError("blocked", `${where}: 표 대신 로그인 요구가 왔다`);
+    if (LOGIN_REDIRECT.test(html) && !PROVIDER_FRAME.test(html)) throw new AdapterError("blocked", `${where}: 표 대신 로그인 요구가 왔다`);
     throw new AdapterError("unrecognized", `${where}: 표(table#tableSite)가 없다`);
   }
   const headers = table.find("thead th").toArray().map((th) => $(th).text().trim());
@@ -201,7 +196,7 @@ function openForFirstCome(date: string, today: string, gate: LotteryGate): boole
 
 /**
  * 선착순 개시 시각이 지났는데도 달력 상한이 다음 달 1일 이하(추첨 기간의 한계)에 머물면 다음 달 날짜의 알림이 나가지 않는다. 안전한 쪽으로 실패하지만 선착순 알림을 놓는 일이라 경고를 남긴다.
- * 경고는 로그 한 줄이다(같은 달에 한 번). 헬스 상태는 바꾸지 않는다(예약처가 응답하고 있고 이달 날짜는 정상이라 멈추거나 구조 변경으로 알릴 일이 아니다).
+ * 경고는 로그 한 줄이다(같은 달에 한 번). 예약처 상태는 바꾸지 않는다(예약처가 응답하고 있고 이달 날짜는 정상이라 멈추거나 구조 변경으로 알릴 일이 아니다).
  */
 function warnIfGateStuck(gate: LotteryGate, nextMonth: string, ctx: AdapterContext, now: Date): void {
   if (gate.firstComeAtMs === undefined || now.getTime() < gate.firstComeAtMs || gate.limitDate > `${nextMonth}-01`) return;
@@ -243,39 +238,32 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
   };
   let stopped: AdapterError | undefined;
   for (const q of units) {
-    // 최대 박수는 1이라 설정이 2박 이상을 거부한다. 아래 여러 박 처리는 최대 박수를 올리면 그대로 쓰인다.
-    const max = resolveFacility(INFO, q.facility).maxNights ?? INFO.maxNights;
-    if (q.nights > max) throw new Error(`bukgu ${q.facility}는 최대 ${max}박만 읽는다(${q.nights}박)`);
+    // 1박만 읽는다. 설정이 2박 이상을 거부하므로 여기까지 오지 않는다. 최대 박수를 올릴 때는 여러 박 교집합 처리를 다시 넣는다.
+    if (q.nights !== 1) throw new Error(`bukgu ${q.facility}는 1박만 읽는다(${q.nights}박)`);
     if (stopped) {
       results.set(q, stopped);
       continue;
     }
     try {
-      const dates = Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
+      const date = q.checkIn;
       // 이달 안의 밤만 걸린 단위는 예약 화면을 받지 않는다.
-      if (dates.some((d) => d.slice(0, 7) > today.slice(0, 7))) {
+      if (date.slice(0, 7) > today.slice(0, 7)) {
         const g = await gateOf();
-        if (dates.some((d) => d.slice(0, 7) === nextMonth)) warnIfGateStuck(g, nextMonth, ctx, now);
-        if (!dates.every((d) => openForFirstCome(d, today, g))) {
+        if (date.slice(0, 7) === nextMonth) warnIfGateStuck(g, nextMonth, ctx, now);
+        if (!openForFirstCome(date, today, g)) {
           results.set(q, []); // 추첨 대상(또는 아직 예약을 받지 않는) 밤이 낀 단위: 표를 조회하지 않는다.
           continue;
         }
       }
-      const perNight: Table[] = [];
-      for (const date of dates) {
-        const key = `${q.facility}|${date}`;
-        if (!tables.has(key)) tables.set(key, await readTable(q.facility, date, ctx)); // 직렬: 요청은 HTTP 층이 한 줄로 보낸다.
-        perNight.push(tables.get(key)!);
-      }
+      const key = `${q.facility}|${date}`;
+      if (!tables.has(key)) tables.set(key, await readTable(q.facility, date, ctx)); // 직렬: 요청은 HTTP 층이 한 줄로 보낸다.
+      const table = tables.get(key)!;
       // 응답이 왔는데 감시하는 구역의 행이 없으면 화면 모양이 바뀐 것이다. 빈자리 없음으로 넘기지 않는다.
-      const missing = perNight.find((t) => !t.rows.some((r) => r.zone === q.zone));
-      if (missing) {
-        const why = missing.unattributed > 0 ? `(구역을 알 수 없는 행 ${missing.unattributed}개)` : "";
+      if (!table.rows.some((r) => r.zone === q.zone)) {
+        const why = table.unattributed > 0 ? `(구역을 알 수 없는 행 ${table.unattributed}개)` : "";
         throw new UnitStructureError(`reservationCntAjax.do: 표에 감시하는 구역 ${zoneName(INFO, q.facility, q.zone)}(${q.zone})의 행이 없다${why}`);
       }
-      // 여러 박이면 같은 사이트명이 밤마다 예약가능일 때만 빈자리다.
-      const open = perNight.map((t) => new Set(t.rows.filter((r) => r.zone === q.zone && r.open).map((r) => r.name)));
-      results.set(q, [...open[0]!].filter((n) => open.every((s) => s.has(n))).map((name) => ({ id: name, name })));
+      results.set(q, table.rows.filter((r) => r.zone === q.zone && r.open).map((r) => ({ id: r.name, name: r.name })));
     } catch (e) {
       if (e instanceof UnitStructureError) {
         results.set(q, e); // 이 단위만의 구조 변경이다. 요청은 실패하지 않았으니 다른 단위는 계속 읽는다.
@@ -295,12 +283,6 @@ export const bukguAdapter: ProviderAdapter = {
   id: "bukgu",
 
   describe: () => INFO,
-
-  async queryAvailability(q, ctx) {
-    const found = (await runBatch([q], ctx)).get(q);
-    if (found instanceof Error) throw found;
-    return found ?? [];
-  },
 
   /** 같은 (시설, 밤)은 구역이 여럿이어도 한 번만 조회한다. */
   queryAvailabilityBatch: runBatch,

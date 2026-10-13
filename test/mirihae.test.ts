@@ -210,7 +210,7 @@ describe("미리해 폴러", () => {
       await p.stop();
     });
 
-    it("재사용한 토큰을 서버가 게이트로 되돌려 보내면 실패로 치지 않고 같은 바퀴에서 게이트를 새로 지나며 헬스 알림이 없다", async () => {
+    it("재사용한 토큰을 서버가 게이트로 되돌려 보내면 실패로 치지 않고 같은 바퀴에서 게이트를 새로 지나며 예약처 상태 알림이 없다", async () => {
       let pageHits = 0;
       const server = mirihaeServer({ page: () => (++pageHits === 2 ? GATE_302 : undefined) }); // 둘째 바퀴의 재사용 요청만 거절한다
       const p = run({ from: "2026-10-14" }, { ...short, server });
@@ -228,7 +228,7 @@ describe("미리해 폴러", () => {
       ]);
       expect(p.allRequests[7]!.headers["X-Mirihae-Reservation-Token"]).toBeUndefined(); // 거절한 토큰을 게이트에 들고 가지 않는다
       expect(failedKinds(p)).toEqual([]);
-      expect(p.sent).toHaveLength(1); // 헬스 알림도, 같은 빈자리의 재알림도 없다
+      expect(p.sent).toHaveLength(1); // 예약처 상태 알림도, 같은 빈자리의 재알림도 없다
       expect(p.logs.filter((l) => l.msg === "mirihae gateToken rejected")).toHaveLength(1);
       await p.stop();
     });
@@ -268,7 +268,7 @@ describe("미리해 폴러", () => {
       const p = run({ from: "2026-10-14" }, { ...short, server });
       await settle();
       expect(failedKinds(p)).toEqual(["transient"]);
-      for (let i = 0; i < 20 && p.allRequests.length === 2; i++) await lap(p); // 실패한 바퀴 뒤에는 헬스가 간격을 늘린다
+      for (let i = 0; i < 20 && p.allRequests.length === 2; i++) await lap(p); // 실패한 바퀴 뒤에는 예약처 상태가 간격을 늘린다
       expect(p.allRequests.slice(2).map(line).slice(0, 2)).toEqual(["GET mirihae.com/dytc/camping/V39628874", "GET cdn.mirihae.com/api/entering"]);
       expect(p.logs.filter((l) => l.msg === "mirihae gateToken reused")).toEqual([]);
       await p.stop();
@@ -1150,7 +1150,7 @@ describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지�
     { title: "예약 화면 429", srv: () => server(() => status(429)) },
     { title: "예약 화면의 로그인 리다이렉트", srv: () => server(() => ({ status: 302, body: "", location: "https://mirihae.com/dytc/login.do" })) },
     { title: "예약 화면의 captcha 표지", srv: () => server(() => status(200, mirihaePageWith({}, ($) => void $("body").append("<div class='captcha'></div>")))) },
-  ])("첫 시설의 $title 은 사이트 전체의 차단이라 다음 시설의 요청 없이 둘 다 blocked다", async ({ srv }) => {
+  ])("첫 시설의 $title 은 예약처 전체의 차단이라 다음 시설의 요청 없이 둘 다 blocked다", async ({ srv }) => {
     const p = start(srv());
     await settle();
     expect(failedKinds(p)).toEqual(["blocked", "blocked"]);
@@ -1159,7 +1159,7 @@ describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지�
     await p.stop();
   });
 
-  it("첫 시설의 calendar.do가 차단(403)이면 사이트 전체의 차단이라 다음 시설의 요청 없이 둘 다 blocked다", async () => {
+  it("첫 시설의 calendar.do가 차단(403)이면 예약처 전체의 차단이라 다음 시설의 요청 없이 둘 다 blocked다", async () => {
     const yaml = configWith(watch({ from: "2026-11-02" }, ["야영장A"], "danyang-cheondong"), watch({ from: "2026-10-14" }, ["데크야영장C"], "danyang-darian"));
     const p = start(server(ok, { calendar: () => status(403) }), yaml);
     await settle();
@@ -1168,7 +1168,7 @@ describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지�
     await p.stop();
   });
 
-  it("게이트 연결 실패는 사이트 전체의 문제라 다음 시설의 요청 없이 둘 다 transient다", async () => {
+  it("게이트 연결 실패는 예약처 전체의 문제라 다음 시설의 요청 없이 둘 다 transient다", async () => {
     const p = start(
       server(ok, {
         intercept: (req) => {
@@ -1183,7 +1183,7 @@ describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지�
     await p.stop();
   });
 
-  it("예약 화면 연결 실패도 사이트 전체의 문제라 다음 시설의 요청 없이 둘 다 transient다", async () => {
+  it("예약 화면 연결 실패도 예약처 전체의 문제라 다음 시설의 요청 없이 둘 다 transient다", async () => {
     const p = start(
       server(ok, {
         intercept: (req) => {
@@ -1207,7 +1207,7 @@ describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지�
   });
 });
 
-describe("미리해 헬스 알림(신호 분류 표)", () => {
+describe("미리해 예약처 상태 알림(신호 분류 표)", () => {
   const status = (code: number, body = "") => ({ status: code, body });
   const kinds = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "query failed").map((l) => l.fields?.kind);
   const texts = (p: ReturnType<typeof run>) => p.sent.map((m) => m.text).join("\n");

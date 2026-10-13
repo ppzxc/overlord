@@ -1,17 +1,17 @@
-import { addDays, kstDate, nextMonthOf } from "../schedule.js";
+import { addDays, kstDate, nextMonthOf, nightsOf } from "../schedule.js";
 import {
   AdapterError,
   type AdapterContext,
   type AvailabilityQuery,
   type AvailableSite,
   type FacilityObservation,
-  type HttpClient,
   type ProviderAdapter,
   type ProviderInfo,
-  type TransportResponse,
 } from "../types.js";
 import { facilities } from "../catalogs/ulju.js";
-import { BlockedPathError } from "../http.js";
+import { stringRef } from "../facility.js";
+import { assertOk, send } from "../adapter-signals.js";
+import { eachDrift, warnDriftOnce } from "../drift.js";
 
 const ORIGIN = "https://camping.ulju.ulsan.kr";
 const DAY_PATH = "/ujcamping/campsite/get_cal_day_data_list";
@@ -43,14 +43,14 @@ const INFO: ProviderInfo = {
   facilityRequired: true,
 };
 
-const classesOf = (facility: string): string => {
-  const ref = facilities.find((f) => f.code === facility)?.ref;
-  if (typeof ref !== "string") throw new AdapterError("unrecognized", `ulju 시설 ${facility}에 classes 값이 없다`);
-  return ref;
-};
+const classesOf = (facility: string): string => stringRef(INFO, facility, "classes 값");
 
-/** 로그인 화면·차단 안내·봇 탐지·captcha가 JSON 자리에 온 것을 알아보는 표지. 표지가 없는 JSON 아님은 unrecognized다. */
-const LOGIN_OR_BLOCK_PAGE = /memberIntro\/login|접근이 (차단|제한)|비정상적인 접근|botmanager|crawlingCheck|dynapath|captcha/i;
+/**
+ * 로그인 폼·차단 안내·봇 탐지·captcha 경로가 JSON 자리에 온 것을 알아보는 구체 표지(로그인 폼 action·비밀번호 입력, 차단 안내 문구, 봇 탐지 장치 이름, captcha 경로).
+ * 메뉴의 로그인 링크(memberIntro/login)와 맨 낱말 captcha는 기록한 모든 화면에 있어 표지가 아니다. 표지가 없는 JSON 아님은 unrecognized다.
+ * 로그인 경로로 가는 리다이렉트는 blockedPaths와 공통 리다이렉트 판정이 잡는다.
+ */
+const LOGIN_OR_BLOCK_PAGE = /<form[^>]*action=["'][^"']*memberIntro\/login|type=["']?password|접근이 (차단|제한)|비정상적인 접근|botmanager|crawlingCheck|dynapath|\/captcha/i;
 
 /** 이번 달과 다음 달만 조회시킨다. 다음 달 날짜는 이번 달 11일 10:00 KST부터 선착순이고 그 전은 추첨 기간이다. */
 const FCFS_DAY = 11;
@@ -65,13 +65,6 @@ function isQueryable(date: string, now: Date): boolean {
   return now.getTime() >= Date.parse(`${month(today)}-${String(FCFS_DAY).padStart(2, "0")}T${FCFS_TIME}:00+09:00`);
 }
 
-const failure = (res: TransportResponse): AdapterError | undefined => {
-  if (res.status === 401 || res.status === 403 || res.status === 429) return new AdapterError("blocked", `${DAY_PATH}: HTTP ${res.status}`);
-  if (res.status >= 500) return new AdapterError("transient", `${DAY_PATH}: HTTP ${res.status}`);
-  if (res.status !== 200) return new AdapterError("unrecognized", `${DAY_PATH}: 예상 밖 HTTP ${res.status}`);
-  return undefined;
-};
-
 interface Row {
   CAMP_ID: string;
   NAME: string;
@@ -82,22 +75,16 @@ interface Row {
 
 /** 한 시설의 한 밤을 조회해 행을 돌려준다. booking_ended와 no_list는 행이 없다는 뜻의 null이다. */
 async function fetchNight(classes: string, date: string, ctx: AdapterContext): Promise<Row[] | null> {
-  let res: TransportResponse;
-  try {
-    res = await ctx.http.post(
+  // 연결 실패·시간 초과는 일시 오류라 다음 바퀴에 다시 시도한다.
+  const res = await send(DAY_PATH, () =>
+    ctx.http.post(
       `${ORIGIN}${DAY_PATH}`,
       JSON.stringify({ sql_state: "GetData", select_date: date, classes, facility: "", use_only: "N" }),
       // 페이지(mscommon.js getPostData)와 같은 헤더. X-CSRF-TOKEN은 페이지에 #csrf_token 요소가 없어 빈 값이다.
       { contentType: "application/json", headers: { "X-HTTP-Method-Override": "POST", "X-CSRF-TOKEN": "" } },
-    );
-  } catch (e) {
-    if (e instanceof BlockedPathError) throw new AdapterError("blocked", `${DAY_PATH}: 로그인·접근 금지 경로로 보내졌다(${e.message})`);
-    if (e instanceof AdapterError) throw e;
-    // 연결 실패·시간 초과는 다음 바퀴에 다시 시도한다.
-    throw new AdapterError("transient", `${DAY_PATH}: ${e instanceof Error ? e.message : String(e)}`);
-  }
-  const bad = failure(res);
-  if (bad) throw bad;
+    ),
+  );
+  assertOk(res, DAY_PATH);
   let body: unknown;
   try {
     body = JSON.parse(res.body);
@@ -120,9 +107,6 @@ async function fetchNight(classes: string, date: string, ctx: AdapterContext): P
   return list as Row[];
 }
 
-/** 세션마다 이미 경고한 구역 차이. 같은 차이는 한 번만 남긴다. */
-const warnedDrift = new WeakMap<HttpClient, Set<string>>();
-
 /**
  * 카탈로그와 다른 구역(응답에만 있거나 응답에서 빠진 구역)과, 자리 목록이 있는 구역의 자리 차이는 경고만 남긴다.
  * 감시 조건이 쓰는 구역이 빠진 것은 조회 단위 판정이 실패로 처리한다. 자리는 실패로 치지 않는다.
@@ -132,26 +116,16 @@ function warnDrift(facility: string, rows: Row[], ctx: AdapterContext): void {
   const zones = facilities.find((f) => f.code === facility)?.zones ?? [];
   const known = new Set(zones.map((z) => z.code));
   const seen = new Set(rows.map((r) => r.FACILITY_ID));
-  const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
-  warnedDrift.set(ctx.http, warned);
-  const once = (msg: string, fields: { change: string; zone: string; seat?: string }) => {
-    const key = `${msg}:${facility}:${fields.change}:${fields.zone}:${fields.seat ?? ""}`;
-    if (warned.has(key)) return;
-    warned.add(key);
-    ctx.log?.(msg, { facility, ...fields });
-  };
-  for (const z of seen) if (!known.has(z)) once("ulju zone drift", { change: "new", zone: z });
-  for (const z of known) if (!seen.has(z)) once("ulju zone drift", { change: "gone", zone: z });
+  const once = (msg: string, fields: { change: string; zone: string; seat?: string }) =>
+    warnDriftOnce(ctx, `${msg}:${facility}:${fields.change}:${fields.zone}:${fields.seat ?? ""}`, msg, { facility, ...fields });
+  eachDrift(seen, known, (change, zone) => once("ulju zone drift", { change, zone }));
   for (const zone of zones) {
     if (!zone.seats || !seen.has(zone.code)) continue;
     const listed = new Set(zone.seats);
     const actual = new Set(rows.filter((r) => r.FACILITY_ID === zone.code).map((r) => r.NAME));
-    for (const seat of actual) if (!listed.has(seat)) once("ulju seat drift", { change: "new", zone: zone.code, seat });
-    for (const seat of listed) if (!actual.has(seat)) once("ulju seat drift", { change: "gone", zone: zone.code, seat });
+    eachDrift(actual, listed, (change, seat) => once("ulju seat drift", { change, zone: zone.code, seat }));
   }
 }
-
-const nightsOf = (q: AvailabilityQuery) => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 
 /**
  * 조회 단위마다 밤을 조회해 빈자리를 가린다. 바퀴 안에서 첫 실패가 나면 남은 요청은 보내지 않고,
@@ -205,12 +179,6 @@ export const uljuAdapter: ProviderAdapter = {
   id: "ulju",
 
   describe: () => INFO,
-
-  async queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]> {
-    const found = (await queryBatch([q], ctx)).get(q);
-    if (found instanceof AdapterError) throw found;
-    return found ?? [];
-  },
 
   /** 밤마다 서버의 조회 창(이번 달, 다음 달은 11일 10:00부터)에 드는 단위만 조회한다. 아닌 단위는 코어가 빼서 요청 없는 바퀴를 성공으로 세지 않는다. */
   isQueryable: (q, now) => nightsOf(q).every((d) => isQueryable(d, now)),

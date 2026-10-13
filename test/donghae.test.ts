@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 import { donghaeAdapter } from "../src/adapters/donghae.js";
 import { createHttpClient } from "../src/http.js";
+import { queryOne } from "../src/query-one.js";
 import { DONGHAE_ENTRY, DONGHAE_ZONES, ENV, FakeClock, configWith, donghaeServer, fakeHttp, settle, startPoller } from "./harness.js";
 
 describe("동해시 시설 ref", () => {
@@ -12,7 +13,7 @@ describe("동해시 시설 ref", () => {
       return { status: 500, body: "" };
     });
     const q = { facility: "nope", zone: "자동차캠핑장", checkIn: "2026-10-03", nights: 1 };
-    await expect(donghaeAdapter.queryAvailability(q, { clock: new FakeClock(), http })).rejects.toThrow(/nope/);
+    await expect(queryOne(donghaeAdapter, q, { clock: new FakeClock(), http })).rejects.toThrow(/nope/);
     await expect(donghaeAdapter.listZones!(q, { clock: new FakeClock(), http })).rejects.toThrow(/nope/);
     expect(requests).toBe(0);
   });
@@ -670,7 +671,7 @@ describe("동해시 오픈 경쟁 시간", () => {
     await p.stop();
   });
 
-  it("구간 안에서는 헬스 알림이 없고 상태가 바뀌지 않는다", async () => {
+  it("구간 안에서는 예약처 상태 알림이 없고 상태가 바뀌지 않는다", async () => {
     const p = run(donghaeServer({ counts: () => 3 }));
     await toRush(p);
     await p.clock.advance(35 * MIN);

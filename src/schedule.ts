@@ -104,3 +104,8 @@ export function msUntilNext(now: Date, hhmm: string): number {
   const at = kstInstant(today, hhmm);
   return (at > now.getTime() ? at : kstInstant(addDays(today, 1), hhmm)) - now.getTime();
 }
+
+/** 조회 단위가 걸친 밤마다의 날짜 목록(입실일부터 박수만큼). */
+export function nightsOf(q: { checkIn: string; nights: number }): string[] {
+  return Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
+}

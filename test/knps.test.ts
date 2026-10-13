@@ -131,6 +131,17 @@ describe("국립공원 폴러", () => {
     await p.stop();
   });
 
+  it.each([403, 429])("조회 응답 HTTP %i는 첫 바퀴에 곧바로 blocked로 멈추고 알리며 다음 바퀴 요청이 없다", async (status) => {
+    const p = run("2026-10-15", { server: knpsServer({ listStatus: status }) });
+    await settle();
+    expect(p.sent.some((m) => /blocked|차단/.test(m.text))).toBe(true);
+    const before = p.allRequests.length;
+    await p.clock.advance(600_000);
+    await settle();
+    expect(p.allRequests.length).toBe(before);
+    await p.stop();
+  });
+
   it("NetFunnel 301은 차단으로 멈추고 알리며 campsiteList.do는 보내지 않는다", async () => {
     const p = run("2026-10-15", { server: knpsServer({ queue: () => "5002:301:key=&nwait=0" }) });
     await settle();
@@ -324,7 +335,7 @@ const lotteryReqs = (p: ReturnType<typeof run>) => p.allRequests.filter((r) => r
 const listReqs = (p: ReturnType<typeof run>) => p.allRequests.filter((r) => r.url.endsWith("campsiteList.do"));
 
 describe("국립공원 오픈 경쟁 시간", () => {
-  it("10:00 KST 바퀴는 10:30으로 미뤄지고 그동안 요청·헬스 알림이 없으며 정체로 보지 않는다", async () => {
+  it("10:00 KST 바퀴는 10:30으로 미뤄지고 그동안 요청·예약처 상태 알림이 없으며 정체로 보지 않는다", async () => {
     const p = run("2026-10-15");
     await settle();
     await p.clock.advance(55 * MIN); // 09:55. 시작은 09:00이다.

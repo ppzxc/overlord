@@ -23,10 +23,10 @@ import {
   type ZoneObservation,
 } from "../types.js";
 import { facilities } from "../catalogs/mirihae.js";
-import { resolveFacility } from "../facility.js";
+import { fieldsRef, resolveFacility } from "../facility.js";
 import { BOT_DETECTION, ConnectionFailure, UnitStructureError, assertOk, redirectOf, send, unknownRedirect } from "../adapter-signals.js";
-import { warnDriftOnce } from "../netfunnel.js";
-import { addDays } from "../schedule.js";
+import { eachDrift, warnDriftOnce } from "../drift.js";
+import { nightsOf } from "../schedule.js";
 
 const ORIGIN = "https://mirihae.com";
 /** 게이트의 정적 화면(`entering.html`, `waiting.html`)이 있는 곳. API는 이 화면의 JS가 `https://cdn.mirihae.com`으로 보낸다. */
@@ -81,8 +81,7 @@ const INFO: ProviderInfo = {
 };
 
 const pageUrlOf = (facility: string): string => {
-  const ref = resolveFacility(INFO, facility).ref;
-  if (typeof ref !== "object" || !ref.tenant || !ref.pageId) throw new Error(`mirihae 시설 ${facility}에 tenant·pageId가 없다`);
+  const ref = fieldsRef(INFO, facility, ["tenant", "pageId"]);
   return `${ORIGIN}/${ref.tenant}/camping/${ref.pageId}`;
 };
 
@@ -258,9 +257,8 @@ function warnZoneDrift(facility: string, calendar: Calendar, ctx: AdapterContext
   const seen = new Set<string>();
   for (const day of calendar.days.values()) if (day.open) for (const name of day.zones.keys()) seen.add(name);
   if (seen.size === 0) return; // 예약할 수 있는 날이 하나도 없으면 구역을 볼 수 없다
-  const known = resolveFacility(INFO, facility).zones.map((z) => z.code);
-  for (const name of seen) if (!known.includes(name)) warnDriftOnce(ctx, `${facility}:new:${name}`, "mirihae zone drift", { facility, change: "new", zone: name });
-  for (const name of known) if (!seen.has(name)) warnDriftOnce(ctx, `${facility}:gone:${name}`, "mirihae zone drift", { facility, change: "gone", zone: name });
+  const known = new Set(resolveFacility(INFO, facility).zones.map((z) => z.code));
+  eachDrift(seen, known, (change, zone) => warnDriftOnce(ctx, `${facility}:${change}:${zone}`, "mirihae zone drift", { facility, change, zone }));
 }
 
 /** 입장 토큰(`gateToken`)의 수명. 받은 시각에서 300초다(기록 #84: 토큰 `exp`와 받은 시각의 차이, 만료 20초 뒤 요청은 302로 게이트에 되돌려 보냈다). */
@@ -389,7 +387,6 @@ type Results = Map<AvailabilityQuery, AvailableSite[] | AdapterError>;
 const monthOf = (date: string) => date.slice(0, 7);
 
 /** 입실일부터 밤마다의 날짜(입실일 포함, 퇴실일 제외). */
-const nightDates = (q: AvailabilityQuery): string[] => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 
 /**
  * 조회 단위 하나를 달력으로 판정한다. 밤마다 칸에 `click`이 있고 구역의 남은 수가 1 이상이어야 빈자리이며 남은 수는 밤마다의 최솟값이다(같은 자리가 이어진다는 보장은 없다).
@@ -397,7 +394,7 @@ const nightDates = (q: AvailabilityQuery): string[] => Array.from({ length: q.ni
  */
 function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, monthFailure: AdapterError | undefined): AvailableSite[] | AdapterError {
   let remaining = Infinity;
-  for (const night of nightDates(q)) {
+  for (const night of nightsOf(q)) {
     const calendar = calendars.get(monthOf(night));
     if (!calendar) return monthFailure ?? new UnitStructureError(`예약 화면: ${night}가 속한 달의 달력이 없다`);
     const day = calendar.days.get(night);
@@ -415,14 +412,14 @@ function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, monthFail
  * - `blocked`: 차단·로그인 요구·captcha. 예약처가 막은 것이고 ADR 0002에 따라 더 두드리지 않는다.
  * - 연결 실패(`ConnectionFailure`): 게이트(`cdn.mirihae.com`)든 예약 화면(`mirihae.com`)이든 호스트에 닿지 못했다.
  * - `unavailable`: 게이트 403(사전 대기)은 스펙이 "예약처가 일부러 막은 것"으로 보고 30분 뒤에 다시 보라는 신호다. 시설마다 따로인지 확인하지 못했고
- *   헬스 상태(점검 중, 30분 휴식)는 예약처 단위라 보수적으로 사이트 전체로 본다. 사전 대기 중인 게이트를 다른 시설로 더 두드리지 않는다.
+ *   예약처 상태(점검 중, 30분 휴식)는 예약처 단위라 보수적으로 예약처 전체로 본다. 사전 대기 중인 게이트를 다른 시설로 더 두드리지 않는다.
  * 그 밖의 실패(`unrecognized`: 404·구조 변경·calendar.do 실패, `transient`: 게이트 5xx·대기 상한 초과·토큰 미수신)는 그 시설에 국한된 것으로 본다.
  */
-const isSiteWide = (e: AdapterError): boolean => e.kind === "blocked" || e.kind === "unavailable" || e instanceof ConnectionFailure;
+const isProviderWide = (e: AdapterError): boolean => e.kind === "blocked" || e.kind === "unavailable" || e instanceof ConnectionFailure;
 
 /**
  * 한 바퀴. 시설마다 게이트를 지나 예약 화면(이번 달 달력)을 한 번 읽고, 조회 단위의 밤이 속한 다른 달은 달마다 `calendar.do`를 한 번씩 읽어 그 시설의 조회 단위를 모두 판정한다.
- * 게이트·화면·달력 요청이 실패하면 사이트 전체의 문제(`isSiteWide`)는 남은 시설의 조회 단위까지 그 실패를 받고(요청을 더 보내지 않는다), 그 밖의 실패는 그 시설의 조회 단위만 받고 다음 시설을 이어서 조회한다.
+ * 게이트·화면·달력 요청이 실패하면 예약처 전체의 문제(`isProviderWide`)는 남은 시설의 조회 단위까지 그 실패를 받고(요청을 더 보내지 않는다), 그 밖의 실패는 그 시설의 조회 단위만 받고 다음 시설을 이어서 조회한다.
  * 다른 달 요청이 실패하면 같은 시설 안에서는 그 달을 읽지 못해 판정할 수 없는 단위만 그 실패를 받고 화면의 달만 쓰는 단위는 판정한다. 그 시설의 남은 달은 더 요청하지 않는다.
  * 한 단위만의 구조 변경(감시 구역이 칸에서 사라짐)은 그 단위만 실패다.
  */
@@ -434,10 +431,10 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
     if (q.nights > max) throw new Error(`mirihae ${q.facility}는 최대 ${max}박만 읽는다(${q.nights}박)`);
     byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
   }
-  let siteWideFailure: AdapterError | undefined;
+  let providerWideFailure: AdapterError | undefined;
   for (const [facility, group] of byFacility) {
-    if (siteWideFailure) {
-      for (const q of group) results.set(q, siteWideFailure);
+    if (providerWideFailure) {
+      for (const q of group) results.set(q, providerWideFailure);
       continue;
     }
     try {
@@ -446,21 +443,21 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       warnZoneDrift(facility, first, ctx);
       const calendars = new Map([[first.month, first]]);
       let monthFailure: AdapterError | undefined;
-      for (const month of new Set(group.flatMap((q) => nightDates(q).map(monthOf)))) {
+      for (const month of new Set(group.flatMap((q) => nightsOf(q).map(monthOf)))) {
         if (calendars.has(month)) continue;
         try {
           calendars.set(month, await readMonth(ctx, page, month));
         } catch (e) {
           if (!(e instanceof AdapterError)) throw e;
           monthFailure = e;
-          if (isSiteWide(e)) siteWideFailure = e;
+          if (isProviderWide(e)) providerWideFailure = e;
           break;
         }
       }
       for (const q of group) results.set(q, judge(q, calendars, monthFailure));
     } catch (e) {
       if (!(e instanceof AdapterError)) throw e;
-      if (isSiteWide(e)) siteWideFailure = e;
+      if (isProviderWide(e)) providerWideFailure = e;
       for (const q of group) results.set(q, e);
     }
   }
@@ -471,12 +468,6 @@ export const mirihaeAdapter: ProviderAdapter = {
   id: "mirihae",
 
   describe: () => INFO,
-
-  async queryAvailability(q, ctx) {
-    const found = (await runBatch([q], ctx)).get(q);
-    if (found instanceof Error) throw found;
-    return found ?? [];
-  },
 
   queryAvailabilityBatch: runBatch,
 

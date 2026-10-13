@@ -1,4 +1,4 @@
-import { addDays, kstDate } from "../schedule.js";
+import { addDays, kstDate, nightsOf } from "../schedule.js";
 import {
   AdapterError,
   type AdapterContext,
@@ -11,6 +11,9 @@ import {
   type TransportResponse,
 } from "../types.js";
 import { facilities } from "../catalogs/xticket.js";
+import { stringRef, zoneSeats } from "../facility.js";
+import { assertOk } from "../adapter-signals.js";
+import { eachDrift, warnDriftOnce } from "../drift.js";
 import { BlockedPathError, RedirectLimitError } from "../http.js";
 
 const ORIGIN = "https://camp.xticket.kr";
@@ -43,20 +46,9 @@ const INFO: ProviderInfo = {
 
 const ymd = (date: string) => date.replaceAll("-", "");
 
-const shopEncodeOf = (facility: string): string => {
-  const ref = facilities.find((f) => f.code === facility)?.ref;
-  if (typeof ref !== "string") throw new AdapterError("unrecognized", `xticket 시설 ${facility}에 shopEncode가 없다`);
-  return ref;
-};
+const shopEncodeOf = (facility: string): string => stringRef(INFO, facility, "shopEncode");
 
 const mainUrl = (shopEncode: string) => `${ORIGIN}/web/main?shopEncode=${shopEncode}`;
-
-const failure = (res: TransportResponse, what: string): AdapterError | undefined => {
-  if (res.status === 403 || res.status === 429) return new AdapterError("blocked", `${what}: HTTP ${res.status}`);
-  if (res.status >= 500) return new AdapterError("transient", `${what}: HTTP ${res.status}`);
-  if (res.status !== 200) return new AdapterError("unrecognized", `${what}: 예상 밖 HTTP ${res.status}`);
-  return undefined;
-};
 
 /**
  * 로그인 폼·차단 안내·봇 탐지가 JSON 자리에 온 것을 알아보는 구체 표지(로그인 경로, 로그인 폼 입력 이름, 차단 안내 문구, 봇 탐지·captcha 경로).
@@ -65,7 +57,7 @@ const failure = (res: TransportResponse, what: string): AdapterError | undefined
  */
 const LOGIN_OR_BLOCK_PAGE = /MemberLogin|login_id|login_passwd|접근이 (차단|제한)|비정상적인 접근|botmanager|crawlingCheck|dynapath|\/jcaptcha/i;
 /** 시설 화면에 있으면 안 되는 봇 탐지 장치. captcha는 예약 폼이 원래 싣고 있어 여기서는 보지 않는다. */
-const BOT_DETECTION = /botmanager|crawlingCheck|dynapath/i;
+const FACILITY_PAGE_BOT_DETECTION = /botmanager|crawlingCheck|dynapath/i;
 
 /**
  * 시설 화면 요청이 리다이렉트 상한을 넘은 횟수(시설별, 연속). 세션을 열 때마다 바퀴를 넘어 이어져야 하므로 HTTP 클라이언트(예약처 수명)에 매단다.
@@ -96,17 +88,16 @@ async function openSession(facility: string, ctx: AdapterContext): Promise<strin
     }
     throw classifyThrown(e, "시설 화면");
   }
-  const bad = failure(res, "시설 화면");
-  if (bad) throw bad;
+  assertOk(res, "시설 화면");
   // 사후 검사다: 시설 화면 요청은 이미 나갔고 본문을 받은 뒤에야 본다. 봇 탐지를 피하는 장치가 아니라, 보이면 다음 요청부터 멈추기 위한 것이다.
-  if (BOT_DETECTION.test(res.body)) throw new AdapterError("blocked", "시설 화면에 봇 탐지 장치가 보인다");
+  if (FACILITY_PAGE_BOT_DETECTION.test(res.body)) throw new AdapterError("blocked", "시설 화면에 봇 탐지 장치가 보인다");
   streaks.delete(facility);
   return shopEncode;
 }
 
-/** 이번 바퀴에서 이어 갈 수 있는 오류(차단이 아닌 AdapterError)는 돌려주고, 차단이나 예상 밖 오류는 그대로 던져 전체를 멈춘다. */
-function recoverable(e: unknown): AdapterError {
-  if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
+/** AdapterError는 조회 단위의 결과로 돌려주고, 예상 밖 오류는 그대로 던져 전체를 멈춘다. 차단(blocked)은 호출자가 그 뒤 요청을 멈춘다. */
+function adapterErrorOrThrow(e: unknown): AdapterError {
+  if (!(e instanceof AdapterError)) throw e;
   return e;
 }
 
@@ -128,8 +119,7 @@ async function postJson(path: string, form: Record<string, string>, shopEncode: 
   } catch (e) {
     throw classifyThrown(e, path);
   }
-  const bad = failure(res, path);
-  if (bad) throw bad;
+  assertOk(res, path);
   let body: unknown;
   try {
     body = JSON.parse(res.body);
@@ -185,6 +175,7 @@ async function fetchOpenSites(q: AvailabilityQuery, shopEncode: string, ctx: Ada
   const list = productListOf(data);
   // 응답은 예약 여부와 관계없이 상품군의 모든 자리를 준다(기록: 14·40·15곳). 빈 목록은 그 상품군이 없어졌다는 뜻이다.
   if (list.length === 0) throw new AdapterError("unrecognized", `상품군 ${q.zone}이(가) 응답에서 사라졌다`);
+  warnSeatDrift(q, list as { product_name?: unknown }[], ctx);
   const sites: AvailableSite[] = [];
   for (const p of list as { product_name?: unknown; status_code?: unknown; select_yn?: unknown }[]) {
     if (typeof p?.product_name !== "string") throw new AdapterError("unrecognized", "bookProductList 항목에 product_name이 없다");
@@ -194,22 +185,28 @@ async function fetchOpenSites(q: AvailabilityQuery, shopEncode: string, ctx: Ada
   return sites;
 }
 
+/**
+ * 바퀴가 이미 받은 자리 목록으로 카탈로그와의 자리 차이를 한 번만 경고한다. 요청·예약처 상태는 바꾸지 않는다.
+ * 카탈로그에 자리 목록이 없는 상품군은 견주지 않는다. 쓰지 않는 상품군 자체의 차이는 `catalog xticket --live`의 몫이다.
+ */
+function warnSeatDrift(q: AvailabilityQuery, list: { product_name?: unknown }[], ctx: AdapterContext): void {
+  const known = zoneSeats(INFO, q.facility, q.zone);
+  if (!known) return;
+  const seen = new Set(list.flatMap((p) => (typeof p?.product_name === "string" ? [p.product_name] : [])));
+  eachDrift(seen, new Set(known), (change, seat) =>
+    warnDriftOnce(ctx, `xticket:${q.facility}:${q.zone}:${change}:${seat}`, "xticket seat drift", { facility: q.facility, zone: q.zone, change, seat }));
+}
+
 /** 페이지 JS(getProductAlt)가 따로 다루는 status_code와 기록으로 본 값. 그 밖의 값은 예약완료로 치고 한 번만 경고한다. */
 const KNOWN_STATUS_CODES = new Set(["0", "1", "2", "4"]);
-const warnedStatus = new WeakMap<HttpClient, Set<string>>();
 
 function warnStatusCode(facility: string, code: unknown, ctx: AdapterContext): void {
   const value = String(code);
   if (KNOWN_STATUS_CODES.has(value)) return;
-  const warned = warnedStatus.get(ctx.http) ?? new Set<string>();
-  warnedStatus.set(ctx.http, warned);
-  if (warned.has(`${facility}:${value}`)) return;
-  warned.add(`${facility}:${value}`);
-  ctx.log?.("xticket status_code drift", { facility, status_code: value });
+  warnDriftOnce(ctx, `xticket:${facility}:status:${value}`, "xticket status_code drift", { facility, status_code: value });
 }
 
 /** 박수만큼 이어지는 밤의 날짜(YYYY-MM-DD). */
-const nightsOf = (q: AvailabilityQuery) => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 const lastNight = (q: AvailabilityQuery) => addDays(q.checkIn, q.nights - 1);
 const monthOf = (date: string) => ymd(date).slice(0, 6);
 
@@ -219,22 +216,33 @@ async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: 
   try {
     shopEncode = await openSession(facility, ctx);
   } catch (e) {
-    const error = recoverable(e);
+    const error = adapterErrorOrThrow(e);
     for (const q of units) results.set(q, error);
     return;
   }
   const months = [...new Set(units.flatMap((q) => nightsOf(q).map(monthOf)))].sort();
   const calendars = new Map<string, Map<string, PlayDate>>();
   const failedMonths = new Map<string, AdapterError>();
+  // 차단을 받으면 그 뒤로는 요청을 보내지 않고 남은 조회 단위를 같은 오류로 실패 처리한다. 앞에서 받은 결과는 그대로 둔다.
+  let blocked: AdapterError | undefined;
   for (const month of months) {
     try {
       calendars.set(month, await fetchPlayDates(month, shopEncode, ctx));
     } catch (e) {
-      // 한 달이 실패해도 다른 달은 계속 본다. 차단은 전체가 멈춘다.
-      failedMonths.set(month, recoverable(e));
+      // 한 달이 실패해도 다른 달은 계속 본다. 차단이면 멈춘다.
+      const error = adapterErrorOrThrow(e);
+      failedMonths.set(month, error);
+      if (error.kind === "blocked") {
+        blocked = error;
+        break;
+      }
     }
   }
   for (const q of units) {
+    if (blocked) {
+      results.set(q, blocked);
+      continue;
+    }
     const nights = nightsOf(q);
     const failed = nights.map((d) => failedMonths.get(monthOf(d))).find((e) => e !== undefined);
     if (failed) {
@@ -253,7 +261,9 @@ async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: 
     try {
       results.set(q, await fetchOpenSites(q, shopEncode, ctx));
     } catch (e) {
-      results.set(q, recoverable(e));
+      const error = adapterErrorOrThrow(e);
+      results.set(q, error);
+      if (error.kind === "blocked") blocked = error;
     }
   }
 }
@@ -270,7 +280,8 @@ async function queryBatch(units: AvailabilityQuery[], ctx: AdapterContext) {
       continue;
     }
     await queryFacility(facility, list, ctx, results);
-    halted = list.map((q) => results.get(q)).find((r): r is AdapterError => r instanceof AdapterError);
+    const errors = list.map((q) => results.get(q)).filter((r): r is AdapterError => r instanceof AdapterError);
+    halted = errors.find((r) => r.kind === "blocked") ?? errors[0];
   }
   return results;
 }
@@ -279,12 +290,6 @@ export const xticketAdapter: ProviderAdapter = {
   id: "xticket",
 
   describe: () => INFO,
-
-  async queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]> {
-    const found = (await queryBatch([q], ctx)).get(q);
-    if (found instanceof AdapterError) throw found;
-    return found ?? [];
-  },
 
   /** 시설마다 세션을 열고 달마다 날짜 목록을 읽어 자리가 남은 조회 단위만 자리 조회로 넘어간다. */
   queryAvailabilityBatch: queryBatch,

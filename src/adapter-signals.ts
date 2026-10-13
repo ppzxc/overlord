@@ -1,4 +1,4 @@
-// 어댑터가 같이 쓰는 신호 분류의 공통부. 울산 중구(junggu)와 북구(bukgu)가 글자까지 같게 쓰던 것에 리다이렉트 판정(`redirectOf`)을 더했다.
+// 어댑터가 같이 쓰는 신호 분류(차단·구조 변경·리다이렉트 판정).
 import { AdapterError, type TransportResponse } from "./types.js";
 import { BlockedPathError } from "./http.js";
 

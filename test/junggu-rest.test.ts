@@ -429,7 +429,7 @@ describe("중구 신호 분류", () => {
       await p.clock.advance(300_000); // 일시 오류 뒤 간격은 두 배다.
       await settle();
       expect(failedKinds(p)).toEqual(["transient", "unrecognized"]);
-      expect(alertTexts(p)).toHaveLength(0); // unrecognized도 첫 바퀴는 아직 장애로 치지 않는다(헬스 상태 머신 그대로).
+      expect(alertTexts(p)).toHaveLength(0); // unrecognized도 첫 바퀴는 아직 장애로 치지 않는다(예약처 상태 머신 그대로).
       await p.clock.advance(150_000);
       await settle();
       expect(failedKinds(p)).toEqual(["transient", "unrecognized", "unrecognized"]);
@@ -532,7 +532,7 @@ describe("중구 신호 분류", () => {
       expect(scripts()).toHaveLength(1);
       expect(p.allRequests.indexOf(scripts()[0]!)).toBeGreaterThan(p.allRequests.findIndex((r) => r.url.endsWith("ajaxGetSiteList.do")));
       expect(failedKinds(p)).toEqual([]);
-      expect(p.sent).toHaveLength(1); // 열린 자리 알림만 있다. 헬스 알림은 없다.
+      expect(p.sent).toHaveLength(1); // 열린 자리 알림만 있다. 예약처 상태 알림은 없다.
       await p.clock.advance(150_000);
       await settle();
       expect(scripts()).toHaveLength(1);

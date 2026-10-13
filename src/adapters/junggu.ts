@@ -9,11 +9,12 @@ import {
   type TransportResponse,
 } from "../types.js";
 import { facilities } from "../catalogs/junggu.js";
-import { resolveFacility } from "../facility.js";
+import { fieldsRef, resolveFacility } from "../facility.js";
 import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
-import { addDays, kstDate } from "../schedule.js";
+import { warnDriftOnce } from "../drift.js";
+import { addDays, kstDate, nightsOf } from "../schedule.js";
 import { tlsStreakRound } from "../tls-streak.js";
-import { enterQueue, netfunnelScriptCheck, setNetFunnelCookie, warnDriftOnce, type NetFunnelQueue } from "../netfunnel.js";
+import { enterQueue, netfunnelScriptCheck, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "camping.junggu.ulsan.kr";
 const ORIGIN = `https://${HOST}`;
@@ -51,8 +52,7 @@ const INFO: ProviderInfo = {
 };
 
 const facilityRef = (facility: string): { cpId: string; menuNo: string } => {
-  const ref = resolveFacility(INFO, facility).ref;
-  if (typeof ref !== "object" || !ref.cpId || !ref.menuNo) throw new Error(`junggu 시설 ${facility}에 cpId·menuNo가 없다`);
+  const ref = fieldsRef(INFO, facility, ["cpId", "menuNo"]);
   return { cpId: ref.cpId, menuNo: ref.menuNo };
 };
 
@@ -170,8 +170,6 @@ function warnZoneDrift(facility: string, onPage: Map<string, string>, ctx: Adapt
   }
 }
 
-const nightsOf = (q: AvailabilityQuery) => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
-
 /** 시설 하나를 연 방문. 예약 화면에서 읽은 구역과, 방문 안에서 이미 읽은 월 지도·자리 목록(같은 (구역, 밤)은 한 번만 조회)을 든다. */
 interface Visit {
   cpId: string;
@@ -233,7 +231,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
   const results: Results = new Map();
   const byFacility = new Map<string, AvailabilityQuery[]>();
   for (const q of units) {
-    const max = resolveFacility(INFO, q.facility).maxNights ?? INFO.maxNights;
+    const max = INFO.maxNights;
     if (q.nights > max) throw new Error(`junggu ${q.facility}는 최대 ${max}박만 읽는다(${q.nights}박)`);
     byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
   }
@@ -291,12 +289,6 @@ export const jungguAdapter: ProviderAdapter = {
   id: "junggu",
 
   describe: () => INFO,
-
-  async queryAvailability(q, ctx) {
-    const result = (await runBatch([q], ctx)).get(q);
-    if (result instanceof Error) throw result;
-    return result ?? [];
-  },
 
   /** 같은 시설은 조회 단위가 몇 개든 대기열과 예약 화면, 월 지도를 한 번씩만 거치고 같은 (구역, 밤)은 한 번만 조회한다. */
   queryAvailabilityBatch: (units, ctx) => runBatch(units, ctx),

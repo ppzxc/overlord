@@ -213,15 +213,3 @@ export function netfunnelScriptCheck(script: NetFunnelScript): { warn(ctx: Adapt
     reset: (ctx) => void checked.delete(ctx.http),
   };
 }
-
-/** 세션마다 이미 경고한 차이(키 문자열). */
-const warnedDrift = new WeakMap<HttpClient, Set<string>>();
-
-/** 같은 세션에서 같은 `key`의 차이는 한 번만 로그로 남긴다. 구역·자리 차이 경고용이다. */
-export function warnDriftOnce(ctx: AdapterContext, key: string, msg: string, fields: Record<string, unknown>): void {
-  const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
-  warnedDrift.set(ctx.http, warned);
-  if (warned.has(key)) return;
-  warned.add(key);
-  ctx.log?.(msg, fields);
-}

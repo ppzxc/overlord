@@ -7,6 +7,7 @@ import { createShared, errMessage, pollIntervalMs, recordRound, type DayStats, t
 import { addDays, expandWatch, HOUR_MS, isExpired, isQuiet, kstDate, kstHourKey, msUntilRushEnd, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
 import { runDailySummary, runHourlySummary } from "./summary.js";
+import { queryOne } from "./query-one.js";
 import {
   renderHealth,
   renderOpenings,
@@ -208,7 +209,7 @@ async function runProvider(
       for (const [key, q] of queries) {
         if (signal.aborted) break;
         try {
-          results.set(key, await adapter.queryAvailability(q, ctx));
+          results.set(key, await queryOne(adapter, q, ctx));
         } catch (err) {
           fail(key, err);
           break; // 바퀴 도중 실패하면 그 바퀴를 중단한다. 이미 성공한 결과는 아래에서 반영한다.

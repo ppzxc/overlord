@@ -10,7 +10,8 @@ import {
 } from "../types.js";
 import { facilities } from "../catalogs/junggu.js";
 import { fieldsRef, resolveFacility } from "../facility.js";
-import { BOT_DETECTION, UnitStructureError, queryOneViaBatch, assertOk, send, warnDriftOnce } from "../adapter-signals.js";
+import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
+import { warnDriftOnce } from "../drift.js";
 import { addDays, kstDate, nightsOf } from "../schedule.js";
 import { tlsStreakRound } from "../tls-streak.js";
 import { enterQueue, netfunnelScriptCheck, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
@@ -169,7 +170,6 @@ function warnZoneDrift(facility: string, onPage: Map<string, string>, ctx: Adapt
   }
 }
 
-
 /** 시설 하나를 연 방문. 예약 화면에서 읽은 구역과, 방문 안에서 이미 읽은 월 지도·자리 목록(같은 (구역, 밤)은 한 번만 조회)을 든다. */
 interface Visit {
   cpId: string;
@@ -289,8 +289,6 @@ export const jungguAdapter: ProviderAdapter = {
   id: "junggu",
 
   describe: () => INFO,
-
-  queryAvailability: (q, ctx) => queryOneViaBatch("junggu", runBatch, q, ctx),
 
   /** 같은 시설은 조회 단위가 몇 개든 대기열과 예약 화면, 월 지도를 한 번씩만 거치고 같은 (구역, 밤)은 한 번만 조회한다. */
   queryAvailabilityBatch: (units, ctx) => runBatch(units, ctx),

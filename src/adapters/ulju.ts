@@ -10,7 +10,8 @@ import {
 } from "../types.js";
 import { facilities } from "../catalogs/ulju.js";
 import { stringRef } from "../facility.js";
-import { assertOk, queryOneViaBatch, send, warnDriftOnce } from "../adapter-signals.js";
+import { assertOk, send } from "../adapter-signals.js";
+import { eachDrift, warnDriftOnce } from "../drift.js";
 
 const ORIGIN = "https://camping.ulju.ulsan.kr";
 const DAY_PATH = "/ujcamping/campsite/get_cal_day_data_list";
@@ -117,17 +118,14 @@ function warnDrift(facility: string, rows: Row[], ctx: AdapterContext): void {
   const seen = new Set(rows.map((r) => r.FACILITY_ID));
   const once = (msg: string, fields: { change: string; zone: string; seat?: string }) =>
     warnDriftOnce(ctx, `${msg}:${facility}:${fields.change}:${fields.zone}:${fields.seat ?? ""}`, msg, { facility, ...fields });
-  for (const z of seen) if (!known.has(z)) once("ulju zone drift", { change: "new", zone: z });
-  for (const z of known) if (!seen.has(z)) once("ulju zone drift", { change: "gone", zone: z });
+  eachDrift(seen, known, (change, zone) => once("ulju zone drift", { change, zone }));
   for (const zone of zones) {
     if (!zone.seats || !seen.has(zone.code)) continue;
     const listed = new Set(zone.seats);
     const actual = new Set(rows.filter((r) => r.FACILITY_ID === zone.code).map((r) => r.NAME));
-    for (const seat of actual) if (!listed.has(seat)) once("ulju seat drift", { change: "new", zone: zone.code, seat });
-    for (const seat of listed) if (!actual.has(seat)) once("ulju seat drift", { change: "gone", zone: zone.code, seat });
+    eachDrift(actual, listed, (change, seat) => once("ulju seat drift", { change, zone: zone.code, seat }));
   }
 }
-
 
 /**
  * 조회 단위마다 밤을 조회해 빈자리를 가린다. 바퀴 안에서 첫 실패가 나면 남은 요청은 보내지 않고,
@@ -181,8 +179,6 @@ export const uljuAdapter: ProviderAdapter = {
   id: "ulju",
 
   describe: () => INFO,
-
-  queryAvailability: (q, ctx) => queryOneViaBatch("ulju", queryBatch, q, ctx),
 
   /** 밤마다 서버의 조회 창(이번 달, 다음 달은 11일 10:00부터)에 드는 단위만 조회한다. 아닌 단위는 코어가 빼서 요청 없는 바퀴를 성공으로 세지 않는다. */
   isQueryable: (q, now) => nightsOf(q).every((d) => isQueryable(d, now)),

@@ -23,8 +23,8 @@
 // - 이 목록은 지자체·공공기관 운영 시설만 담는다.
 //
 // 기록으로 확인한 것(#70, 2026-10-12 저녁 KST, research/raw/xticket의 najeong_*·chilgokbo_*):
-// - 나정고운모래해변 오토캠핑장(`najeong`): 경주시가 조성한 공공 시설이다(경주시 누리집 웹진 「지금, 나정고운모래해변 오토캠핑장으로」, 사이트 njcamping.or.kr 하단 "Copyright 2022 경주시청"). 위탁 운영자가 있는 공립 시설로 보고 넣는다.
-//   예약 링크는 시설 공식 사이트 njcamping.or.kr의 "실시간예약"(`www.xticket.kr/Web/Reservation?shop_encode=08f2d6ac...`)에서 읽었다. 같은 값이 `camp.xticket.kr/web/main?shopEncode=`에서도 열린다(302 두 번 뒤 200).
+// - 나정고운모래해변 오토캠핑장(`najeong`): 경주시가 조성한 공공 시설이다(경주시 누리집 웹진 「지금, 나정고운모래해변 오토캠핑장으로」, 누리집 njcamping.or.kr 하단 "Copyright 2022 경주시청"). 위탁 운영자가 있는 공립 시설로 보고 넣는다.
+//   예약 링크는 시설 공식 누리집 njcamping.or.kr의 "실시간예약"(`www.xticket.kr/Web/Reservation?shop_encode=08f2d6ac...`)에서 읽었다. 같은 값이 `camp.xticket.kr/web/main?shopEncode=`에서도 열린다(302 두 번 뒤 200).
 //   `GetShopInformation.json`: `shop_name: 나정고운모래해변`, `two_stay_days: 0`, `book_days: 2`(박수 선택지 상한), `advance_ddays: 0`, `max_book_count: 1`. 상품군은 `0101` 카라반사이트, `0201` 오토사이트이다.
 //   서버는 `book_days: 3`도 거부하지 않고 응답했지만(선택가능 0) 시설 안내도 "1회 최대 2박 3일"이라 페이지 상한 2박을 쓴다. 날짜 목록은 내일(10/13)부터 11/30까지다(달서와 같은 모양, `advance_yn` 모두 "0").
 //   2박 조회(`book_days: 2`, 10/16~10/17 카라반사이트)에서는 1박에서 선택가능이던 10곳이 모두 선택불가로 돌아왔다. 서버가 박수에 맞춰 판정한다는 증거다.

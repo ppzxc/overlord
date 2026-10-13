@@ -26,13 +26,18 @@ export function zoneName(info: Pick<ProviderInfo, "facilities">, facilityCode: s
   return facility?.zones.find((z) => z.code === zoneCode)?.name ?? zoneCode;
 }
 
+/** 구역의 자리 목록(카탈로그). 모르는 시설·구역이거나 자리 목록이 없으면 undefined다. */
+export function zoneSeats(info: Pick<ProviderInfo, "facilities">, facilityCode: string, zoneCode: string): readonly string[] | undefined {
+  return info.facilities.find((f) => f.code === facilityCode)?.zones.find((z) => z.code === zoneCode)?.seats;
+}
+
 /**
  * 시설의 `ref`를 문자열로 읽는다. 시설이 카탈로그에 없거나 `ref`가 문자열이 아니면 `AdapterError("unrecognized")`다.
- * `what`은 오류 메시지에 쓰는 값 이름이다.
+ * `what`은 오류 메시지에 쓰는 값 이름이다. 메시지는 `… 시설 X에 값이 없다: what` 꼴이라 이름 뒤에 조사가 붙지 않는다.
  */
 export function stringRef(info: Pick<ProviderInfo, "id" | "facilities">, facility: string, what: string): string {
   const ref = info.facilities.find((f) => f.code === facility)?.ref;
-  if (typeof ref !== "string" || !ref) throw new AdapterError("unrecognized", `${info.id} 시설 ${facility}에 ${what}이 없다`);
+  if (typeof ref !== "string" || !ref) throw new AdapterError("unrecognized", `${info.id} 시설 ${facility}에 값이 없다: ${what}`);
   return ref;
 }
 

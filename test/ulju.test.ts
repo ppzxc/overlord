@@ -128,7 +128,7 @@ describe("ulju 폴러", () => {
       await p.clock.advance(150_000);
       await settle();
       expect(p.allRequests).toHaveLength(2); // 멈추지 않고 다음 바퀴를 돈다.
-      expect(p.sent).toHaveLength(0); // 헬스 알림도 없다.
+      expect(p.sent).toHaveLength(0); // 예약처 상태 알림도 없다.
       await p.stop();
     });
 

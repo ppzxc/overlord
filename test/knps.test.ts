@@ -335,7 +335,7 @@ const lotteryReqs = (p: ReturnType<typeof run>) => p.allRequests.filter((r) => r
 const listReqs = (p: ReturnType<typeof run>) => p.allRequests.filter((r) => r.url.endsWith("campsiteList.do"));
 
 describe("국립공원 오픈 경쟁 시간", () => {
-  it("10:00 KST 바퀴는 10:30으로 미뤄지고 그동안 요청·헬스 알림이 없으며 정체로 보지 않는다", async () => {
+  it("10:00 KST 바퀴는 10:30으로 미뤄지고 그동안 요청·예약처 상태 알림이 없으며 정체로 보지 않는다", async () => {
     const p = run("2026-10-15");
     await settle();
     await p.clock.advance(55 * MIN); // 09:55. 시작은 09:00이다.

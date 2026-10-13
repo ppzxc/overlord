@@ -11,8 +11,9 @@ import {
   type TransportResponse,
 } from "../types.js";
 import { facilities } from "../catalogs/xticket.js";
-import { stringRef } from "../facility.js";
-import { assertOk, queryOneViaBatch, warnDriftOnce } from "../adapter-signals.js";
+import { stringRef, zoneSeats } from "../facility.js";
+import { assertOk } from "../adapter-signals.js";
+import { eachDrift, warnDriftOnce } from "../drift.js";
 import { BlockedPathError, RedirectLimitError } from "../http.js";
 
 const ORIGIN = "https://camp.xticket.kr";
@@ -95,7 +96,7 @@ async function openSession(facility: string, ctx: AdapterContext): Promise<strin
 }
 
 /** AdapterError는 조회 단위의 결과로 돌려주고, 예상 밖 오류는 그대로 던져 전체를 멈춘다. 차단(blocked)은 호출자가 그 뒤 요청을 멈춘다. */
-function asResult(e: unknown): AdapterError {
+function adapterErrorOrThrow(e: unknown): AdapterError {
   if (!(e instanceof AdapterError)) throw e;
   return e;
 }
@@ -189,13 +190,11 @@ async function fetchOpenSites(q: AvailabilityQuery, shopEncode: string, ctx: Ada
  * 카탈로그에 자리 목록이 없는 상품군은 견주지 않는다. 쓰지 않는 상품군 자체의 차이는 `catalog xticket --live`의 몫이다.
  */
 function warnSeatDrift(q: AvailabilityQuery, list: { product_name?: unknown }[], ctx: AdapterContext): void {
-  const known = facilities.find((f) => f.code === q.facility)?.zones.find((z) => z.code === q.zone)?.seats;
+  const known = zoneSeats(INFO, q.facility, q.zone);
   if (!known) return;
   const seen = new Set(list.flatMap((p) => (typeof p?.product_name === "string" ? [p.product_name] : [])));
-  const drift = (change: "new" | "gone", seat: string) =>
-    warnDriftOnce(ctx, `xticket:${q.facility}:${q.zone}:${change}:${seat}`, "xticket seat drift", { facility: q.facility, zone: q.zone, change, seat });
-  for (const seat of seen) if (!known.includes(seat)) drift("new", seat);
-  for (const seat of known) if (!seen.has(seat)) drift("gone", seat);
+  eachDrift(seen, new Set(known), (change, seat) =>
+    warnDriftOnce(ctx, `xticket:${q.facility}:${q.zone}:${change}:${seat}`, "xticket seat drift", { facility: q.facility, zone: q.zone, change, seat }));
 }
 
 /** 페이지 JS(getProductAlt)가 따로 다루는 status_code와 기록으로 본 값. 그 밖의 값은 예약완료로 치고 한 번만 경고한다. */
@@ -217,7 +216,7 @@ async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: 
   try {
     shopEncode = await openSession(facility, ctx);
   } catch (e) {
-    const error = asResult(e);
+    const error = adapterErrorOrThrow(e);
     for (const q of units) results.set(q, error);
     return;
   }
@@ -231,7 +230,7 @@ async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: 
       calendars.set(month, await fetchPlayDates(month, shopEncode, ctx));
     } catch (e) {
       // 한 달이 실패해도 다른 달은 계속 본다. 차단이면 멈춘다.
-      const error = asResult(e);
+      const error = adapterErrorOrThrow(e);
       failedMonths.set(month, error);
       if (error.kind === "blocked") {
         blocked = error;
@@ -262,7 +261,7 @@ async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: 
     try {
       results.set(q, await fetchOpenSites(q, shopEncode, ctx));
     } catch (e) {
-      const error = asResult(e);
+      const error = adapterErrorOrThrow(e);
       results.set(q, error);
       if (error.kind === "blocked") blocked = error;
     }
@@ -291,8 +290,6 @@ export const xticketAdapter: ProviderAdapter = {
   id: "xticket",
 
   describe: () => INFO,
-
-  queryAvailability: (q, ctx) => queryOneViaBatch("xticket", queryBatch, q, ctx),
 
   /** 시설마다 세션을 열고 달마다 날짜 목록을 읽어 자리가 남은 조회 단위만 자리 조회로 넘어간다. */
   queryAvailabilityBatch: queryBatch,

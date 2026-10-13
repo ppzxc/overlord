@@ -12,7 +12,7 @@ import {
 import { facilities } from "../catalogs/donghae.js";
 import { fieldsRef } from "../facility.js";
 import { nightsOf } from "../schedule.js";
-import { queryOneViaBatch, warnDriftOnce } from "../adapter-signals.js";
+import { warnDriftOnce } from "../drift.js";
 import { acquireKey, forgetKey, netfunnelScriptCheck, releaseKey, type NetFunnelQueue, type QueuePass } from "../netfunnel.js";
 
 const WWW = "https://www.campingkorea.or.kr";
@@ -60,7 +60,6 @@ const netfunnelScript = netfunnelScriptCheck({ provider: "donghae", url: `${WWW}
 
 const CLOSED_VALUES = new Set(["예약완료", "예약불가", "준비중"]);
 const AUTH_MARKER = /로그인|인증/;
-
 
 /** 조회 단위 하나의 실패로 담을 오류인지. NOPASS는 바퀴 전체를 다시 진입해야 하므로 던져 올린다. */
 const isUnitFailure = (e: unknown): e is AdapterError => e instanceof AdapterError && !(e instanceof NoPassError);
@@ -349,8 +348,6 @@ export const donghaeAdapter: ProviderAdapter = {
   id: "donghae",
 
   describe: () => INFO,
-
-  queryAvailability: (q, ctx) => queryOneViaBatch("donghae", (units, c) => withNoPassRetry(c, () => runBatch(units, c)), q, ctx),
 
   /**
    * 같은 세션의 키가 2시간 안이고 서버가 받아 주면 다시 쓰고, 아니면 새로 대기열에 들어가 필요한 밤을 한 번씩 읽는다. 첫 실패에서 멈추고,

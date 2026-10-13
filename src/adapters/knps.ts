@@ -13,7 +13,8 @@ import { fieldsRef, resolveFacility } from "../facility.js";
 import { filterSeats } from "../seats.js";
 import { isLotteryHeld, parseLottery, type LotterySchedule } from "../knps-lottery.js";
 import { kstDate } from "../schedule.js";
-import { assertOk, queryOneViaBatch, warnDriftOnce } from "../adapter-signals.js";
+import { assertOk } from "../adapter-signals.js";
+import { warnDriftOnce } from "../drift.js";
 import { completeQueue, enterQueue, netfunnelScriptCheck, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "reservation.knps.or.kr";
@@ -282,8 +283,6 @@ export const knpsAdapter: ProviderAdapter = {
   id: "knps",
 
   describe: () => INFO,
-
-  queryAvailability: (q, ctx) => queryOneViaBatch("knps", runBatch, q, ctx),
 
   /** 같은 시설은 조회 단위가 몇 개든 응답 하나로 판정한다. */
   queryAvailabilityBatch: (units, ctx) => runBatch(units, ctx),

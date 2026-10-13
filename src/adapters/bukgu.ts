@@ -10,7 +10,8 @@ import {
 } from "../types.js";
 import { facilities, rowClassZones } from "../catalogs/bukgu.js";
 import { fieldsRef, resolveFacility, zoneName } from "../facility.js";
-import { BOT_DETECTION, UnitStructureError, queryOneViaBatch, assertOk, send, warnDriftOnce } from "../adapter-signals.js";
+import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
+import { warnDriftOnce } from "../drift.js";
 import { addDays, kstDate, nextMonthOf, weekdayKey } from "../schedule.js";
 import { tlsStreakRound } from "../tls-streak.js";
 
@@ -39,7 +40,6 @@ const INFO: ProviderInfo = {
 };
 
 const siteKindCodeOf = (facility: string): string => fieldsRef(INFO, facility, ["siteKindCode"]).siteKindCode;
-
 
 /** 표의 한 행. 구역은 사이트명 칸의 색 클래스에서 읽는다. */
 interface RawRow {
@@ -283,8 +283,6 @@ export const bukguAdapter: ProviderAdapter = {
   id: "bukgu",
 
   describe: () => INFO,
-
-  queryAvailability: (q, ctx) => queryOneViaBatch("bukgu", runBatch, q, ctx),
 
   /** 같은 (시설, 밤)은 구역이 여럿이어도 한 번만 조회한다. */
   queryAvailabilityBatch: runBatch,

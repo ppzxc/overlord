@@ -24,8 +24,9 @@ import {
 } from "../types.js";
 import { facilities } from "../catalogs/mirihae.js";
 import { fieldsRef, resolveFacility } from "../facility.js";
-import { BOT_DETECTION, ConnectionFailure, queryOneViaBatch, UnitStructureError, assertOk, redirectOf, send, unknownRedirect, warnDriftOnce } from "../adapter-signals.js";
-import { nightsOf as nightDates } from "../schedule.js";
+import { BOT_DETECTION, ConnectionFailure, UnitStructureError, assertOk, redirectOf, send, unknownRedirect } from "../adapter-signals.js";
+import { eachDrift, warnDriftOnce } from "../drift.js";
+import { nightsOf } from "../schedule.js";
 
 const ORIGIN = "https://mirihae.com";
 /** 게이트의 정적 화면(`entering.html`, `waiting.html`)이 있는 곳. API는 이 화면의 JS가 `https://cdn.mirihae.com`으로 보낸다. */
@@ -256,9 +257,8 @@ function warnZoneDrift(facility: string, calendar: Calendar, ctx: AdapterContext
   const seen = new Set<string>();
   for (const day of calendar.days.values()) if (day.open) for (const name of day.zones.keys()) seen.add(name);
   if (seen.size === 0) return; // 예약할 수 있는 날이 하나도 없으면 구역을 볼 수 없다
-  const known = resolveFacility(INFO, facility).zones.map((z) => z.code);
-  for (const name of seen) if (!known.includes(name)) warnDriftOnce(ctx, `${facility}:new:${name}`, "mirihae zone drift", { facility, change: "new", zone: name });
-  for (const name of known) if (!seen.has(name)) warnDriftOnce(ctx, `${facility}:gone:${name}`, "mirihae zone drift", { facility, change: "gone", zone: name });
+  const known = new Set(resolveFacility(INFO, facility).zones.map((z) => z.code));
+  eachDrift(seen, known, (change, zone) => warnDriftOnce(ctx, `${facility}:${change}:${zone}`, "mirihae zone drift", { facility, change, zone }));
 }
 
 /** 입장 토큰(`gateToken`)의 수명. 받은 시각에서 300초다(기록 #84: 토큰 `exp`와 받은 시각의 차이, 만료 20초 뒤 요청은 302로 게이트에 되돌려 보냈다). */
@@ -394,7 +394,7 @@ const monthOf = (date: string) => date.slice(0, 7);
  */
 function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, monthFailure: AdapterError | undefined): AvailableSite[] | AdapterError {
   let remaining = Infinity;
-  for (const night of nightDates(q)) {
+  for (const night of nightsOf(q)) {
     const calendar = calendars.get(monthOf(night));
     if (!calendar) return monthFailure ?? new UnitStructureError(`예약 화면: ${night}가 속한 달의 달력이 없다`);
     const day = calendar.days.get(night);
@@ -443,7 +443,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       warnZoneDrift(facility, first, ctx);
       const calendars = new Map([[first.month, first]]);
       let monthFailure: AdapterError | undefined;
-      for (const month of new Set(group.flatMap((q) => nightDates(q).map(monthOf)))) {
+      for (const month of new Set(group.flatMap((q) => nightsOf(q).map(monthOf)))) {
         if (calendars.has(month)) continue;
         try {
           calendars.set(month, await readMonth(ctx, page, month));
@@ -468,8 +468,6 @@ export const mirihaeAdapter: ProviderAdapter = {
   id: "mirihae",
 
   describe: () => INFO,
-
-  queryAvailability: (q, ctx) => queryOneViaBatch("mirihae", runBatch, q, ctx),
 
   queryAvailabilityBatch: runBatch,
 

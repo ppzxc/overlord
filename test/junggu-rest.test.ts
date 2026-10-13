@@ -532,7 +532,7 @@ describe("중구 신호 분류", () => {
       expect(scripts()).toHaveLength(1);
       expect(p.allRequests.indexOf(scripts()[0]!)).toBeGreaterThan(p.allRequests.findIndex((r) => r.url.endsWith("ajaxGetSiteList.do")));
       expect(failedKinds(p)).toEqual([]);
-      expect(p.sent).toHaveLength(1); // 열린 자리 알림만 있다. 헬스 알림은 없다.
+      expect(p.sent).toHaveLength(1); // 열린 자리 알림만 있다. 예약처 상태 알림은 없다.
       await p.clock.advance(150_000);
       await settle();
       expect(scripts()).toHaveLength(1);

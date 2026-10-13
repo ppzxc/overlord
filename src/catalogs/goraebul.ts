@@ -1,10 +1,9 @@
 // 고래불(영덕군 고래불 야영장) 시설·구역 카탈로그. 정적 목록이며 어댑터 로직과 네트워크 코드는 두지 않는다.
 // 출처: 구역·자리 목록은 2026-09-29 `catalog goraebul --live`로 확인했다. 예약된 자리도 목록에 있다(class에 ban).
 // 폐쇄된 자리가 어떻게 나오는지는 확인하지 못했다. 정원은 확인한 구역만 적는다.
+import { seatPrefix } from "../goraebul-seat.js";
 import type { FacilityInfo, ZoneInfo } from "../types.js";
 
-/** 자리 id의 접두어. 숲속야영장(DKA)은 A02처럼 끝 글자만, 나머지는 CAA11처럼 구역 코드를 쓴다. */
-export const seatPrefix = (zone: string) => (zone.startsWith("DK") ? zone.slice(-1) : zone);
 /** 구역 코드와 번호로 자리 id 목록을 만든다. 예: ("DKA", [1, 2]) → A01, A02 */
 const seatIds = (zone: string, numbers: number[]) => numbers.map((n) => `${seatPrefix(zone)}${String(n).padStart(2, "0")}`);
 const sequence = (count: number) => Array.from({ length: count }, (_, i) => i + 1);

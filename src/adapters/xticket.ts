@@ -97,9 +97,9 @@ async function openSession(facility: string, ctx: AdapterContext): Promise<strin
   return shopEncode;
 }
 
-/** 이번 바퀴에서 이어 갈 수 있는 오류(차단이 아닌 AdapterError)는 돌려주고, 차단이나 예상 밖 오류는 그대로 던져 전체를 멈춘다. */
-function recoverable(e: unknown): AdapterError {
-  if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
+/** AdapterError는 조회 단위의 결과로 돌려주고, 예상 밖 오류는 그대로 던져 전체를 멈춘다. 차단(blocked)은 호출자가 그 뒤 요청을 멈춘다. */
+function asResult(e: unknown): AdapterError {
+  if (!(e instanceof AdapterError)) throw e;
   return e;
 }
 
@@ -211,22 +211,33 @@ async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: 
   try {
     shopEncode = await openSession(facility, ctx);
   } catch (e) {
-    const error = recoverable(e);
+    const error = asResult(e);
     for (const q of units) results.set(q, error);
     return;
   }
   const months = [...new Set(units.flatMap((q) => nightsOf(q).map(monthOf)))].sort();
   const calendars = new Map<string, Map<string, PlayDate>>();
   const failedMonths = new Map<string, AdapterError>();
+  // 차단을 받으면 그 뒤로는 요청을 보내지 않고 남은 조회 단위를 같은 오류로 실패 처리한다. 앞에서 받은 결과는 그대로 둔다.
+  let blocked: AdapterError | undefined;
   for (const month of months) {
     try {
       calendars.set(month, await fetchPlayDates(month, shopEncode, ctx));
     } catch (e) {
-      // 한 달이 실패해도 다른 달은 계속 본다. 차단은 전체가 멈춘다.
-      failedMonths.set(month, recoverable(e));
+      // 한 달이 실패해도 다른 달은 계속 본다. 차단이면 멈춘다.
+      const error = asResult(e);
+      failedMonths.set(month, error);
+      if (error.kind === "blocked") {
+        blocked = error;
+        break;
+      }
     }
   }
   for (const q of units) {
+    if (blocked) {
+      results.set(q, blocked);
+      continue;
+    }
     const nights = nightsOf(q);
     const failed = nights.map((d) => failedMonths.get(monthOf(d))).find((e) => e !== undefined);
     if (failed) {
@@ -245,7 +256,9 @@ async function queryFacility(facility: string, units: AvailabilityQuery[], ctx: 
     try {
       results.set(q, await fetchOpenSites(q, shopEncode, ctx));
     } catch (e) {
-      results.set(q, recoverable(e));
+      const error = asResult(e);
+      results.set(q, error);
+      if (error.kind === "blocked") blocked = error;
     }
   }
 }
@@ -262,7 +275,8 @@ async function queryBatch(units: AvailabilityQuery[], ctx: AdapterContext) {
       continue;
     }
     await queryFacility(facility, list, ctx, results);
-    halted = list.map((q) => results.get(q)).find((r): r is AdapterError => r instanceof AdapterError);
+    const errors = list.map((q) => results.get(q)).filter((r): r is AdapterError => r instanceof AdapterError);
+    halted = errors.find((r) => r.kind === "blocked") ?? errors[0];
   }
   return results;
 }

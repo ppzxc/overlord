@@ -41,7 +41,7 @@ const tenants = [...new Set(facilities.flatMap((f) => (typeof f.ref === "object"
 const INFO: ProviderInfo = {
   id: "mirihae",
   facilities,
-  // 4박. 서버가 거절하는 값을 확인한 것이 아니다(카탈로그 머리 주석). 근거는 천동 화면 JS의 "최대예약일수는 4박5일입니다." 경고 문구뿐이다(주석 처리된 클라이언트 검사와 `nightCheck.do` 실패 알림). 입점 기관마다 다를 수 있다.
+  // 4박. 서버가 거절하는 값을 확인한 것이 아니다(research/raw/mirihae/README.md). 근거는 천동 화면 JS의 "최대예약일수는 4박5일입니다." 경고 문구뿐이다(주석 처리된 클라이언트 검사와 `nightCheck.do` 실패 알림). 입점 기관마다 다를 수 있다.
   maxNights: 4,
   // 오픈 규칙은 확인하지 못했다. 아래 세 값은 타입상 필수인 날짜 창이고 열리는 때를 주장하지 않는다. 확인 전에는 달력이 `click`을 주지 않는 날짜를 빈자리 없음으로 처리하므로 날짜를 미리 거르지 않는다.
   // - openDaysBefore 36500, openTime 00:00: 100년이라 어떤 입실일도 요청 없이 건너뛰지 않는다(걸러내지 않겠다는 뜻이고 열리는 때가 아니다).

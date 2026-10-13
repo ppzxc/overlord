@@ -90,3 +90,11 @@ UA `overlord-availability-poller/0.1.0`(실제 `catalog mirihae <시설> --live`
 - **포천 비둘기낭**: 운영 주체는 포천시시설관리공단(공공)이고 공식 안내(`camp.pcfac.or.kr`의 `header.html`)의 예약 링크는 `https://mirihae.com/pccamp/campsite`다. 같은 게이트(9443)를 지나 `/pccamp/campsite/C27562955`가 열린다(`campsite_pccamp_302.txt`). 그러나 화면이 다르다: 달력 칸 `div.td.pignose-calendar-unit-date`가 없다(`campsite_C27562955_pccamp.html`). 경로 접두어도 `/camping/`이 아니라 `/campsite/`이고(`/campsite/calendar.do`, `/campsite/cal.do`, `/campsite/preOpenCheck.do`, `/campsite/selectAjaxDatePinInfo.do`) 달력은 모달로 따로 불러온다. 같은 구조가 아니라 넣지 않았다.
 - **여주 강천섬**: 공식 안내(경기도 `gg.go.kr` 기사의 바로가기)가 `https://camp.yjcf.or.kr/`이고 예약 링크는 `https://camp.yjcf.or.kr/gangcheon/camping`이다. 미리해 경로지만 여주와 같은 **자체 도메인**(`camp.yjcf.or.kr`)이라 위 이유와 같다. 화면은 열지 않았다.
 - **충주 목계솔밭, 이천 농업테마공원, 성남 율동공원**: 시설 공식 안내에서 예약 링크를 확인하지 못했다(검색에서 공식 안내를 찾지 못했고 추정한 주소는 열리지 않았다). 성남 율동공원은 보도로는 추첨제다. 지어내지 않고 넣지 않았다.
+
+---
+
+# 어댑터가 쓰는 값 (#85, 카탈로그 머리 주석에서 옮김)
+
+- 최대 박수: 스켈레톤(#84)은 1박으로 시작했고 #85가 예약처 기본을 4박으로 정했다. 근거는 화면 JS의 "최대예약일수는 4박5일입니다." 문구뿐이고 서버가 거절하는 값은 확인하지 못했다. 다리안·소선암·대강도 시설 단위 덮어쓰기 없이 4박이다. 입점 기관마다 다르면 시설 단위(`FacilityInfo.maxNights`)로 덮어쓴다. 사람이 `nightCheck.do`나 화면으로 확인할 일이다.
+- `gateToken` 재사용: 받은 시각에서 280초(수명 300초 - 여유 20초) 안이면 다음 바퀴가 게이트를 지나지 않는다. 서버가 받지 않으면 같은 바퀴에서 게이트를 새로 지난다. 토큰 값은 바꾸지 않는다.
+- 오픈 규칙은 확인하지 못했다. 확인 전에는 달력이 `click`을 주지 않는 날짜를 빈자리 없음으로 처리하고 입실일을 미리 거르지 않는다.

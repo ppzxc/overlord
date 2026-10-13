@@ -1,39 +1,7 @@
 // 미리해(mirihae.com, 소스팜) 시설·구역 카탈로그. 정적 목록이며 어댑터 로직과 네트워크 코드는 두지 않는다. 읽는 방법과 판정은 어댑터(`src/adapters/mirihae.ts`) 머리에 있다.
-// 시설 `ref`는 `{ tenant, pageId }`다. 예약 화면은 `https://mirihae.com/<tenant>/camping/<pageId>`다. 구역 = 달력 칸 `dl.schedule`의 `dd`(구역 이름이 코드). 자리 목록은 없다.
-// 출처: 단양 천동 오토캠핑장은 2026-10-13 09:24 ~ 09:31 KST 기록(research/raw/mirihae, #84)이다. 다리안·소선암·대강은 2026-10-13 09:47 ~ 09:49 KST에 `catalog mirihae <시설> --live`로 시설마다 한 번씩 확인했다(#86, 아래).
-//
-// 기록으로 확인한 것(#84, 천동 오토캠핑장 `/dytc/camping/V39628874`):
-// - 구역 이름: `야영장A`, `야영장B`, `야영장C`. 달력 칸의 `dl.schedule color1/2/3`의 `dd`다. 10/14 ~ 10/31과 11/01 ~ 11/14의 모든 칸에 세 구역이 모두 있었다. 자리 목록은 없다.
-//   기록한 10/14의 남은 수는 A 18, B 18, C 29다(알림 `2026-10-14(수) 1박 · 야영장A · 남은 18`).
-// - `gateToken`(입장 토큰) 수명: 5분(300초). HS256 JWT이고 payload `{sub: ENTERING_TOKEN, exp, TOKEN_ID, GROUP_ID}`다(`iat` 없음). 받은 시각 09:26:14 KST에 `exp`가 09:31:13 KST다.
-//   서버가 같은 토큰을 받아 줬고(발급 약 100초 뒤 두 번째 요청이 200) 만료 20초 뒤에는 302로 게이트(`entering.html`)에 되돌려 보냈다. `/api/entering`을 다시 불러도 같은 토큰이 오고 수명이 늘지 않는다.
-//   #85가 이 수명 안의 재사용을 한다(받은 시각에서 280초 안이면 다음 바퀴가 게이트를 지나지 않는다). 서버가 받지 않으면 같은 바퀴에서 게이트를 새로 지난다.
-// - 다른 달: `POST /camping/calendar.do`(`searchForm` 직렬화 + `selectMonth=YYYY-MM`)의 응답이 `calendar.do_V39628874_2026-11.html`, `…_2026-12.html`이다(#84 기록, #85가 쓴다).
-//   `<div class="calendar-in">` 조각이고 예약 화면의 달력과 같은 칸 구조다. 11월은 11/01 ~ 11/14가 `click`이고 12월은 모두 닫혀 있다(천동 동계 휴장). 응답은 새 쿠키를 주지 않았다.
-// - 게이트 흐름: `GET 예약 화면` 302(`Location: https://cdn.mirihae.com:9443/entering.html?uri=<원래 주소>`) -> `GET https://cdn.mirihae.com/api/entering?uri=<인코딩>` 401 ->
-//   `POST /api/waiting?uri=…` 200(본문이 대기 토큰) -> `GET /api/waiting?uri=…`(헤더 `X-Mirihae-Waiting-Token`) 200 `{enteringToken, uri}` ->
-//   `GET /api/entering?uri=…`(헤더 `X-Mirihae-Reservation-Token`) 200 `{enteringToken, uri}` -> `GET 예약 화면?gateToken=<enteringToken>` 200. 이 기록에서는 첫 폴링이 바로 200이었다(425 없음).
-// - 달력 모양: 날짜 칸 `div.td.pignose-calendar-unit-date`(`id="YYYY-MM-DD"`)에 예약 가능한 날이면 `click` 클래스가 붙고 안에 구역마다 `<dl class="schedule colorN"><dt>남은 수</dt><dd>구역 이름</dd></dl>`가 있다.
-//   이번 달 화면은 앞 달의 칸도 격자에 그리지만 그 칸과 지난 날짜, 오늘("당일예약 불가")에는 `click`도 `dl`도 없다. 그 달에 속한 칸만 읽는다.
-// - 봇 탐지·captcha: 예약 화면, 달력, 게이트 JS와 페이지 스크립트 어디에도 없었다. robots.txt는 `/login.do`로 302라 파일이 없는 것으로 보고 금지가 없다고 본다(ADR 0002).
-//
-// 카탈로그 채우기(#86, 2026-10-13 09:47 ~ 10:00 KST, `catalog mirihae <시설> --live`, 원문과 자세한 기록은 research/raw/mirihae/README.md):
-// - 다리안 `G24526799`: 구역 `데크야영장C`, `데크야영장D`, `원두막`. 소선암 `Q49993865`: `야영장A`, `야영장B`, `야영장C`, `산`. 대강 `Y88593737`: `파쇄석 사이트`, `데크 사이트`.
-//   천동과 같은 단양관광공사(`dytc`)의 같은 게이트·같은 달력 구조이고 시설마다 `--live`로 `구역 일치`를 확인했다. 구역 이름은 달력 칸 `dd`다(범례의 `야영장 A`와 다르다).
-// 넣지 않은 시설(이유):
-// - 여주 대신 오토·웰빙(`epoc`), 금은모래(`gsmc`): `mirihae.com/<tenant>/camping/<id>`가 게이트로 보내지 않고 자체 도메인 `yeojuuc.or.kr`로 302한다. 그 화면은 `cdn.mirihae.com/entering.html`(포트 9443 아님)로 301한다.
-//   어댑터가 `mirihae.com` 한 호스트의 예약 화면만 다루므로 같은 게이트·화면이 아니다. 강천섬(`camp.yjcf.or.kr/gangcheon/camping`)도 자체 도메인이라 같다.
-// - 포천 비둘기낭: 공식 안내의 예약 링크 `mirihae.com/pccamp/campsite`는 같은 게이트를 지나지만 화면이 다르다(경로 `/campsite/`, 달력 칸 `div.td.pignose-calendar-unit-date` 없음).
-// - 충주 목계솔밭, 이천 농업테마공원, 성남 율동공원: 공식 안내의 예약 링크를 확인하지 못했다.
-// 최대 박수와 오픈 규칙은 시설마다 확인하지 못했다(서버 `nightCheck.do`는 접근 금지 경로다). 모든 시설이 예약처 기본 최대 박수(#85, 4박)를 따른다. 다리안·소선암·대강도 시설 단위 덮어쓰기 없이 4박으로 둔다.
-//
-// 확인하지 못한 것(#84):
-// - 최대 박수: 서버가 거절하는 값은 확인하지 못했다. 화면 JS에 "최대예약일수는 4박5일입니다." 경고가 두 군데 있다. 하나는 주석 처리된 클라이언트 검사이고 하나는 서버 `nightCheck.do`(날짜를 고른 뒤의 호출이라 부르지 않았다)의 응답으로 띄운다.
-//   #84는 1박으로 두었고 #85가 예약처 기본 최대 박수를 4로 정했다. 근거는 이 경고 문구뿐이다(4박5일 = 4박). 입점 기관마다 다를 수 있어 다르면 시설 단위(`FacilityInfo.maxNights`)로 덮어쓴다. 사람이 `nightCheck.do`나 화면으로 확인할 일이다.
-// - 오픈 규칙(며칠 전 몇 시): 확인하지 못했다. 기록한 때 입실일 10/14 ~ 11/14가 열려 있었지만 11/15 이후가 닫힌 것은 천동이 11/14부터 동계 휴장이라서였다(화면 팝업). 열리는 시각이 아니다.
-//   그래서 확인 전에는 달력이 `click`을 주지 않는 날짜를 빈자리 없음으로 처리한다.
-// - 시설마다 게이트를 따로 지나야 하는지(시설 하나만 기록했다), 붐빌 때의 대기(425 응답은 기록하지 못했다).
-// - 구역별 남은 수 0의 표현: 천동 기록은 모든 구역이 1 이상이었다. 이 조각(#86)이 본 다리안·소선암에서는 칸이 `click`을 유지한 채 `dt`가 0이었다(어댑터는 둘 다 빈자리 없음으로 읽는다).
+// 시설 `ref`는 `{ tenant, pageId }`다(예약 화면 `https://mirihae.com/<tenant>/camping/<pageId>`). 구역 = 달력 칸 `dl.schedule`의 `dd`다(구역 이름이 코드이고 범례의 `야영장 A`와 다르다). 자리 목록은 없다.
+// 출처: 천동은 2026-10-13 09:24 ~ 09:31 KST 기록, 다리안·소선암·대강은 같은 날 09:47 ~ 09:49 KST에 `catalog mirihae <시설> --live`로 확인했다. 조사 기록과 원문은 research/raw/mirihae/README.md.
+// 넣지 않은 시설: 여주 대신·금은모래·강천섬은 예약 화면이 자체 도메인이라, 포천 비둘기낭은 화면 구조가 달라서다. 충주·이천·성남은 예약 링크를 확인하지 못했다.
 import type { FacilityInfo, ZoneInfo } from "../types.js";
 
 /** 구역 유형은 화면에 표시하는 값일 뿐이고 예약처가 주지 않는다. 확인한 것은 달력 칸의 이름(`dd`)이다. */

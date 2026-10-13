@@ -699,6 +699,25 @@ const MIRIHAE_PAGE_PATH = "/dytc/camping/V39628874";
 export const mirihaePage = (): string => mirihaeRaw("camping_V39628874.html");
 
 /**
+ * 기록한 여주 대신 오토캠핑장 예약 화면(`yeojuuc.or.kr/camping/epoc/camping/Z65332353`, 2026-10-13 13:11 KST, research/raw/mirihae).
+ * 단양과 같은 계열의 다른 서식이다(날짜 칸에 `pignose-calendar-unit-date`가 없고 `dt`에 숨은 `0` 칸이 있다). 10/14 ~ 10/31이 `click`이고 구역은 `파쇄석` 하나다.
+ * 10/14 73, 10/17 0, 10/20·10/27 정기 휴장일(click 없음)이다.
+ */
+export const mirihaeYeojuPage = (): string => mirihaeRaw("yeoju_epoc_Z65332353_screen.html");
+export function mirihaeYeojuPageWith(counts: Record<string, Record<string, number | string>>, edit?: ($: cheerio.CheerioAPI) => void): string {
+  const $ = cheerio.load(mirihaeYeojuPage());
+  for (const [date, zones] of Object.entries(counts)) {
+    for (const [zone, n] of Object.entries(zones)) {
+      const dt = $(`div.td[id="${date}"] dl.schedule`).filter((_, el) => $(el).find("dd").text().trim() === zone).find("dt");
+      dt.find("span").first().remove(); // 숨은 `0` 칸은 남기고 보이는 값만 바꾼다(아래에서 다시 붙인다).
+      dt.html(`<span style="font-size:0px;display:none">0</span>${n}`);
+    }
+  }
+  edit?.($);
+  return $.html();
+}
+
+/**
  * 기록한 예약 화면을 고친 변형. 칸(`div.td#YYYY-MM-DD`)을 cheerio로 고쳐서 만든다. 기록은 10/14 ~ 10/31의 칸만 구역 남은 수를 갖는다.
  * `counts`는 날짜 → 구역 이름 → 남은 수이고 그 칸의 `dt`만 바꾼다. 날짜 칸의 구조를 바꾸려면 `edit`을 쓴다.
  */
@@ -748,8 +767,23 @@ export function mirihaeServer(
     pagePath?: string | string[];
     /** `POST /camping/calendar.do`에 줄 응답. 없으면 `selectMonth`에 맞는 기록한 달력(2026-11, 2026-12)이다. */
     calendar?: (month: string, req: TransportRequest) => TransportResponse | undefined;
+    /** 예약 화면 호스트. 없으면 `mirihae.com`이다. 자체 도메인 시설(`yeojuuc.or.kr`)은 이것과 아래 값을 준다. */
+    host?: string;
+    /** 게이트 화면 포트. 없으면 9443이고 빈 문자열이면 포트 없이 443이다(여주 자체 도메인은 443, 강천섬은 9443이었다). */
+    gatePort?: string;
+    /** 게이트로 보내는 리다이렉트 상태. 없으면 302다(여주 자체 도메인은 301이었다). */
+    redirectStatus?: number;
+    /** 다른 달 달력 경로. 없으면 `/camping/calendar.do`다(여주 자체 도메인은 `/camping/camping/calendar.do`). */
+    calendarPath?: string;
+    /** 입장 토큰을 단 예약 화면의 기본 본문. 없으면 기록한 천동 화면이다. */
+    pageBody?: () => string;
+    /** 예약 화면이 주는 쿠키. */
+    pageCookie?: string;
   } = {},
 ) {
+  const host = opts.host ?? "mirihae.com";
+  const gatePort = opts.gatePort ?? "9443";
+  const gateOrigin = `https://cdn.mirihae.com${gatePort ? `:${gatePort}` : ""}`;
   const pagePaths = [opts.pagePath ?? MIRIHAE_PAGE_PATH].flat();
   const nth = { entering: 0, waiting: 0 };
   const enteringBody = () => mirihaeRaw("api_entering_200.json").replace("<MASKED>", MIRIHAE_ENTERING_TOKEN);
@@ -757,7 +791,7 @@ export function mirihaeServer(
     const hijacked = opts.intercept?.(req);
     if (hijacked) return hijacked;
     const url = new URL(req.url);
-    if (url.hostname === "cdn.mirihae.com" && url.port === "9443") return { status: 200, body: mirihaeRaw("entering.html") };
+    if (url.hostname === "cdn.mirihae.com" && url.pathname === "/entering.html") return { status: 200, body: mirihaeRaw("entering.html") };
     if (url.hostname === "cdn.mirihae.com") {
       if (url.pathname === "/api/entering" && req.method === "GET") {
         const n = nth.entering++;
@@ -780,14 +814,14 @@ export function mirihaeServer(
       }
       return { status: 404, body: "" };
     }
-    if (url.hostname !== "mirihae.com") return { status: 404, body: "" };
+    if (url.hostname !== host) return { status: 404, body: "" };
     if (req.method === "GET" && pagePaths.includes(url.pathname)) {
       if (url.searchParams.get("gateToken") !== MIRIHAE_ENTERING_TOKEN) {
-        return { status: 302, body: "", location: `https://cdn.mirihae.com:9443/entering.html?uri=https://mirihae.com${url.pathname}` };
+        return { status: opts.redirectStatus ?? 302, body: "", location: `${gateOrigin}/entering.html?uri=https://${host}${url.pathname}` };
       }
-      return opts.page?.(req) ?? { status: 200, body: mirihaePage(), setCookie: ["mirihae=sess1; Path=/; Secure; HttpOnly; SameSite=Lax"] };
+      return opts.page?.(req) ?? { status: 200, body: (opts.pageBody ?? mirihaePage)(), setCookie: [opts.pageCookie ?? "mirihae=sess1; Path=/; Secure; HttpOnly; SameSite=Lax"] };
     }
-    if (req.method === "POST" && url.pathname === "/camping/calendar.do") {
+    if (req.method === "POST" && url.pathname === (opts.calendarPath ?? "/camping/calendar.do")) {
       const month = new URLSearchParams(req.body ?? "").get("selectMonth") ?? "";
       return opts.calendar?.(month, req) ?? mirihaeRecordedCalendar(month) ?? { status: 404, body: "" };
     }

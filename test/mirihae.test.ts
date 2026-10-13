@@ -843,7 +843,7 @@ ${lines}
   });
 
   it("facility 없는 감시 조건은 시설이 하나뿐이어도 위치와 쓸 수 있는 시설 코드와 함께 거부된다", () => {
-    expect(problems(block("    zones: [야영장A]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: danyang-cheondong, danyang-darian, danyang-soseonam, danyang-daegang$/);
+    expect(problems(block("    zones: [야영장A]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: danyang-cheondong, danyang-darian, danyang-soseonam, danyang-daegang, yeoju-daesin-auto$/);
   });
 
   it("없는 시설은 쓸 수 있는 값과 함께 거부된다", () => {
@@ -912,12 +912,12 @@ describe("catalog mirihae", () => {
     expect(r.requests).toEqual([]);
   });
 
-  it("시설 목록에 확인한 단양 시설 넷이 구역 수와 함께 나온다(입점 기관이 다른 시설은 없다)", async () => {
+  it("시설 목록에 확인한 단양 시설 넷이 구역 수와 함께 나온다(포천 비둘기낭처럼 구조가 다른 시설은 없다)", async () => {
     const r = await catalog();
     expect(r.out).toMatch(/^danyang-darian\s+단양 다리안 캠핑장\s+3곳$/m);
     expect(r.out).toMatch(/^danyang-soseonam\s+단양 소선암 오토캠핑장\s+4곳$/m);
     expect(r.out).toMatch(/^danyang-daegang\s+단양 대강 오토캠핑장\s+2곳$/m);
-    expect(r.out).not.toMatch(/yeoju|pocheon/);
+    expect(r.out).not.toMatch(/pocheon/);
     expect(r.requests).toEqual([]);
   });
 

@@ -1,0 +1,3790 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>예약하기 | 여주강천섬</title>
+<link href="/program/css/current.css" rel="stylesheet" type="text/css" />
+<!-- 공통페이지 -->
+
+
+
+
+
+
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<link rel="shortcut icon" href="/camping/images/gangcheon/favicon.ico" type="image/x-icon">
+<meta name="apple-mobile-web-app-title" content="미리해" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<link rel="apple-touch-icon" sizes="180x180" href="/camping/images/favicon/gangcheon/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/camping/images/favicon/gangcheon/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/camping/images/favicon/gangcheon/favicon-16x16.png" />
+<link rel="manifest" href="images/favicon/site.webmanifest" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+<link href="/camping/css/v2/xeicon.css" rel="stylesheet" type="text/css">
+<link href="/camping/css/v2/swiper-bundle.css" rel="stylesheet" type="text/css">
+<link href="/camping/css/v2/common.css?v=4" rel="stylesheet" type="text/css">
+<link href="/camping/css/v2/middle.css" rel="stylesheet" type="text/css">
+
+<link href="/camping/css/v2/jquery-ui.css" rel="stylesheet" type="text/css">
+<link href="/camping/css/v2/pignose.calendar.css" rel="stylesheet" type="text/css" />
+<script src="/camping/js/v2/jquery.min.js"></script>
+<script src="/camping/js/v2/jquery-ui.js"></script>
+<script src="/camping/js/v2/swiper-bundle.min.js"></script>
+<script src="/camping/js/v2/sub.js?v=240313"></script>
+<script src="/camping/js/v2/common.js?v=240313"></script>
+<script src="/camping/js/v2/swiper-bundle.js"></script>
+
+<meta property="og:title" content="여주강천섬 캠핑장" /> 
+<meta property="og:description" content="미리해" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="/camping/images/og.png" />
+<meta property="og:url" content="https://camp.yjcf.or.kr" />
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-PVGDS8FK4W"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-PVGDS8FK4W');
+</script>
+<link href="/camping/css/v2/reservation.css?v=1" rel="stylesheet" type="text/css" />
+<script language="javascript" src="/camping/js/v2/reservation.js?v=2"></script>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0F5H929WY2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-0F5H929WY2');
+</script>
+<script>
+var groupCode = 'gangcheon';
+var emergencyCheckUrl = '/camping/checkEmergencyBlock.do';
+var emergencyPopupUrl = '/camping/emergencyBlockPopup.do';
+</script>
+<script src="/camping/js/v2/reservation-page.js?v=1"></script>
+</head>
+
+<body class="type2" oncontextmenu="return false">
+<div class="loading" id="loading" style="pointer-events: unset;display:flex;z-index:99">
+ 	<div class="img"></div>
+ 	<p style="display: block;padding-top: 210px;position: absolute;font-weight: bold;text-align:center">로딩 중...<br />접속량이 많아 접속 대기중입니다.<br />잠시만 기다려주세요.</p>
+</div>
+<div class="wrap sub reservation full floating-banner onestep">
+
+	<div class="floating online-cert" onclick="fn_cert_popup();" >
+		
+		
+		<div class="float-el online-cert" >
+			<div class="icon"></div>
+			<div class="title">
+				<h1>온라인 인증 하세요</h1>
+			</div>
+			<p>
+				온라인 인증을 하면 감면금이 적용됩니다!!
+			</p>
+		</div>
+		
+		
+		
+	</div>
+	
+	<!-- gnb -->
+	
+		
+		
+	
+
+
+
+
+
+
+<script type="text/javascript">
+function fncLogout(){
+	if(confirm("로그아웃 하시겠습니까?")){
+		document.logoutForm.action =  "/logout.do";
+		document.logoutForm.submit();
+	}
+}
+function fn_login(){
+	document.logoutForm.action =  "/gangcheon/login.do";
+	document.logoutForm.submit();
+}
+function myPage(){
+	document.logoutForm.action =  "/mypage.do";
+	document.logoutForm.submit();
+}
+</script>
+<link rel="stylesheet" type="text/css" href="/camping/css/gnb.css">
+<form name="logoutForm" method="post">
+<input type="hidden" name="returnUrl" value="/gangcheon/camping">
+<input type="hidden" name="groupCode" value="gangcheon">
+</form>
+<div class="global">
+    <div class="skip_nav">
+        <a href="#contents" class="content">본문 바로가기</a>
+        <a href="#pc_gnb" class="pc_content">주메뉴 바로가기</a>
+    </div>
+</div>
+<div class="gnb" id="pc_gnb">
+<ul class="menu">
+	<li class="logo">
+		<a href="/">
+			<img src="/common/getImage.do?atchFileId=FILE_6565ad8154af465&fileSn=0" class="logoImg logo-ori" />
+			<img src="/common/getImage.do?atchFileId=FILE_6565ad8154af465&fileSn=0" class="logoImgWhite logo-w" alt="캠핑장 선택 페이지로 이동: 캠핑장로고(흑백로고)"/>
+		</a>
+	</li>
+	<li class="coll"></li>
+	<li class="menus">
+		<ul class="menu-n">
+
+			<li><a href="/gangcheon/camping" class="reservation cat1">캠핑장 예약하기</a></li>
+			<li><a href="/gangcheon/camping/reservation/list.do" class="reservationInfo cat1">캠핑장 예약확인/취소</a></li>
+			<li><a href="/gchc/program/list" class="program-reservation cat2">강천섬 힐링프로그램</a></li>
+			<li><a href="/gchc/program/reservation/list.do" class="programReservationInfo cat2">프로그램 예약확인/취소</a></li>
+			<li><a href="https://www.yjcf.or.kr/cms/content/view/599" target="blank" class="cat3">여주관광상품권 사용처</a></li>
+			<li><a href="/homepage/board/gangcheon/list.do?boardGubun=notice" class="cat3">공지사항</a></li>
+            <li><a href="/homepage/board/gangcheon/list.do?boardGubun=voice" class="cat3">자주묻는 질문</a></li>
+			
+
+			
+		</ul>
+	</li>
+	<li class="other">
+		<a href="https://event-us.kr/yjyouthlab/event/135236" target="_blank"><img src="/camping/images/Asset1.svg" alt="강천섬느림랜드" /></a>
+	</li>
+</ul>
+</div>
+	<div class="visual" >
+	   <h1 class="title">예약하기</h1>
+	   <h2>여주강천섬 예약</h2>
+	   <h3>경기도 여주시 강천면 강천리 627</h3>
+	</div>
+
+	 <div class="contents">
+        <div class="article">
+          <div class="header">
+          	<h1>남한강이 굽어 흐르는 곳에 위치한 자연 친화적 휴식 공간으로 사계절 여주의 매력을 선사합니다.</h1>
+          </div>
+        </div>
+        <div class="images swiper-container">
+          <ul id="banner_main" class="swiper-wrapper">
+          	
+          		<li class="swiper-slide" style="background-image:url(https://camp.yjcf.or.kr/images/img/img18.jpeg)"></li>
+          	
+          		<li class="swiper-slide" style="background-image:url(https://camp.yjcf.or.kr/images/img/img17.jpeg)"></li>
+          	
+          		<li class="swiper-slide" style="background-image:url(https://camp.yjcf.or.kr/images/img/img19.jpeg)"></li>
+          	
+          		<li class="swiper-slide" style="background-image:url(https://camp.yjcf.or.kr/images/img/img21.jpeg)"></li>
+          	
+          		<li class="swiper-slide" style="background-image:url(/camping/images/img/winter.jpg)"></li>
+          	
+          		<li class="swiper-slide" style="background-image:url(https://camp.yjcf.or.kr/images/img/img22.jpeg)"></li>
+          	
+          		<li class="swiper-slide" style="background-image:url(https://camp.yjcf.or.kr/images/img/img2.jpg)"></li>
+          	
+          		<li class="swiper-slide" style="background-image:url(https://camp.yjcf.or.kr/images/img/img6.webp)"></li>
+          	
+          		<li class="swiper-slide" style="background-image:url(/camping/images/img/winter2.jpg)"></li>
+          	
+          </ul>
+          <div class="swiper-pagination"></div>
+        </div>
+        <form name="searchForm" id="searchForm" action="" method="post">
+	   	<input type="hidden" name="checkType" id="checkType" />
+	   	<input type="hidden" name="device" id="device" value="pc" />
+	   	<input type="hidden" name="tocken" id="tocken" value="20261013131526-<MASKED>" />
+		<input type="hidden" name="pageId" id="pageId" value="Y35294962" />
+		<input type="hidden" name="groupCode" id="groupCode" value="gangcheon" />
+		<input type="hidden" name="selectStartDate" id="selectStartDate" value="" />
+		<input type="hidden" name="selectEndDate" id="selectEndDate" value="" />
+		<input type="hidden" name="selectMonth" id="selectMonth" />
+		<input type="hidden" name="selectItemId" id="selectItemId" />
+		<input type="hidden" name="selectTicketId" id="selectTicketId" />
+		<input type="hidden" id="realPrice" />
+		<input type="hidden" name="cnt" id="cnt" />
+		<input type="hidden" name="infoType" id="infoType" />
+		<input type="hidden" id="reloadFlag" value="0" />
+		<input type="hidden" id="payFlag" value="0" />
+		<input type="hidden" id="paySubmit" value="0" />
+		<input type="hidden" id="payCheck" value="0" />
+		<input type="hidden" name="approvalId" id="approvalId" />
+		<input type="hidden" id="txId" name="txId" />
+        <div class="detail">
+          <div class="detail-contents">
+            <div class="sub-detail">
+	            <!-- sect notifications -->
+	            <div class="sect notifications">
+	                <ul class="noti-img">
+                      <li>
+                        <img src="/camping/images/img/eco.png" alt="">
+                      </li>
+                      <li>
+                        <img src="/camping/images/img/shelter.png" alt="">
+                      </li>
+                    </ul>
+	                <ul class="notification vertical card">
+	                  <li>
+	                    <div class="icon">Ⓟ</div>
+	                    <div class="noti-con">
+	                      <h4>주차안내</h4>
+	                      <h5>주차장에서 캠핑장까지 거리는 850m 이상입니다.</h5>
+	                      <p class="noti-explain">주차는 강천섬 주차장을 이용해주세요.<br />캠핑장은 주차장을 따로 보유하고 있지 않습니다.<br />※주말에는 주차장 이용차량 많음.</p>
+	                    </div>
+	                  </li>
+	                  <li>
+	                    <div class="icon">
+	                      <span class="material-symbols-sharp"> deployed_code_alert </span>
+	                    </div>
+	                    <div class="noti-con">
+	                      <h4>운반서비스 미제공</h4>
+	                      <p class="noti-explain">운반 서비스 제공이 없으므로, 짐은 직접 이동해주시기 바랍니다.</p>
+	                    </div>
+	                  </li>
+	                  <li>
+	                    <div class="icon">
+	                      <span class="material-symbols-sharp"> wc </span>
+	                    </div>
+	                    <div class="noti-con">
+	                      <h4>화장실 이용</h4>
+	                      <p class="noti-explain">화장실은 강천섬 방문객들과 공용이므로 주말에는 사용이 불편하실 수 있습니다.</p>
+	                    </div>
+	                  </li>
+	                </ul>
+	              </div>
+	            
+				<!-- ui-sect -->              
+				<div class="ui-sect no-border">
+					<div class="sect date">
+						<div class="head">
+						  <h3>1. 날짜와 구역 선택 (필수)</h3>
+						  <p>입실 날짜와 퇴실 날짜를 선택하신 후 구역을 선택하세요</p>
+						</div>
+							
+
+
+
+
+<div class="calendar" style="background:#fff">
+    <div class="calendar-in">
+        <div class="pignose-calendar pignose-calendar-light pignose-calendar-default">
+            <div class="pignose-calendar-top">
+                <a href="javascript:fn_select_month('2026-09');"
+                   class="pignose-calendar-top-nav pignose-calendar-top-prev">
+                    <span class="icon-arrow-left pignose-calendar-top-icon"></span>
+                </a>
+                <div class="pignose-calendar-top-date">
+                    <span class="pignose-calendar-top-month">10월</span>
+                    <span class="pignose-calendar-top-year">2026</span>
+                </div>
+                <a href="javascript:fn_select_month('2026-11');"
+                   class="pignose-calendar-top-nav pignose-calendar-top-next">
+                    <span class="icon-arrow-right pignose-calendar-top-icon"></span>
+                </a>
+            </div>
+            <!-- 요일 -->
+            <div class="pignose-calendar-header">
+                <div class="pignose-calendar-week pignose-calendar-week-sun">일</div>
+                <div class="pignose-calendar-week pignose-calendar-week-mon">월</div>
+                <div class="pignose-calendar-week pignose-calendar-week-tue">화</div>
+                <div class="pignose-calendar-week pignose-calendar-week-wed">수</div>
+                <div class="pignose-calendar-week pignose-calendar-week-thu">목</div>
+                <div class="pignose-calendar-week pignose-calendar-week-fri">금</div>
+                <div class="pignose-calendar-week pignose-calendar-week-sat">토</div>
+            </div>
+            <div class="pignose-calendar-body">
+                <div class="pignose-calendar-row">
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-09-27');"
+                         tabindex="0"
+                         title="2026-09-27일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-09-27')}"
+                         style="background:#f4f4f4"
+                         id="2026-09-27"
+                         data-week="1"
+                         data-index="1"
+                         class="td td1 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>27</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-09-28');"
+                         tabindex="0"
+                         title="2026-09-28일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-09-28')}"
+                         style="background:#f4f4f4"
+                         id="2026-09-28"
+                         data-week="2"
+                         data-index="2"
+                         class="td td2 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>28</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-09-29');"
+                         tabindex="0"
+                         title="2026-09-29일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-09-29')}"
+                         style="background:#f4f4f4"
+                         id="2026-09-29"
+                         data-week="3"
+                         data-index="3"
+                         class="td td3 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>29</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-09-30');"
+                         tabindex="0"
+                         title="2026-09-30일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-09-30')}"
+                         style="background:#f4f4f4"
+                         id="2026-09-30"
+                         data-week="4"
+                         data-index="4"
+                         class="td td4 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>30</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-01');"
+                         tabindex="0"
+                         title="2026-10-01일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-01')}"
+                         style=""
+                         id="2026-10-01"
+                         data-week="5"
+                         data-index="5"
+                         class="td td5 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>01</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-02');"
+                         tabindex="0"
+                         title="2026-10-02일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-02')}"
+                         style=""
+                         id="2026-10-02"
+                         data-week="6"
+                         data-index="6"
+                         class="td td6 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>02</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-03');"
+                         tabindex="0"
+                         title="2026-10-03일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-03')}"
+                         style=""
+                         id="2026-10-03"
+                         data-week="7"
+                         data-index="7"
+                         class="td td7 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>03</a>
+
+                            
+                        
+                            <div class="element">
+                                
+                                    <span class="event-nm-label" style="background-color:#FF5400"
+                                          title="[힐링센터] 레이저태그 서바이벌">[힐링센터] 레이저태그 서바이벌</span>
+                                
+                            </div>
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                <div class="pignose-calendar-row">
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-04');"
+                         tabindex="0"
+                         title="2026-10-04일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-04')}"
+                         style=""
+                         id="2026-10-04"
+                         data-week="8"
+                         data-index="8"
+                         class="td td8 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>04</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-05');"
+                         tabindex="0"
+                         title="2026-10-05일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-05')}"
+                         style=""
+                         id="2026-10-05"
+                         data-week="9"
+                         data-index="9"
+                         class="td td9 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>05</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-06');"
+                         tabindex="0"
+                         title="2026-10-06일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-06')}"
+                         style=""
+                         id="2026-10-06"
+                         data-week="10"
+                         data-index="10"
+                         class="td td10 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>06</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-07');"
+                         tabindex="0"
+                         title="2026-10-07일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-07')}"
+                         style=""
+                         id="2026-10-07"
+                         data-week="11"
+                         data-index="11"
+                         class="td td11 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>07</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-08');"
+                         tabindex="0"
+                         title="2026-10-08일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-08')}"
+                         style=""
+                         id="2026-10-08"
+                         data-week="12"
+                         data-index="12"
+                         class="td td12 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>08</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-09');"
+                         tabindex="0"
+                         title="2026-10-09일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-09')}"
+                         style=""
+                         id="2026-10-09"
+                         data-week="13"
+                         data-index="13"
+                         class="td td13 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>09</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-10');"
+                         tabindex="0"
+                         title="2026-10-10일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-10')}"
+                         style=""
+                         id="2026-10-10"
+                         data-week="14"
+                         data-index="14"
+                         class="td td14 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>10</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                <div class="pignose-calendar-row">
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-11');"
+                         tabindex="0"
+                         title="2026-10-11일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-11')}"
+                         style=""
+                         id="2026-10-11"
+                         data-week="15"
+                         data-index="15"
+                         class="td td15 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>11</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-12');"
+                         tabindex="0"
+                         title="2026-10-12일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-12')}"
+                         style=""
+                         id="2026-10-12"
+                         data-week="16"
+                         data-index="16"
+                         class="td td16 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>12</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-13');"
+                         tabindex="0"
+                         title="2026-10-13일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-13')}"
+                         style=""
+                         id="2026-10-13"
+                         data-week="17"
+                         data-index="17"
+                         class="td td17 pignose-calendar-unit pignose-calendar-unit-date today week-
+                        
+                        
+                    ">
+                        <a>13</a>
+
+                            
+                        
+
+                        
+                            <div class="element"><span class="today-closed-badge">당일예약 불가</span></div>
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-14');"
+                         tabindex="0"
+                         title="2026-10-14일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-14')}"
+                         style=""
+                         id="2026-10-14"
+                         data-week="18"
+                         data-index="18"
+                         class="td td18 pignose-calendar-unit pignose-calendar-unit-date  week-4
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>14</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        10
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        14
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-15');"
+                         tabindex="0"
+                         title="2026-10-15일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-15')}"
+                         style=""
+                         id="2026-10-15"
+                         data-week="19"
+                         data-index="19"
+                         class="td td19 pignose-calendar-unit pignose-calendar-unit-date  week-5
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>15</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        14
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-16');"
+                         tabindex="0"
+                         title="2026-10-16일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-16')}"
+                         style=""
+                         id="2026-10-16"
+                         data-week="20"
+                         data-index="20"
+                         class="td td20 pignose-calendar-unit pignose-calendar-unit-date  week-6
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>16</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        3
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        5
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        2
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        12
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-17');"
+                         tabindex="0"
+                         title="2026-10-17일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-17')}"
+                         style=""
+                         id="2026-10-17"
+                         data-week="21"
+                         data-index="21"
+                         class="td td21 pignose-calendar-unit pignose-calendar-unit-date  week-7
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>17</a>
+
+                            
+                        
+                            <div class="element">
+                                
+                                    <span class="event-nm-label" style="background-color:#FF5400"
+                                          title="[힐링프로그램] 강천섬에서 만나는 착한우산">[힐링프로그램] 강천섬에서 만나는 착한우산</span>
+                                
+                                    <span class="event-nm-label" style="background-color:#536DED"
+                                          title="[캠핑장] 댕댕캠프 1박2일 행사">[캠핑장] 댕댕캠프 1박2일 행사</span>
+                                
+                                    <span class="event-nm-label" style="background-color:#FF5400"
+                                          title="[캠핑장] 강천섬 힐링 패밀리데이">[캠핑장] 강천섬 힐링 패밀리데이</span>
+                                
+                            </div>
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        1
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        0
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        1
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                <div class="pignose-calendar-row">
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-18');"
+                         tabindex="0"
+                         title="2026-10-18일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-18')}"
+                         style=""
+                         id="2026-10-18"
+                         data-week="22"
+                         data-index="22"
+                         class="td td22 pignose-calendar-unit pignose-calendar-unit-date  week-1
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>18</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        14
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-19');"
+                         tabindex="0"
+                         title="2026-10-19일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-19')}"
+                         style=""
+                         id="2026-10-19"
+                         data-week="23"
+                         data-index="23"
+                         class="td td23 pignose-calendar-unit pignose-calendar-unit-date  week-2
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>19</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        10
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        14
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-20');"
+                         tabindex="0"
+                         title="2026-10-20일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-20')}"
+                         style=""
+                         id="2026-10-20"
+                         data-week="24"
+                         data-index="24"
+                         class="td td24 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>20</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-21');"
+                         tabindex="0"
+                         title="2026-10-21일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-21')}"
+                         style=""
+                         id="2026-10-21"
+                         data-week="25"
+                         data-index="25"
+                         class="td td25 pignose-calendar-unit pignose-calendar-unit-date  week-4
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>21</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        6
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        8
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        14
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-22');"
+                         tabindex="0"
+                         title="2026-10-22일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-22')}"
+                         style=""
+                         id="2026-10-22"
+                         data-week="26"
+                         data-index="26"
+                         class="td td26 pignose-calendar-unit pignose-calendar-unit-date  week-5
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>22</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        14
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-23');"
+                         tabindex="0"
+                         title="2026-10-23일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-23')}"
+                         style=""
+                         id="2026-10-23"
+                         data-week="27"
+                         data-index="27"
+                         class="td td27 pignose-calendar-unit pignose-calendar-unit-date  week-6
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>23</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        5
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        13
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-24');"
+                         tabindex="0"
+                         title="2026-10-24일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-24')}"
+                         style=""
+                         id="2026-10-24"
+                         data-week="28"
+                         data-index="28"
+                         class="td td28 pignose-calendar-unit pignose-calendar-unit-date  week-7
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>24</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        0
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        0
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        0
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        0
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+                </div>
+                <div class="pignose-calendar-row">
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-25');"
+                         tabindex="0"
+                         title="2026-10-25일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-25')}"
+                         style=""
+                         id="2026-10-25"
+                         data-week="29"
+                         data-index="29"
+                         class="td td29 pignose-calendar-unit pignose-calendar-unit-date  week-1
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>25</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        3
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        5
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        14
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-26');"
+                         tabindex="0"
+                         title="2026-10-26일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-26')}"
+                         style=""
+                         id="2026-10-26"
+                         data-week="30"
+                         data-index="30"
+                         class="td td30 pignose-calendar-unit pignose-calendar-unit-date  week-2
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>26</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        4
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        14
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-27');"
+                         tabindex="0"
+                         title="2026-10-27일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-27')}"
+                         style=""
+                         id="2026-10-27"
+                         data-week="31"
+                         data-index="31"
+                         class="td td31 pignose-calendar-unit pignose-calendar-unit-date  week-
+                        
+                        
+                    ">
+                        <a>27</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-28');"
+                         tabindex="0"
+                         title="2026-10-28일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-28')}"
+                         style=""
+                         id="2026-10-28"
+                         data-week="32"
+                         data-index="32"
+                         class="td td32 pignose-calendar-unit pignose-calendar-unit-date  week-4
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>28</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        14
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-29');"
+                         tabindex="0"
+                         title="2026-10-29일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-29')}"
+                         style=""
+                         id="2026-10-29"
+                         data-week="33"
+                         data-index="33"
+                         class="td td33 pignose-calendar-unit pignose-calendar-unit-date  week-5
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>29</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        7
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        8
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        14
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-30');"
+                         tabindex="0"
+                         title="2026-10-30일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-30')}"
+                         style=""
+                         id="2026-10-30"
+                         data-week="34"
+                         data-index="34"
+                         class="td td34 pignose-calendar-unit pignose-calendar-unit-date  week-6
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>30</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        4
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        9
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        6
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        3
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        13
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                    
+
+                    
+                    
+
+                    <div onclick="fn_select('2026-10-31');"
+                         tabindex="0"
+                         title="2026-10-31일 선택"
+                         role="button"
+                         onKeyDown="if(event.keyCode == 13){fn_select('2026-10-31')}"
+                         style=""
+                         id="2026-10-31"
+                         data-week="35"
+                         data-index="35"
+                         class="td td35 pignose-calendar-unit pignose-calendar-unit-date  week-7
+                         click
+                            
+                            
+                        
+                        
+                    ">
+                        <a>31</a>
+
+                            
+                        
+
+                        
+                            
+                        
+
+                        
+                            
+                            
+                                
+                                <div class="element">
+                                    <div class="district">
+                                        
+                                            
+                                                <dl class="schedule color1 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        0
+                                                    </dt>
+                                                    <dd>세종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color2 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        0
+                                                    </dt>
+                                                    <dd>원경왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color3 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        0
+                                                    </dt>
+                                                    <dd>효종대왕</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color4 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        0
+                                                    </dt>
+                                                    <dd>인현왕후</dd>
+                                                </dl>
+                                            
+                                                <dl class="schedule color5 "
+                                                    style="cursor:pointer;filter: initial;">
+                                                    <dt>
+                                                        0
+                                                    </dt>
+                                                    <dd>명성황후</dd>
+                                                </dl>
+                                            
+                                        
+                                        
+                                    </div>
+                                </div>
+                                
+                            
+                        
+                    </div>
+                    
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+			      		
+		      		</div>
+	                <!-- ui-sect -->  
+					<div class="sect sight" id="map-select">
+						<div class="head">
+		                    <h3>2. 구역 선택 (필수)</h3>
+		                    <p class="added-date">날짜를 먼저 선택해주세요. 날짜를 선택하시면 선택한 일정에 가능한 구역이 표시됩니다.</p>
+		                    <p>구역선택 후 20분 이내 결제가 완료되지 않을시 선택한 좌석은 취소됩니다.</p>
+		                    <p>※ 사진으로 정확히 표기가 안되기에 예약화면에서 사이트지도와 실제 위치가 상이 할 수 있습니다.</p>
+		                    <h5 class="mobile-map-touch-info" style="display:none; padding-top:2%">지도를 움직여 좌우 이동이 가능합니다.</h5>
+	                  	</div>
+							
+
+						<div class="map-picker able jpg">
+	                   		<div class="map-area">
+		                      	<div class="map">
+		                      		<div class="pin-area" id="pinCategory1">
+		                      			<div id="pin-A01" class="pin sect01" ><div class="marker"><p>1</p></div><div id="ramp-A01" class="feat icon icon-ramp"><span class="material-symbols-sharp fill">elevation</span></div></div>
+		                      			<div id="pin-A02" class="pin sect01" ><div class="marker"><p>2</p></div><div id="ramp-A01" class="feat icon icon-ramp"><span class="material-symbols-sharp fill">elevation</span></div></div>
+		                      			<div id="pin-A03" class="pin sect01" ><div class="marker"><p>3</p></div></div>
+										<div id="pin-A04" class="pin sect01" ><div class="marker"><p>4</p></div></div>
+										<div id="pin-A05" class="pin sect01" ><div class="marker"><p>5</p></div></div>
+										<div id="pin-A06" class="pin sect01" ><div class="marker"><p>6</p></div></div>
+										<div id="pin-A07" class="pin sect01" ><div class="marker"><p>7</p></div></div>
+										<div id="pin-A08" class="pin sect01" ><div class="marker"><p>8</p></div></div>
+				                        <div id="pin-A09" class="pin sect01" ><div class="marker"><p>9</p></div><div id="ramp-A01" class="feat icon icon-ramp"><span class="material-symbols-sharp fill">elevation</span></div></div>
+				                        <div id="pin-A10" class="pin sect01" ><div class="marker"><p>10</p></div><div id="ramp-A01" class="feat icon icon-ramp"><span class="material-symbols-sharp fill">elevation</span></div></div>
+				                        
+										<div id="pin-A11" class="pin sect02" ><div class="marker"><p>1</p></div></div>
+										<div id="pin-A12" class="pin sect02" ><div class="marker"><p>2</p></div></div>
+										<div id="pin-A13" class="pin sect02" ><div class="marker"><p>3</p></div></div>
+										<div id="pin-A14" class="pin sect02" ><div class="marker"><p>4</p></div></div>
+										<div id="pin-A15" class="pin sect02" ><div class="marker"><p>5</p></div></div>
+										<div id="pin-A16" class="pin sect02" ><div class="marker"><p>6</p></div></div>
+										<div id="pin-A17" class="pin sect02" ><div class="marker"><p>7</p></div></div>
+										<div id="pin-A18" class="pin sect02" ><div class="marker"><p>8</p></div></div>
+										<div id="pin-A19" class="pin sect02" ><div class="marker"><p>9</p></div></div>
+										
+										<div id="pin-B01" class="pin sect03" ><div class="marker"><p>1</p></div></div>
+		                      			<div id="pin-B02" class="pin sect03" ><div class="marker"><p>2</p></div></div>
+		                      			<div id="pin-B03" class="pin sect03" ><div class="marker"><p>3</p></div></div>
+										<div id="pin-B04" class="pin sect03" ><div class="marker"><p>4</p></div></div>
+										<div id="pin-B05" class="pin sect03" ><div class="marker"><p>5</p></div></div>
+										<div id="pin-B06" class="pin sect03" ><div class="marker"><p>6</p></div></div>
+										<div id="pin-B07" class="pin sect03" ><div class="marker"><p>7</p></div></div>
+										
+										<div id="pin-B08" class="pin sect04" ><div class="marker"><p>1</p></div></div>
+				                        <div id="pin-B09" class="pin sect04" ><div class="marker"><p>2</p></div></div>
+				                        <div id="pin-B10" class="pin sect04" ><div class="marker"><p>3</p></div></div>
+										<div id="pin-B11" class="pin sect04" ><div class="marker"><p>4</p></div></div>
+										<div id="pin-B12" class="pin sect04" ><div class="marker"><p>5</p></div></div>
+										<div id="pin-B13" class="pin sect04" ><div class="marker"><p>6</p></div></div>
+										<div id="pin-B14" class="pin sect04" ><div class="marker"><p>7</p></div></div>
+										<div id="pin-B15" class="pin sect04" ><div class="marker"><p>8</p></div></div>
+										<div id="pin-B16" class="pin sect04" ><div class="marker"><p>9</p></div></div>
+										<div id="pin-B17" class="pin sect04" ><div class="marker"><p>10</p></div></div>
+										
+										<div id="pin-C01" class="pin sect05" ><div class="marker"><p>1</p></div></div>
+		                      			<div id="pin-C02" class="pin sect05" ><div class="marker"><p>2</p></div></div>
+		                      			<div id="pin-C03" class="pin sect05" ><div class="marker"><p>3</p></div></div>
+										<div id="pin-C04" class="pin sect05" ><div class="marker"><p>4</p></div></div>
+										<div id="pin-C05" class="pin sect05" ><div class="marker"><p>5</p></div></div>
+										<div id="pin-C06" class="pin sect05" ><div class="marker"><p>6</p></div></div>
+										<div id="pin-C07" class="pin sect05" ><div class="marker"><p>7</p></div></div>
+										<div id="pin-C08" class="pin sect05" ><div class="marker"><p>8</p></div></div>
+										<div id="pin-C09" class="pin sect05" ><div class="marker"><p>9</p></div></div>
+				                        <div id="pin-C10" class="pin sect05" ><div class="marker"><p>10</p></div></div>
+										<div id="pin-C11" class="pin sect05" ><div class="marker"><p>11</p></div></div>
+										<div id="pin-C12" class="pin sect05" ><div class="marker"><p>12</p></div></div>
+										<div id="pin-C13" class="pin sect05" ><div class="marker"><p>13</p></div></div>
+										<div id="pin-C14" class="pin sect05" ><div class="marker"><p>14</p></div></div>
+									</div>
+			                        <div id="water-01" class="feat icon"><img src="/camping/images/icon/pin-water.svg" alt=""></div>
+			                        <div id="shower-01" class="feat icon"><img src="/camping/images/icon/pin-shower.svg" alt=""></div>
+			                        <div id="park-01" class="feat icon"><img src="/camping/images/icon/pin-parking.svg" alt=""></div>
+			                        <div id="toilet-01" class="feat icon"><img src="/camping/images/icon/pin-toilet-color.svg" alt=""></div>
+            			                        <div id="info-01" class="feat icon"><img src="/camping/images/icon/pin-info.svg" alt=""></div>
+			                        
+			                        <div id="facil-01" class="feat anno district">세종대왕 구역</div>
+			                        <div id="facil-02" class="feat anno district">원경왕후 구역</div>
+			                        <div id="facil-03" class="feat anno district">효종대왕 구역</div>
+			                        <div id="facil-04" class="feat anno district">인현왕후 구역</div>
+			                        <div id="facil-05" class="feat anno district">명성황후 구역</div>
+                       				 
+			            
+			                        <img src="/images/img/260407_add_deck.jpg" class="map-img" alt="강천섬 캠핑장 지도" />
+								</div>
+							</div>
+							<div class="option color-var">
+		                      <div class="facilities">
+		                      	<p><img src="/camping/images/icon/pin-info.svg" alt="관리동" />관리동</p>
+								<p><img src="/camping/images/icon/pin-toilet-color.svg" alt="화장실" />화장실</p>
+		                        <p><img src="/camping/images/icon/pin-water.svg" alt="개수대" />개수대</p>
+		                        <p><img src="/camping/images/icon/pin-shower.svg" alt="샤워장" />샤워장</p>
+		                        <p><img src="/camping/images/icon/pin-parking.svg" alt="주차장" />주차장</p>
+                                <p class="icon-ramp"><span class="material-symbols-sharp fill">elevation</span>경사로(유모차,휠체어 가능)</p>
+                        <p><img src="/camping/images/icon/pin-pet.svg" alt="반려동물" />반려동물 동반 가능</p>
+		                      </div>
+		                      <div class="legend">
+		                        <p class="sect01"><span></span>세종대왕 구역</p>
+		                        <p class="sect02"><span></span>원경왕후 구역</p>
+		                        <p class="sect03"><span></span>효종대왕 구역</p>
+		                        <p class="sect04"><span></span>인현왕후 구역</p>
+		                        <p class="sect05"><span></span>명성황후 구역</p>
+		                      </div>
+		                    </div>
+						</div>
+<script>
+$(document).ready(function(){
+	var petClassIds = ["A11","A12"];
+	$.each(petClassIds, function(i, classId){
+		$("#pin-" + classId).append('<div class="feat icon icon-pet"><img src="/camping/images/icon/pin-pet.svg" alt="반려동물"></div>');
+	});
+});
+</script>
+
+					</div>
+				</div> <!-- ui-sect no-border END -->
+	   			<!-- 캠핑장별 이용안내 -->
+	   			<!-- 캠핑장 이용요금 (동적) -->
+	   			<div class="sect">
+	   				<div class="head">
+	   					<h3>캠핑장 이용요금</h3>
+	   					<p>예약신청 시 사용시간 : 사용시작일 14:00부터 종료일 12:00까지</p>
+	   				</div>
+	   				<ul class="list vertical prices">
+	   					
+	   						
+	   						
+	   					
+
+
+
+<li>
+    <div class="thumb">
+        
+        <div class="with-swiper">
+            <div class="swiper-container thumb-swiper">
+                <ul class="swiper-wrapper">
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_5eee08671785484&fileSn=10">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_5eee08671785484&fileSn=10);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_5eee08671785484&fileSn=11">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_5eee08671785484&fileSn=11);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_5eee08671785484&fileSn=12">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_5eee08671785484&fileSn=12);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_5eee08671785484&fileSn=13">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_5eee08671785484&fileSn=13);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_5eee08671785484&fileSn=14">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_5eee08671785484&fileSn=14);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_5eee08671785484&fileSn=15">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_5eee08671785484&fileSn=15);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_5eee08671785484&fileSn=16">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_5eee08671785484&fileSn=16);"></div>
+                    </li>
+                    
+                </ul>
+                
+                <div class="nav">
+                    <div class="swiper-button-prev"></div>
+                    <div class="close"><i class="xi-close-thin"></i></div>
+                    <div class="swiper-button-next"></div>
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+    <div class="infos">
+        <div class="info">
+            <h2>세종대왕</h2>
+            
+                <p>1면/1일 5인기준, 수도제공</p>
+            
+        </div>
+        <div class="price-multi">
+            <div class="price">
+                <dl>
+                    <dt>이용료</dt>
+                    <dd>50,000원</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</li>
+
+<li>
+    <div class="thumb">
+        
+        <div class="with-swiper">
+            <div class="swiper-container thumb-swiper">
+                <ul class="swiper-wrapper">
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=10">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=10);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=11">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=11);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=12">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=12);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=13">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=13);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=14">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=14);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=15">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=15);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=16">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=16);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=17">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=17);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=18">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_2ab72041aebb4c1&fileSn=18);"></div>
+                    </li>
+                    
+                </ul>
+                
+                <div class="nav">
+                    <div class="swiper-button-prev"></div>
+                    <div class="close"><i class="xi-close-thin"></i></div>
+                    <div class="swiper-button-next"></div>
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+    <div class="infos">
+        <div class="info">
+            <h2>원경왕후</h2>
+            
+                <p>1면/1일 5인기준, 수도제공</p>
+            
+        </div>
+        <div class="price-multi">
+            <div class="price">
+                <dl>
+                    <dt>이용료</dt>
+                    <dd>50,000원</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</li>
+
+<li>
+    <div class="thumb">
+        
+        <div class="with-swiper">
+            <div class="swiper-container thumb-swiper">
+                <ul class="swiper-wrapper">
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=2">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=2);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=3">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=3);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=4">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=4);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=5">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=5);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=6">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=6);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=7">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=7);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=8">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_773268ce15cc4c8&fileSn=8);"></div>
+                    </li>
+                    
+                </ul>
+                
+                <div class="nav">
+                    <div class="swiper-button-prev"></div>
+                    <div class="close"><i class="xi-close-thin"></i></div>
+                    <div class="swiper-button-next"></div>
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+    <div class="infos">
+        <div class="info">
+            <h2>효종대왕</h2>
+            
+                <p>1면/1일 5인기준, 수도제공</p>
+            
+        </div>
+        <div class="price-multi">
+            <div class="price">
+                <dl>
+                    <dt>이용료</dt>
+                    <dd>50,000원</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</li>
+
+<li>
+    <div class="thumb">
+        
+        <div class="with-swiper">
+            <div class="swiper-container thumb-swiper">
+                <ul class="swiper-wrapper">
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=10">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=10);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=11">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=11);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=12">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=12);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=13">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=13);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=14">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=14);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=15">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=15);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=16">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=16);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=17">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=17);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=18">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=18);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=19">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_f7980f0f4de8454&fileSn=19);"></div>
+                    </li>
+                    
+                </ul>
+                
+                <div class="nav">
+                    <div class="swiper-button-prev"></div>
+                    <div class="close"><i class="xi-close-thin"></i></div>
+                    <div class="swiper-button-next"></div>
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+    <div class="infos">
+        <div class="info">
+            <h2>인현왕후</h2>
+            
+                <p>1면/1일 5인기준, 수도제공</p>
+            
+        </div>
+        <div class="price-multi">
+            <div class="price">
+                <dl>
+                    <dt>이용료</dt>
+                    <dd>50,000원</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</li>
+
+<li>
+    <div class="thumb">
+        
+        <div class="with-swiper">
+            <div class="swiper-container thumb-swiper">
+                <ul class="swiper-wrapper">
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_a7f4eb5cf523464&fileSn=0">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_a7f4eb5cf523464&fileSn=0);"></div>
+                    </li>
+                    
+                    <li class="swiper-slide" data-original="/common/getImage.do?atchFileId=FILE_a7f4eb5cf523464&fileSn=1">
+                        <div class="img" style="background-image: url(/common/getThumbImage.do?atchFileId=FILE_a7f4eb5cf523464&fileSn=1);"></div>
+                    </li>
+                    
+                </ul>
+                
+                <div class="nav">
+                    <div class="swiper-button-prev"></div>
+                    <div class="close"><i class="xi-close-thin"></i></div>
+                    <div class="swiper-button-next"></div>
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+    <div class="infos">
+        <div class="info">
+            <h2>명성황후</h2>
+            
+                <p>1면/1일 5인기준, 수도제공</p>
+            
+        </div>
+        <div class="price-multi">
+            <div class="price">
+                <dl>
+                    <dt>이용료</dt>
+                    <dd>50,000원</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</li>
+
+
+	   				</ul>
+	   			</div>
+       			<div class="sect">
+                
+              <div class="sect promotion banner" style="background-image: url(https://camp.yjcf.or.kr/images/img/voucher.png)">
+                <a href="#" target="_blank">
+                  <div class="ment">
+                    <h3 class="pb0">결제금액 돌려드려요</h3>
+                    <h2>여주관광상품권 지급</h2>
+                  </div>
+                  <div class="extra">
+                    <p>결제금액의 일부를 여주관광상품권으로 되돌려 드리며,<br />받으신 상품권은 여주시 지역내 가맹점에서 사용가능합니다.</p>
+                  </div>
+                </a>
+              </div>
+              <!-- <div class="sect">
+                <h3>주차요금</h3>
+                <p>수영복, 수영모자 착용필수이며 한번 퇴장 시 재입장 불가합니다.</p>
+                <p>수영장 내 화기 사용은 금지되어 있으며, 휴식시간 이외 음료 외 음식물은 섭취불가합니다</p>
+                <p>요금은 입장료 기준이므로 입장객 모두 매표하셔야 합니다.</p>
+                <div class="table allborder">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>구분</th>
+                        <th>어른</th>
+                        <th>청소년</th>
+                        <th>어린이</th>
+                        <th>3세이하</th>
+                        <th>이용시간</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th>개인</th>
+                        <td><span class="price">6,000원</span></td>
+                        <td><span class="price">5,000원</span></td>
+                        <td><span class="price">4,000원</span></td>
+                        <td><span class="price">무료</span></td>
+                        <td rowspan="2" valign="middle">
+                          <p>1부 10:00~12:00(30분간 휴식)</p>
+                          <p>2부 12:30~14:30(15분간 휴식)</p>
+                          <p>3부 14:45~16:50</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>단체(30인 이상)</th>
+                        <td><span class="price">5,000원</span></td>
+                        <td><span class="price">4,000원</span></td>
+                        <td><span class="price">3,000원</span></td>
+                        <td><span class="price">여주시민 50% 할인</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div> -->
+              <div class="sect flex" style="display:flex; gap:40px;">
+                <div>
+                  <div class="head">
+                    <h3>추가요금 안내</h3>
+                    <p>1일 사용료를 기준으로 아래의 요율에 해당하는 금액</p>
+                  </div>
+                  <ul class="overview small">
+                    <li>
+                      <h6>1시간 이내</h6>
+                      <p>+20%</p>
+                    </li>
+                    <li>
+                      <h6>1~2시간</h6>
+                      <p>+40%</p>
+                    </li>
+                    <li>
+                      <h6>2~3시간</h6>
+                      <p>+60%</p>
+                    </li>
+                    <li>
+                      <h6>3~4시간</h6>
+                      <p>+80%</p>
+                    </li>
+                    <li>
+                      <h6>4시간 초과</h6>
+                      <p>+100%</p>
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <div class="head">
+                    <h3>이용시간 안내</h3>
+                    <p>캠핑장 입실 시 관리사무실 방문 후 이용</p>
+                  </div>
+                  <ul class="overview small">
+                    <li>
+                      <h6>체크인</h6>
+                      <p>14:00</p>
+                    </li>
+                    <li>
+                      <h6>체크아웃</h6>
+                      <p>12:00</p>
+                    </li>
+                    <li>
+                      <h6>휴장일</h6>
+                      <p>매주 화요일</p>
+                    </li>
+                    <!-- <li>
+                    <h6>여주시민 10월 우선예약일</h6>
+                    <p>9.12 ~ 9.16 23:59까지</p>
+                  </li>
+                  <li>
+                    <h6>여주고향사량 기부자 10월 우선예약일</h6>
+                    <p>9.12 ~ 9.16 23:59까지</p>
+                  </li> -->
+                  </ul>
+                </div>
+              </div>
+<style>ul.notification,
+.full ul.notification {
+  padding-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+}
+ul.notification li,
+.sub.full ul.notification li {
+  width: calc(50% - 20px);
+  display: flex;
+  gap: 16px;
+}
+</style>
+             <div class="section">
+          <div class="head">
+            <h2>캠핑장 준수사항</h2>
+          </div>
+          <ul class="notification">
+            <li>
+              <div class="icon"><i class="xi-clock-o"></i></div>
+              <div class="noti-con">
+                <h4>캠핑장 입·퇴실</h4>
+                <p>캠핑장 이용전 관리사무소를 방문하여 체크인 진행 바랍니다.</p>
+                <p>입실(오후 2시 이후), 퇴실(정오 12시까지)</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><span class="material-symbols-sharp fill"> power_off </span></div>
+              <div class="noti-con">
+                <h4>전기</h4>
+                <p>전기는 제공하지 않으며, 필요시 개인이 파워뱅크를 지참하시기 바랍니다.</p>
+                <p>우천 및 낙뢰 시 전기 사용 주의(누전 및 감전 위험)</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><i class="xi-volume-max"></i></div>
+              <div class="noti-con">
+                <h4>소음</h4>
+                <p>심한 소음은 항상 주의하여야 합니다.</p>
+                <p>22:00 ~ 08:00까지는 정숙해주시기 바랍니다.</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><span class="material-symbols-sharp"> delete </span></div>
+              <div class="noti-con">
+                <h4>쓰레기 배출</h4>
+                <p>일반 쓰레기는 종량제 봉투에 담아 적치장에 배출애햐 합니다.</p>
+                <p>재활용품은 분리하여 배출하며, 조개류는 일반쓰레기로 배출해야 합니다.</p>
+                <p>음식물 쓰레기는 전용 봉투에 담아 배출애햐 합니다. </p>
+                <p>설거지는 취사장에서 하며, 오수대에서는 설거지 금지합니다. </p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><span class="material-symbols-sharp"> pets </span></div>
+              <div class="noti-con">
+                <h4>애완동물 등 출입</h4>
+                <p>모든 동물은 항상 사람의 감독 하에 있어야 하며, 줄로 매어야 합니다.</p>
+                <p>동물의 오물 등으로 캠핑장을 더럽혀서는 안됩니다.</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><i class="xi-fragile"></i></div>
+              <div class="noti-con">
+                <h4>유실 또는 피해</h4>
+                <p>관리자는 사용자의 소유물에 대한 유실 및 피해에 책임을 지지 않습니다.</p>
+                <p>관리자는 캠핑객의 부주의로 인한 사고에 대해 책임을 지지 않습니다.</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><i class="xi-border-clear"></i></div>
+              <div class="noti-con">
+                <h4>캠핑 장소</h4>
+                <p>사용자께서는 배정된 곳을 사용하셔야 하며, 항상 깨끗하게 이용하여 주시기 바랍니다.</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><i class="xi-car"></i></div>
+              <div class="noti-con">
+                <h4>자동차 출입</h4>
+                <p>캠핑장 내에 자동차 출입이 불가하며, 인근 주차장을 이용하여 주시기 바랍니다.</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><i class="xi-restaurant"></i></div>
+              <div class="noti-con">
+                <h4>취사</h4>
+                <p>지정된 장소에서만 취사 가능합니다.</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><i class="xi-windy xi-rotate-270"></i></div>
+              <div class="noti-con">
+                <h4>화재 주의</h4>
+                <p>캠핑장 내 잔디, 수목보호를 위해 개인 화롯대 이외의 불 사용을 금지합니다.</p>
+                <p>화재예방을 위해 풍등, 캠프파이어, 불꽃놀이 등을 금지합니다.</p>
+                <p>가스용기는 13KG 이하만 사용 가능합니다.</p>
+                <p>텐트 내부 화기사용을 금지하며, 질식사고 예방을 위해 주기적으로 환기하여 주시기 바랍니다.</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><i class="xi-bicycle"></i></div>
+              <div class="noti-con">
+                <h4>사고 예방</h4>
+                <p>캠핑장 내에서 인라인 스케이트, 전동킥보드, 전동오토바이, 자전거타기 등을 금합니다.</p>
+                <p>강천섬은 물놀이 구역이 아닙니다. 이용객 안전을 위해 입수는 절대 금합니다.</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><span class="material-symbols-sharp fill"> campaign </span></div>
+              <div class="noti-con">
+                <h4>영리행위 및 홍보 금지</h4>
+                <p>캠핑장 내에서는 정치적·종교적 홍보 등은 금지되어 있습니다.</p>
+                <p>관리자의 사전 허가 없이는 상업적인 홍보 및 물품의 판매를 할 수 없습니다.</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><i class="xi-warning"></i></div>
+              <div class="noti-con">
+                <h4>긴급사태</h4>
+                <p>위급을 요하는 경우와 호우, 강풍 등으로 피난이 필요한 경우 관리자의 지시에 따라 주시기 바랍니다.</p>
+                <p>비상연락처: 031)881-6903</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><i class="xi-log-out"></i></div>
+              <div class="noti-con">
+                <h4>강제 퇴소</h4>
+                <p>상기 주의사항이 지켜지지 않을 경우 관리자는 당일 사용분 환불없이 강제 퇴소 조치할 수 있습니다.</p>
+              </div>
+            </li>
+            <li>
+              <div class="icon"><i class="xi-log-out"></i></div>
+              <div class="noti-con">
+                <h4>변상책임</h4>
+                <p>이용자의 고의 또는 과실로 캠핑장 시설물이나 대여장비 및 자연환경을 훼손 하였을 경우</p>
+                <p>시설을 이용하는 동안 주의사항 미준수로 발생하는 안전사고에 대해서는 이용 자에 책임 부여</p>
+                <p>귀중품은 본인이 각별히 주의하여야 하며 개인 부주의로 인해 발생한 분실에 대해서는 책임지지 않습니다.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+              <div class="sect">
+                <h3 class="with-btn">감면대상 할인안내 <a href="#" class="btn">감면대상 인증하기</a></h3>
+                <p>감면대상 인증하고 온라인에서 바로 할인받으세요</p>
+                <div class="table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>감면요율</th>
+                        <th>감면대상</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th>100% 감면</th>
+                        <td>
+                          <p>가. 국가나 지방자치단체가 공무상 필요하여 사용하는 경우</p>
+                          <p>나. 국가나 지방자치단체가 주관·후원하는 행사에 사용하는 경우</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>50% 감면</th>
+                        <td>
+                          <p>가. 「국민기초생활 보장법」 제2조에 따른 국민기초생활수급자</p>
+                          <p>나. 「장애인 복지법」 제32조에 따라 등록된 장애인</p>
+                          <p>다. 「국가유공자 등 예우 및 지원에 관한 법률 시행령」 제86조 제1항 각 호에 해당하는 사람</p>
+                          <p>라. 「5.18민주유공자예우에 관한 법률」 제7조에 따라 등록된 5.18민주유공자와 그 유족</p>
+                          <p>마. 「특수임무유공자 예우 및 단체설립에 관한 법률」 제6조에 따라 등록된 특수임무유공자와 그 유족</p>
+                          <p>바. 「한부모가족지원법」 제4조에 따른 한부모가족</p>
+                          <p>사. 교육감 또는 학교장의 추천을 받은 관내 초/중/고등학생들이 단체 수련활동을 하는 경우</p>
+                          <p>아. 「주민등록법」에 따라 여주시에 주소를 둔 개인</p>
+                          <p>자. 여주시 명예시민 증서를 수여 받은 사람</p>
+                        </td>
+                      </tr>
+                     
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="sect">
+                <h3>취소 및 환불 규정</h3>
+                <div class="table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>구분</th>
+                        <th colspan="3" class="text-center">반환기준</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th rowspan="5">관리자의 귀책사유로<br />인한 계약해제</th>
+                        <td>사용예정일 5일 전까지 취소 또는 계약체결 당일 취소</td>
+                        <td class="bk">사용료의 100% 환급</td>
+                      </tr>
+                      <tr>
+                        <td>사용예정일 3~4일 전까지 취소</td>
+                        <td class="bk">사용료의 100% 환급 및 사용료의 10% 배상</td>
+                      </tr>
+                      <tr>
+                        <td>사용예정일 2일 전까지 취소</td>
+                        <td class="bk">사용료의 100% 환급 및 사용료의 20% 배상</td>
+                      </tr>
+                      <tr>
+                        <td>사용예정일 1일 전까지 취소</td>
+                        <td class="bk">사용료의 100% 환급 및 사용료의 30% 배상</td>
+                      </tr>
+                      <tr>
+                        <td>사용예정일 당일 취소</td>
+                        <td class="bk">사용료의 100% 환급 및 사용료의 50% 배상</td>
+                      </tr>
+                    </tbody>
+                    <tbody>
+                      <tr>
+                        <th rowspan="6">신청자의 예약취소에<br />따른 계약해제</th>
+                        <td>사용예정일 5일 전까지 취소 또는 계약체결 당일 취소</td>
+                        <td class="bk">사용료의 100% 환급</td>
+                      </tr>
+                      <tr>
+                        <td>사용예정일 3~4일 전까지 취소</td>
+                        <td class="bk">사용료의 10% 공제 후 환급</td>
+                      </tr>
+                      <tr>
+                        <td>사용예정일 2일 전까지 취소</td>
+                        <td class="bk">사용료의 20% 공제 후 환급</td>
+                      </tr>
+                      <tr>
+                        <td>사용예정일 1일 전까지 취소</td>
+                        <td class="bk">사용료의 30% 공제 후 환급</td>
+                      </tr>
+                      <tr>
+                        <td>사용예정일 당일 14:00 이전 취소</td>
+                        <td class="bk">사용료의 50% 공제 후 환급</td>
+                      </tr>
+                      <tr>
+                        <td>사용예정일 당일 14:00 이후 취소, 14:00까지 취소 요청 없을시</td>
+                        <td class="bk">환급 없음</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- <ul class="overview small">
+                  <li>
+                    <h6>사용불가</h6>
+                    <p>100%</p>
+                  </li>
+                  <li>
+                    <h6>이용일 3일전</h6>
+                    <p>100%</p>
+                  </li>
+                  <li>
+                    <h6>이용일 1~2일전</h6>
+                    <p>70%</p>
+                  </li>
+                  <li>
+                    <h6>이용일 당일</h6>
+                    <p>50%</p>
+                  </li>
+                </ul>
+                <div class="noti">
+                  <p>사용불가 사유 :천재지변, 관리자의 귀책사유, 그 밖의 불가항력적인 사유로 시설 사용이 불가능하게 된 경우</p>
+                  <p>예약 후 당일 자정까지 미입금시 예약 취소 (예약마감일의 경우, 예약마감시간까지 미입금시 예약취소)</p>
+                  <p>이용일 당일까지 취소 가능</p>
+                </div> -->
+              </div>
+              <div class="sect shop-info">
+                <div class="map-area">
+                  <!-- * 카카오맵 - 지도퍼가기 -->
+                  <!-- 1. 지도 노드 -->
+                  <div id="daumRoughmapContainer1711343745733" class="root_daum_roughmap root_daum_roughmap_landing" style="width: 100%"></div>
+
+                  <!--
+	2. 설치 스크립트
+	* 지도 퍼가기 서비스를 2개 이상 넣을 경우, 설치 스크립트는 하나만 삽입합니다.
+-->
+                  <script charset="UTF-8" class="daum_roughmap_loader_script" src="https://ssl.daumcdn.net/dmaps/map_js_init/roughmapLoader.js"></script>
+
+                  <!-- 3. 실행 스크립트 -->
+                  <script charset="UTF-8">
+                    new daum.roughmap.Lander({
+                      timestamp: '1711343745733',
+                      key: '2ioaf',
+                      // mapWidth: '640',
+                      mapHeight: '360',
+                    }).render();
+                  </script>
+                </div>
+                <h3>여주강천섬캠핑장</h3>
+                <h4>경기도 여주시 강천면 강천리 627</h4>
+                <h4>031) 881-6903</h4>
+                <div class="introduction">
+                  <p>남한강이 굽어 흐르는 곳에 위치한 자연 친화적 휴식공간으로 사계절 여주의 매력을 선사합니다.</p>
+                </div>
+              </div>
+      		 	</div>
+			</div>
+			<div class="reserv-ui" id="selectTicketInfo">
+            	
+            	<div class="choose">
+	              <dl class="head">
+	                <dt>캠핑존 1박당 요금</dt>
+	                <dd class="price">10,000 ~ 35,000</dd>
+	                <div class="upcoming">
+	                  <div class="ment">
+	                    <p>
+	                      <span><i class="xi-alarm-o"></i></span> 11월 우선예약 접수중
+	                    </p>
+	                  </div>
+	                </div>
+	              </dl>
+	              <ul class="selected-item">
+	                <li class="none">
+	                  <h3>날짜와 구역을 선택해주세요</h3>
+	                  <p></p>
+	                </li>
+	              </ul>
+	        	</div>
+            	<dl class="total-payment">
+              		<dd>
+                		<ul class="total pay">
+                  			<li>
+	                    		<p>결제할 금액</p>
+	                    		<p>0</p>
+                  			</li>
+                		</ul>
+              		</dd>
+              		<a href="javascript:fn_notSelect();" class="notyet">선택하고 결제하기</a>
+          		</dl>
+			</div> 
+		</div>
+	</div>
+	<div class="footer">
+		<div class="in">
+		  <div class="info">
+		    <div class="legal">
+              <a href="https://www.yjcf.or.kr/cms/content/view/416" target="_blank">개인정보처리방침</a>
+              <a href="https://www.yjcf.or.kr/cms/content/view/417" target="_blank"> 홈페이지 저작권정책</a>
+              <a href="https://www.yjcf.or.kr/cms/content/view/418" target="_blank"> 이메일무단수집거부</a>
+            </div>
+		    <div class="copyright">
+              <p>
+                <strong> COPYRIGHT © YEOJU SEJONG CULTURE &amp; TOURISM FOUNDATION. ALL RIGHTS RESERVED.</strong>
+                Powered by
+                <a href="#">Sourcefarm.</a>
+              </p>
+              <p>경기도 여주시 강천면 강천리 627. 전화번호: 031)881-6903</p>
+            </div>
+		  </div>
+		  <div class="logo">
+		    <img src="images/logo/logo2.svg" alt="" />
+		  </div>
+		</div>
+	</div>  
+</div>
+
+<div id="customConfirmLayer" class="confirm-layer" style="display:none;">
+    <div class="confirm-box">
+        <div class="confirm-content" id="customConfirmMessage">
+            <!-- JS에서 html로 주입 -->
+        </div>
+
+        <div class="confirm-btns">
+            <button type="button" class="btn cancel" id="customConfirmCancel">취소</button>
+            <button type="button" class="btn ok" id="customConfirmOk">확인</button>
+        </div>
+    </div>
+</div>
+
+
+</body>
+  <script src="/camping/js/v2/reserv-full.js"></script>
+  <style>.map .pin {
+  transform-origin: center;
+  transform: scale(1.1);
+}
+#pin-A01 {
+  left: 84%;
+  top: 30%;
+}
+#pin-A02 {
+  left: 80%;
+  top: 26.5%;
+}
+#pin-A03 {
+  left: 76.5%;
+  top: 26%;
+}
+#pin-A04 {
+  left: 72.5%;
+  top: 25.5%;
+}
+#pin-A05 {
+  left: 68.5%;
+  top: 24.5%;
+}
+#pin-A06 {
+  left: 63%;
+  top: 25%;
+}
+#pin-A07 {
+  left: 59%;
+  top: 26%;
+}
+#pin-A08 {
+  left: 55.5%;
+  top: 28%;
+}
+#pin-A09 {
+  left: 52%;
+  top: 29.5%;
+}
+#pin-A10 {
+  left: 48%;
+  top: 29.5%;
+}
+#pin-A11 {
+  left: 42.8%;
+  top: 29.5%;
+}
+#pin-A12 {
+  left: 39%;
+  top: 29%;
+}
+#pin-A13 {
+  left: 35.3%;
+  top: 29%;
+}
+#pin-A14 {
+  left: 31.5%;
+  top: 29%;
+}
+#pin-A15 {
+  left: 27.5%;
+  top: 28.5%;
+}
+#pin-A16 {
+  left: 24%;
+  top: 27%;
+}
+#pin-A17 {
+  left: 20.5%;
+  top: 25%;
+}
+#pin-A18 {
+  left: 17%;
+  top: 22%;
+}
+#pin-A19 {
+  left: 14%;
+  top: 20%;
+}
+
+#pin-B01 {
+  left: 79.5%;
+  top: 40%;
+}
+#pin-B02 {
+  left: 76%;
+  top: 39.5%;
+}
+#pin-B03 {
+  left: 72%;
+  top: 39%;
+}
+#pin-B04 {
+  left: 67.5%;
+  top: 39%;
+}
+#pin-B05 {
+  left: 63.5%;
+  top: 39.5%;
+}
+#pin-B06 {
+  left: 59.5%;
+  top: 40%;
+}
+#pin-B07 {
+  left: 56%;
+  top: 40.5%;
+}
+#pin-B08 {
+  left: 47%;
+  top: 43.5%;
+}
+#pin-B09 {
+  left: 43%;
+  top: 42.5%;
+}
+#pin-B10 {
+  left: 39%;
+  top: 39.5%;
+}
+#pin-B11 {
+  left: 35.5%;
+  top: 38%;
+}
+#pin-B12 {
+  left: 32%;
+  top: 37%;
+}
+#pin-B13 {
+  left: 28.5%;
+  top: 36%;
+}
+#pin-B14 {
+  left: 24.5%;
+  top: 35%;
+}
+#pin-B15 {
+  left: 20.5%;
+  top: 33%;
+}
+#pin-B16 {
+  left: 16%;
+  top: 30.5%;
+}
+#pin-B17 {
+  left: 11%;
+  top: 27.5%;
+}
+
+#pin-C01{
+  left: 78.5%;
+  top: 51.5%;
+}
+#pin-C02 {
+  left: 75%;
+  top: 51.5%;
+}
+#pin-C03 {
+  left: 71%;
+  top: 52%;
+}
+#pin-C04 {
+  left: 67.3%;
+  top: 52.5%;
+}
+#pin-C05 {
+  left: 63.5%;
+  top: 53%;
+}
+#pin-C06 {
+  left: 59.7%;
+  top: 53.5%;
+}
+#pin-C07 {
+  left: 56%;
+  top: 53.8%;
+}
+#pin-C08 {
+  left: 48%;
+  top: 55%;
+}
+#pin-C09 {
+  left: 44%;
+  top: 55.5%;
+}
+#pin-C10 {
+  left: 40.5%;
+  top: 54.5%;
+}
+#pin-C11 {
+  left: 37%;
+  top: 53.5%;
+}
+#pin-C12 {
+  left: 33%;
+  top: 52.5%;
+}
+#pin-C13 {
+  left: 29.5%;
+  top: 51%;
+}
+#pin-C14 {
+  left: 26%;
+  top: 49.5%;
+}
+
+#facil-01 {
+  left: 88%;
+  top: 30%;
+  background-color: #364fc7;
+  padding: 0.6em 1em;
+  border-radius: 3em;
+  text-shadow: none;
+}
+#facil-02 {
+  left: 6%;
+  top: 17.5%;
+  background-color: #00b3b3;
+  padding: 0.6em 1em;
+  border-radius: 3em;
+  text-shadow: none;
+}
+#facil-03 {
+  left: 85%;
+  top: 43.5%;
+  background-color: #dd00bc;
+  padding: 0.6em 1em;
+  border-radius: 3em;
+  text-shadow: none;
+}
+#facil-04 {
+  left: 2%;
+  top: 27.5%;
+  background-color: #ff7900;
+  padding: 0.6em 1em;
+  border-radius: 3em;
+  text-shadow: none;
+}
+#facil-05 {
+  left: 84%;
+  top: 52%;
+  background-color: #009944;
+  padding: 0.6em 1em;
+  border-radius: 3em;
+  text-shadow: none;
+}
+#toilet-01 {
+  left: 72%;
+  top: 4.5%;
+}
+#water-01 {
+  left: 68%;
+  top: 4.5%;
+}
+#shower-01 {
+  left: 70%;
+  top: 4.5%;
+}
+#info-01 {
+  left: 69%;
+  top: 14.5%;
+}
+#park-01 {
+  right: 0%;
+  top: 3%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+#park-01::after {
+  content: '';
+  font-family: 'xeicon';
+  color: #fff;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 1);
+  font-size: 2em;
+  transform: rotate(-60deg);
+  display: inline-block;
+}
+#pet-01{right:55.5%; top:32.5%; display:flex; align-items: center; justify-content:flex-end;}</style>
+</html>

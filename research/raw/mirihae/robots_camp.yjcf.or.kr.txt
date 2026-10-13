@@ -1,0 +1,3 @@
+# https://camp.yjcf.or.kr/robots.txt (2026-10-13 13:09 KST). 파일이 없다. 302로 /login.do로 보낸다. 따라가지 않았다.
+status 302
+location https://camp.yjcf.or.kr/login.do

@@ -1,0 +1,8 @@
+# https://yeojuuc.or.kr/robots.txt (2026-10-13 13:09 KST, HTTP 200, text/plain)
+User-agent: *
+disallow: /board/
+disallow: /sub2/
+Disallow: /user/cmm/fms/FileDown.do
+Disallow: /user/FileDown.do
+Disallow: /user/directFileDownload.do
+Disallow: /cmm/fms/

@@ -131,6 +131,17 @@ describe("국립공원 폴러", () => {
     await p.stop();
   });
 
+  it.each([403, 429])("조회 응답 HTTP %i는 첫 바퀴에 곧바로 blocked로 멈추고 알리며 다음 바퀴 요청이 없다", async (status) => {
+    const p = run("2026-10-15", { server: knpsServer({ listStatus: status }) });
+    await settle();
+    expect(p.sent.some((m) => /blocked|차단/.test(m.text))).toBe(true);
+    const before = p.allRequests.length;
+    await p.clock.advance(600_000);
+    await settle();
+    expect(p.allRequests.length).toBe(before);
+    await p.stop();
+  });
+
   it("NetFunnel 301은 차단으로 멈추고 알리며 campsiteList.do는 보내지 않는다", async () => {
     const p = run("2026-10-15", { server: knpsServer({ queue: () => "5002:301:key=&nwait=0" }) });
     await settle();

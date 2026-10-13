@@ -9,6 +9,7 @@ import {
   type ZoneInfo,
 } from "../types.js";
 import { facilities } from "../catalogs/knps.js";
+import { assertOk } from "../adapter-signals.js";
 import { resolveFacility } from "../facility.js";
 import { filterSeats } from "../seats.js";
 import { isLotteryHeld, parseLottery, type LotterySchedule } from "../knps-lottery.js";
@@ -81,12 +82,6 @@ const AUTH_MARKER =
 /** 응답이 로그인 화면이면 `blocked`다. */
 function assertNotLogin(body: string, where: string): void {
   if (AUTH_MARKER.test(body)) throw new AdapterError("blocked", `${where}가 로그인 화면을 돌려줬다`);
-}
-
-/** 예약처 HTTP 상태를 판정한다. 5xx는 `transient`, 200이 아닌 그 밖은 `unrecognized`다. */
-function assertOk(status: number, where: string): void {
-  if (status >= 500) throw new AdapterError("transient", `${where}: HTTP ${status}`);
-  if (status !== 200) throw new AdapterError("unrecognized", `${where}: 예상 밖 HTTP ${status}`);
 }
 
 // 2026-10-12에 기록으로 확인한 값. 달라지면 경고만 남긴다.
@@ -173,7 +168,7 @@ async function readFacility(facility: string, ctx: AdapterContext): Promise<Pars
     { dept_id: ref.dept_id, dept_name: ref.dept_name ?? "", parent_dept_name: ref.parent_dept_name ?? "", prd_ctg_id: "", isGreenpoint: "N" },
     { headers: PAGE_HEADERS },
   );
-  assertOk(res.status, "campsiteList.do");
+  assertOk(res, "campsiteList.do");
   assertNotLogin(res.body, "campsiteList.do");
   const parsed = parseGrid(res.body);
   await completeQueue(ctx, RESERVATION2, pass.key);
@@ -187,7 +182,7 @@ async function readFacility(facility: string, ctx: AdapterContext): Promise<Pars
  */
 async function openPage(ctx: AdapterContext): Promise<void> {
   const page = await ctx.http.get(PAGE);
-  assertOk(page.status, "예약 화면");
+  assertOk(page, "예약 화면");
   assertNotLogin(page.body, "예약 화면");
   const landing = await enterQueue(ctx, LANDING);
   setNetFunnelCookie(ctx.http, HOST, landing.result);
@@ -214,7 +209,8 @@ async function lotteryFor(ctx: AdapterContext): Promise<LotterySchedule | undefi
   let schedule: LotterySchedule | undefined;
   try {
     const res = await ctx.http.get(LOTTERY);
-    assertOk(res.status, "selectCampLottery.do");
+    // 추첨 화면은 조회 경로가 아니다(#66). 200이 아니면 상태와 무관하게 경고만 남기고 달력대로 조회한다.
+    if (res.status !== 200) throw new Error(`selectCampLottery.do: HTTP ${res.status}`);
     assertNotLogin(res.body, "selectCampLottery.do");
     schedule = parseLottery(res.body);
     ctx.log?.("knps lottery schedule", { from: schedule.from, to: schedule.to, openAt: new Date(schedule.openAt).toISOString(), campCount: schedule.campCount });

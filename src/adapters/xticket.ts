@@ -11,6 +11,7 @@ import {
   type TransportResponse,
 } from "../types.js";
 import { facilities } from "../catalogs/xticket.js";
+import { assertOk } from "../adapter-signals.js";
 import { BlockedPathError, RedirectLimitError } from "../http.js";
 
 const ORIGIN = "https://camp.xticket.kr";
@@ -51,13 +52,6 @@ const shopEncodeOf = (facility: string): string => {
 
 const mainUrl = (shopEncode: string) => `${ORIGIN}/web/main?shopEncode=${shopEncode}`;
 
-const failure = (res: TransportResponse, what: string): AdapterError | undefined => {
-  if (res.status === 403 || res.status === 429) return new AdapterError("blocked", `${what}: HTTP ${res.status}`);
-  if (res.status >= 500) return new AdapterError("transient", `${what}: HTTP ${res.status}`);
-  if (res.status !== 200) return new AdapterError("unrecognized", `${what}: 예상 밖 HTTP ${res.status}`);
-  return undefined;
-};
-
 /**
  * 로그인 폼·차단 안내·봇 탐지가 JSON 자리에 온 것을 알아보는 구체 표지(로그인 경로, 로그인 폼 입력 이름, 차단 안내 문구, 봇 탐지·captcha 경로).
  * "로그인", "차단", "captcha" 같은 낱말만으로는 판정하지 않는다. 메뉴나 안내문에도 나오므로 일반 HTML 구조 변경이 blocked로 오인된다.
@@ -96,8 +90,7 @@ async function openSession(facility: string, ctx: AdapterContext): Promise<strin
     }
     throw classifyThrown(e, "시설 화면");
   }
-  const bad = failure(res, "시설 화면");
-  if (bad) throw bad;
+  assertOk(res, "시설 화면");
   // 사후 검사다: 시설 화면 요청은 이미 나갔고 본문을 받은 뒤에야 본다. 봇 탐지를 피하는 장치가 아니라, 보이면 다음 요청부터 멈추기 위한 것이다.
   if (BOT_DETECTION.test(res.body)) throw new AdapterError("blocked", "시설 화면에 봇 탐지 장치가 보인다");
   streaks.delete(facility);
@@ -128,8 +121,7 @@ async function postJson(path: string, form: Record<string, string>, shopEncode: 
   } catch (e) {
     throw classifyThrown(e, path);
   }
-  const bad = failure(res, path);
-  if (bad) throw bad;
+  assertOk(res, path);
   let body: unknown;
   try {
     body = JSON.parse(res.body);

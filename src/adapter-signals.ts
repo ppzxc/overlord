@@ -1,5 +1,5 @@
 // 어댑터가 같이 쓰는 신호 분류의 공통부. 울산 중구(junggu)와 북구(bukgu)가 글자까지 같게 쓰던 것에 리다이렉트 판정(`redirectOf`)을 더했다.
-import { AdapterError, type AdapterContext, type HttpClient, type TransportResponse } from "./types.js";
+import { AdapterError, type AdapterContext, type AvailabilityQuery, type AvailableSite, type HttpClient, type TransportResponse } from "./types.js";
 import { BlockedPathError } from "./http.js";
 
 /** 봇 탐지 장치·captcha 표지. ADR 0002가 넘지 않는 선으로 꼽은 장치의 이름이다. 나타나면 새 신호로 보고 멈춘다(`blocked`). */
@@ -59,4 +59,19 @@ export function warnDriftOnce(ctx: AdapterContext, key: string, msg: string, fie
   if (warned.has(key)) return;
   warned.add(key);
   ctx.log?.(msg, fields);
+}
+
+/**
+ * 일괄 조회만 구현한 어댑터의 단건 조회. 결과가 오류면 던지고, 결과가 없으면 구조 변경으로 본다.
+ */
+export async function queryOneViaBatch(
+  provider: string,
+  batch: (units: AvailabilityQuery[], ctx: AdapterContext) => Promise<Map<AvailabilityQuery, AvailableSite[] | Error>>,
+  q: AvailabilityQuery,
+  ctx: AdapterContext,
+): Promise<AvailableSite[]> {
+  const result = (await batch([q], ctx)).get(q);
+  if (result instanceof Error) throw result;
+  if (result === undefined) throw new AdapterError("unrecognized", `${provider}: 일괄 조회가 조회 단위의 결과를 돌려주지 않았다`);
+  return result;
 }

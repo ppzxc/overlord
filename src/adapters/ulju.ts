@@ -1,4 +1,4 @@
-import { addDays, kstDate, nextMonthOf } from "../schedule.js";
+import { addDays, kstDate, nextMonthOf, nightsOf } from "../schedule.js";
 import {
   AdapterError,
   type AdapterContext,
@@ -9,7 +9,8 @@ import {
   type ProviderInfo,
 } from "../types.js";
 import { facilities } from "../catalogs/ulju.js";
-import { assertOk, send, warnDriftOnce } from "../adapter-signals.js";
+import { stringRef } from "../facility.js";
+import { assertOk, queryOneViaBatch, send, warnDriftOnce } from "../adapter-signals.js";
 
 const ORIGIN = "https://camping.ulju.ulsan.kr";
 const DAY_PATH = "/ujcamping/campsite/get_cal_day_data_list";
@@ -41,11 +42,7 @@ const INFO: ProviderInfo = {
   facilityRequired: true,
 };
 
-const classesOf = (facility: string): string => {
-  const ref = facilities.find((f) => f.code === facility)?.ref;
-  if (typeof ref !== "string") throw new AdapterError("unrecognized", `ulju 시설 ${facility}에 classes 값이 없다`);
-  return ref;
-};
+const classesOf = (facility: string): string => stringRef(INFO, facility, "classes 값");
 
 /**
  * 로그인 폼·차단 안내·봇 탐지·captcha 경로가 JSON 자리에 온 것을 알아보는 구체 표지(로그인 폼 action·비밀번호 입력, 차단 안내 문구, 봇 탐지 장치 이름, captcha 경로).
@@ -131,7 +128,6 @@ function warnDrift(facility: string, rows: Row[], ctx: AdapterContext): void {
   }
 }
 
-const nightsOf = (q: AvailabilityQuery) => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
 
 /**
  * 조회 단위마다 밤을 조회해 빈자리를 가린다. 바퀴 안에서 첫 실패가 나면 남은 요청은 보내지 않고,
@@ -186,11 +182,7 @@ export const uljuAdapter: ProviderAdapter = {
 
   describe: () => INFO,
 
-  async queryAvailability(q: AvailabilityQuery, ctx: AdapterContext): Promise<AvailableSite[]> {
-    const found = (await queryBatch([q], ctx)).get(q);
-    if (found instanceof AdapterError) throw found;
-    return found ?? [];
-  },
+  queryAvailability: (q, ctx) => queryOneViaBatch("ulju", queryBatch, q, ctx),
 
   /** 밤마다 서버의 조회 창(이번 달, 다음 달은 11일 10:00부터)에 드는 단위만 조회한다. 아닌 단위는 코어가 빼서 요청 없는 바퀴를 성공으로 세지 않는다. */
   isQueryable: (q, now) => nightsOf(q).every((d) => isQueryable(d, now)),

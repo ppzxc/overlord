@@ -38,7 +38,7 @@ const INFO: ProviderInfo = {
   facilityRequired: true,
 };
 
-const siteKindCodeOf = (facility: string): string => fieldsRef(INFO, facility, ["siteKindCode"]).siteKindCode!;
+const siteKindCodeOf = (facility: string): string => fieldsRef(INFO, facility, ["siteKindCode"]).siteKindCode;
 
 
 /** 표의 한 행. 구역은 사이트명 칸의 색 클래스에서 읽는다. */
@@ -69,7 +69,7 @@ interface UnattributedRow {
  * 그래서 로그인 링크나 이동 스크립트가 있어도 예약처 틀(`login_btn`)이 보이면 로그인 요구가 아니라 알 수 없는 화면(`unrecognized`)이다. 로그인 경로로의 리다이렉트(Location)는 HTTP 층이 접근 금지로 막는다.
  */
 const LOGIN_REDIRECT = /(?:location(?:\.href)?\s*=|location\.(?:replace|assign)\s*\()\s*['"]\/?login\.do|http-equiv\s*=\s*["']?refresh["']?[^>]*login\.do/i;
-const SITE_FRAME = /class="login_btn"/;
+const PROVIDER_FRAME = /class="login_btn"/;
 
 /** 표를 읽는다. 표 구조(표, 사이트명·예약현황 열, 사이트명, 행)가 깨지면 구조 변경이다. 값의 뜻(구역, 예약현황)은 보지 않는다. */
 function parseTable(html: string): RawRow[] {
@@ -78,7 +78,7 @@ function parseTable(html: string): RawRow[] {
   const $ = cheerio.load(html);
   const table = $("table#tableSite");
   if (table.length === 0) {
-    if (LOGIN_REDIRECT.test(html) && !SITE_FRAME.test(html)) throw new AdapterError("blocked", `${where}: 표 대신 로그인 요구가 왔다`);
+    if (LOGIN_REDIRECT.test(html) && !PROVIDER_FRAME.test(html)) throw new AdapterError("blocked", `${where}: 표 대신 로그인 요구가 왔다`);
     throw new AdapterError("unrecognized", `${where}: 표(table#tableSite)가 없다`);
   }
   const headers = table.find("thead th").toArray().map((th) => $(th).text().trim());

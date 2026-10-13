@@ -20,7 +20,7 @@ const RESERVATION = `${WWW}/user/reservation`;
 const NF: NetFunnelQueue = { tsUrl: "https://nf.campingkorea.or.kr/ts.wseq", sid: "service_1", aid: "reserve" };
 
 /** 동해시 예약처의 관광지 코드는 카탈로그가 시설 ref로 갖고 있다. 카탈로그에 없는 시설은 요청 전에 던진다. */
-const trrsrtCodeOf = (facility: string): string => fieldsRef(INFO, facility, ["trrsrtCode"]).trrsrtCode!;
+const trrsrtCodeOf = (facility: string): string => fieldsRef(INFO, facility, ["trrsrtCode"]).trrsrtCode;
 
 /** 예약처가 정한 키 수명. 이 안에서만 같은 세션이 키를 다시 쓴다. */
 const KEY_TTL_MS = 2 * 60 * 60 * 1000;

@@ -9,12 +9,11 @@ import {
   type ZoneInfo,
 } from "../types.js";
 import { facilities } from "../catalogs/knps.js";
-import { assertOk } from "../adapter-signals.js";
 import { fieldsRef, resolveFacility } from "../facility.js";
 import { filterSeats } from "../seats.js";
 import { isLotteryHeld, parseLottery, type LotterySchedule } from "../knps-lottery.js";
 import { kstDate } from "../schedule.js";
-import { queryOneViaBatch, warnDriftOnce } from "../adapter-signals.js";
+import { assertOk, queryOneViaBatch, warnDriftOnce } from "../adapter-signals.js";
 import { completeQueue, enterQueue, netfunnelScriptCheck, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "reservation.knps.or.kr";
@@ -165,7 +164,7 @@ async function readFacility(facility: string, ctx: AdapterContext): Promise<Pars
   setNetFunnelCookie(ctx.http, HOST, pass.result);
   const res = await ctx.http.post(
     LIST,
-    { dept_id: ref.dept_id!, dept_name: ref.dept_name ?? "", parent_dept_name: ref.parent_dept_name ?? "", prd_ctg_id: "", isGreenpoint: "N" },
+    { dept_id: ref.dept_id, dept_name: ref.dept_name ?? "", parent_dept_name: ref.parent_dept_name ?? "", prd_ctg_id: "", isGreenpoint: "N" },
     { headers: PAGE_HEADERS },
   );
   assertOk(res, "campsiteList.do");

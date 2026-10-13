@@ -52,7 +52,7 @@ const INFO: ProviderInfo = {
 
 const facilityRef = (facility: string): { cpId: string; menuNo: string } => {
   const ref = fieldsRef(INFO, facility, ["cpId", "menuNo"]);
-  return { cpId: ref.cpId!, menuNo: ref.menuNo! };
+  return { cpId: ref.cpId, menuNo: ref.menuNo };
 };
 
 const pageUrl = (menuNo: string) => `${ORIGIN}${PAGE_PATH}?menuNo=${menuNo}`;

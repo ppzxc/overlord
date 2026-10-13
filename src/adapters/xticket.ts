@@ -200,16 +200,11 @@ function warnSeatDrift(q: AvailabilityQuery, list: { product_name?: unknown }[],
 
 /** 페이지 JS(getProductAlt)가 따로 다루는 status_code와 기록으로 본 값. 그 밖의 값은 예약완료로 치고 한 번만 경고한다. */
 const KNOWN_STATUS_CODES = new Set(["0", "1", "2", "4"]);
-const warnedStatus = new WeakMap<HttpClient, Set<string>>();
 
 function warnStatusCode(facility: string, code: unknown, ctx: AdapterContext): void {
   const value = String(code);
   if (KNOWN_STATUS_CODES.has(value)) return;
-  const warned = warnedStatus.get(ctx.http) ?? new Set<string>();
-  warnedStatus.set(ctx.http, warned);
-  if (warned.has(`${facility}:${value}`)) return;
-  warned.add(`${facility}:${value}`);
-  ctx.log?.("xticket status_code drift", { facility, status_code: value });
+  warnDriftOnce(ctx, `xticket:${facility}:status:${value}`, "xticket status_code drift", { facility, status_code: value });
 }
 
 /** 박수만큼 이어지는 밤의 날짜(YYYY-MM-DD). */

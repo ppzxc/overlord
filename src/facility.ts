@@ -40,10 +40,10 @@ export function stringRef(info: Pick<ProviderInfo, "id" | "facilities">, facilit
  * 시설의 `ref`를 키-값으로 읽는다. 시설이 카탈로그에 없거나 `ref`가 객체가 아니거나 `required` 키 중 하나라도 비면 `AdapterError("unrecognized")`다.
  * 돌려주는 객체는 `ref` 전체라 선택 키도 읽을 수 있다.
  */
-export function fieldsRef(info: Pick<ProviderInfo, "id" | "facilities">, facility: string, required: string[]): Record<string, string> {
+export function fieldsRef<K extends string>(info: Pick<ProviderInfo, "id" | "facilities">, facility: string, required: readonly K[]): Record<K, string> & Record<string, string> {
   const ref = info.facilities.find((f) => f.code === facility)?.ref;
   if (typeof ref !== "object" || required.some((k) => !ref[k])) {
     throw new AdapterError("unrecognized", `${info.id} 시설 ${facility}에 ${required.join("·")}가 없다`);
   }
-  return ref;
+  return ref as Record<K, string> & Record<string, string>;
 }

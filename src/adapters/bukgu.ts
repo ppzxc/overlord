@@ -26,7 +26,7 @@ const INFO: ProviderInfo = {
   maxNights: 1,
   // 오픈 경쟁 시간(`openingRush`)은 두지 않는다(스펙). 아래 세 값은 타입상 필수인 날짜 창이고 열리는 때를 주장하지 않는다.
   // - openDaysBefore 62, openTime 00:00: 조례("사용일이 속한 월의 전월부터 예약")상 열릴 수 있는 가장 먼 날짜는 오늘로부터 61일(이달 1일 → 다음 달 말일)이다. 62는 그보다 느슨한 걸러내기이고 개시 시각이 아니다.
-  //   이보다 먼 날짜는 요청 없이 건너뛰어 예약 화면 요청도 아낀다. 다음 달 날짜가 실제로 열리는 때(선착순 월요일 10시, 달마다 다름)와 추첨 기간은 `openForFirstCome`이 예약 화면으로 가린다.
+  //   이보다 먼 날짜는 요청 없이 건너뛰어 예약 화면 요청도 아낀다. 다음 달 날짜가 열렸는지(추첨 기간 가리기)는 시각이 아니라 예약 화면의 달력 상한(`d2`)이 말하는 대로 `openForFirstCome`이 정한다.
   // - sameDayCutoff 18:00: 화면 JS가 당일 입실을 18시에 닫는다(`nowHour < 18`, 기록).
   openingRule: { openDaysBefore: 62, openTime: "00:00", sameDayCutoff: "18:00" },
   defaultPollIntervalSeconds: 150,
@@ -160,44 +160,52 @@ async function readTable(facility: string, date: string, ctx: AdapterContext): P
 
 /**
  * 추첨 대상 날짜를 가리는 기준. 예약 화면에서 읽는다.
- * - `limitDate`: 달력 상한 `d2`의 한국 날짜. 페이지 달력은 `date > d2`인 날만 막아서(`d2`는 그 날 00:00 + 요청 시각의 밀리초) 상한 날짜 자체는 눌리지만 열린 날이 아니다(기록한 11/01).
- * - `firstComeAtMs`: 다음 달 날짜의 선착순 개시 시각(epoch ms). 결제 마감일(`resEndDay`) 다음 월요일 10:00 KST(공지 두 건에서 확인).
- * 사람 확인 대기: 선착순이 열린 뒤에도 `d2`가 이달 말(예: 11/01)에 머물면 `date < limitDate`가 다음 달 날짜를 모두 가려 그 알림이 나가지 않는다(안전한 쪽으로 실패하지만 선착순 알림을 놓는다).
- * 개시 뒤 `d2`가 올라가는지는 기록으로 확인하지 못했다. 이 조건은 가리기만 한다(열어 주지 않는다).
+ * - `limitDate`: 달력 상한 `d2`의 한국 날짜. 페이지 달력은 `d > d2 || d < now`인 날을 막는다(`d2`는 서버가 요청마다 채우는 epoch ms: 상한 날짜 00:00 KST + 요청 시각의 밀리초).
+ *   그래서 상한 날짜 자체는 눌리지만 열린 날이 아니다(기록한 11/01은 추첨 대상인데 표가 25자리 모두 예약가능이었다). 열린 날은 `date < limitDate`다.
+ * - `firstComeAtMs`: 선착순 개시 시각(epoch ms)의 힌트. 결제 마감일(`resEndDay`) 다음 월요일 10:00 KST(공지 두 건에서 확인). 알림 판정에는 쓰지 않고 `d2`가 움직이지 않을 때의 경고에만 쓴다.
+ *   `resEndDay`를 읽을 수 없으면 없다(경고만 못 한다. 알림 판정은 그대로다).
  */
 interface LotteryGate {
   limitDate: string;
-  firstComeAtMs: number;
+  firstComeAtMs: number | undefined;
 }
 
 const pageVar = (html: string, name: string): string | undefined => new RegExp(`var\\s+${name}\\s*=\\s*'?(\\d+)'?\\s*;`).exec(html)?.[1];
 
-/** 예약 화면에서 추첨 대상 날짜를 가리는 기준을 읽는다. 없거나 모양이 다르면 구조 변경이다. */
+/** 선착순 개시 시각 힌트: 이달 결제 마감일(`resEndDay`) 다음 월요일 10:00 KST. 읽을 수 없으면 undefined. */
+function firstComeHint(html: string, now: Date): number | undefined {
+  const resEndDay = Number(pageVar(html, "resEndDay"));
+  const [year, month] = kstDate(now).split("-").map(Number) as [number, number];
+  if (!Number.isInteger(resEndDay) || resEndDay < 1 || new Date(Date.UTC(year, month - 1, resEndDay)).getUTCMonth() !== month - 1) return undefined;
+  let monday = addDays(`${kstDate(now).slice(0, 7)}-${String(resEndDay).padStart(2, "0")}`, 1);
+  while (weekdayKey(monday) !== "mon") monday = addDays(monday, 1);
+  return Date.parse(`${monday}T10:00:00+09:00`);
+}
+
+/** 예약 화면에서 추첨 대상 날짜를 가리는 기준을 읽는다. 달력 상한이 없거나 모양이 다르면 구조 변경이다. */
 function parseGate(html: string, now: Date): LotteryGate {
   const where = "Pmreservation.do";
   if (BOT_DETECTION.test(html)) throw new AdapterError("blocked", `${where}: 봇 탐지·captcha 표지가 왔다`);
   const d2 = pageVar(html, "d2");
   if (d2 === undefined || d2.length !== 13) throw new UnitStructureError(`${where}: 달력 상한(var d2 = <ms>)을 찾지 못했다`);
-  const resEndDay = Number(pageVar(html, "resEndDay"));
-  const [year, month] = kstDate(now).split("-").map(Number) as [number, number];
-  if (!Number.isInteger(resEndDay) || resEndDay < 1 || new Date(Date.UTC(year, month - 1, resEndDay)).getUTCMonth() !== month - 1) {
-    throw new UnitStructureError(`${where}: 결제 마감일(var resEndDay)이 이달 날짜가 아니다`);
-  }
-  const payDeadline = `${kstDate(now).slice(0, 7)}-${String(resEndDay).padStart(2, "0")}`;
-  let monday = addDays(payDeadline, 1);
-  while (weekdayKey(monday) !== "mon") monday = addDays(monday, 1);
-  return { limitDate: kstDate(new Date(Number(d2))), firstComeAtMs: Date.parse(`${monday}T10:00:00+09:00`) };
+  return { limitDate: kstDate(new Date(Number(d2))), firstComeAtMs: firstComeHint(html, now) };
 }
 
 /**
- * 이 밤이 선착순으로 열려 있는가. 이달 날짜는 지난달에 선착순이 열렸으니 열려 있다. 다음 달 날짜는 선착순 개시 시각 뒤이고 달력 상한보다 앞일 때만 열려 있다.
- * 그 앞(추첨 접수·추첨·당첨자 결제 기간)의 표는 추첨 대상이라도 25자리가 모두 "예약가능"으로 보인다. 두 달 뒤 날짜는 조례상 아직 예약을 받지 않는다.
- * (`LotteryGate`의 사람 확인 대기: 개시 뒤에도 달력 상한이 이달 말에 머물면 다음 달 날짜의 알림은 나가지 않는다.)
+ * 이 밤이 선착순으로 열려 있는가. 이달 날짜는 지난달에 선착순이 열렸으니 열려 있다. 다음 달 이후 날짜는 예약 화면의 달력이 열어 준 날(`date < limitDate`)만 열려 있다.
+ * 달력이 닫아 둔 동안(추첨 접수·추첨·당첨자 결제 기간)의 표는 추첨 대상이라도 25자리가 모두 "예약가능"으로 보인다. 시각 규칙은 두지 않고 달력이 말하는 대로만 따른다.
  */
-function openForFirstCome(date: string, today: string, gate: LotteryGate, now: Date): boolean {
-  const month = date.slice(0, 7);
-  if (month === nextMonthOf(today)) return now.getTime() >= gate.firstComeAtMs && date < gate.limitDate;
-  return month <= today.slice(0, 7);
+function openForFirstCome(date: string, today: string, gate: LotteryGate): boolean {
+  return date.slice(0, 7) <= today.slice(0, 7) || date < gate.limitDate;
+}
+
+/**
+ * 선착순 개시 시각이 지났는데도 달력 상한이 다음 달 1일 이하(추첨 기간의 한계)에 머물면 다음 달 날짜의 알림이 나가지 않는다. 안전한 쪽으로 실패하지만 선착순 알림을 놓는 일이라 경고를 남긴다.
+ * 경고는 로그 한 줄이다(같은 달에 한 번). 헬스 상태는 바꾸지 않는다(예약처가 응답하고 있고 이달 날짜는 정상이라 멈추거나 구조 변경으로 알릴 일이 아니다).
+ */
+function warnIfGateStuck(gate: LotteryGate, nextMonth: string, ctx: AdapterContext, now: Date): void {
+  if (gate.firstComeAtMs === undefined || now.getTime() < gate.firstComeAtMs || gate.limitDate > `${nextMonth}-01`) return;
+  warnDriftOnce(ctx, `gate:stuck:${nextMonth}`, "bukgu lottery gate stuck", { limitDate: gate.limitDate, firstComeAt: new Date(gate.firstComeAtMs + 9 * 3_600_000).toISOString().replace(/\.\d{3}Z$/, "+09:00") });
 }
 
 type Results = Map<AvailabilityQuery, AvailableSite[] | AdapterError>;
@@ -207,7 +215,8 @@ type Results = Map<AvailabilityQuery, AvailableSite[] | AdapterError>;
  * 남은 조회 단위가 그 실패를 값으로 받는다(울주·knps와 같다). 이미 읽은 단위의 결과는 그대로 둔다.
  * 요청 없이 그 단위만 보고 나온 구조 변경(표에서 사라진 구역, 읽을 수 없는 예약 화면 변수)은 그 단위만 실패로 치고 다른 단위는 계속 읽는다.
  * TLS 검증 실패는 일시 오류지만 두 바퀴 연속이면 구조 변경으로 친다(인증서가 바뀌었을 수 있다).
- * 추첨 대상 날짜: 다음 달 이후 날짜가 걸린 단위가 있으면 예약 화면을 한 번 받아(시설과 무관) 선착순으로 열린 밤만 조회한다. 열리지 않은 밤이 낀 단위는 요청 없이 빈자리 없음이다.
+ * 추첨 대상 날짜: 다음 달 이후 날짜가 걸린 단위가 있으면 예약 화면을 한 번 받아(시설과 무관) 달력 상한(`d2`)이 열어 준 밤(`date < d2의 한국 날짜`)만 조회한다. 열리지 않은 밤이 낀 단위는 요청 없이 빈자리 없음이다.
+ * 상한이 선착순 개시 힌트(결제 마감일 다음 월요일 10시) 뒤에도 다음 달 1일 이하에 머물면 경고 로그를 남긴다(`warnIfGateStuck`).
  */
 async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Results> {
   const results: Results = new Map();
@@ -215,6 +224,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
   const tls = tlsStreakRound(ctx.http);
   const now = ctx.clock.now();
   const today = kstDate(now);
+  const nextMonth = nextMonthOf(today);
   let gate: LotteryGate | UnitStructureError | undefined;
   const gateOf = async (): Promise<LotteryGate> => {
     if (gate === undefined) {
@@ -222,6 +232,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       assertOk(res, "Pmreservation.do");
       try {
         gate = parseGate(res.body, now);
+        if (gate.firstComeAtMs === undefined) warnDriftOnce(ctx, "gate:resEndDay", "bukgu lottery gate drift", { change: "resEndDay-unreadable" });
       } catch (e) {
         if (!(e instanceof UnitStructureError)) throw e;
         gate = e;
@@ -244,7 +255,8 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       // 이달 안의 밤만 걸린 단위는 예약 화면을 받지 않는다.
       if (dates.some((d) => d.slice(0, 7) > today.slice(0, 7))) {
         const g = await gateOf();
-        if (!dates.every((d) => openForFirstCome(d, today, g, now))) {
+        if (dates.some((d) => d.slice(0, 7) === nextMonth)) warnIfGateStuck(g, nextMonth, ctx, now);
+        if (!dates.every((d) => openForFirstCome(d, today, g))) {
           results.set(q, []); // 추첨 대상(또는 아직 예약을 받지 않는) 밤이 낀 단위: 표를 조회하지 않는다.
           continue;
         }

@@ -421,7 +421,7 @@ describe("북구 폴러", () => {
 describe("북구 폴러: 추첨 대상 날짜", () => {
   // 2026-10-13 추첨 접수 기간. 11월분 일정(공지 nttId 3301): 일반 추첨 접수 10/12~10/14, 결제 10/16(금)까지, 선착순 10/19(월) 10시부터.
   // 기록한 강동 11/01 표는 25자리가 모두 예약가능이지만 그 자리는 추첨 대상이다(10월 일요일은 11·15자리).
-  // 예약 화면은 요청마다 달력 상한 `d2`(그때 11/01 00:00 KST + 밀리초)와 `resEndDay`(결제 마감일 16)를 실어 보낸다.
+  // 예약 화면은 요청마다 달력 상한 `d2`(그때 11/01 00:00 KST + 밀리초)와 `resEndDay`(결제 마감일 16)를 실어 보낸다. 알림은 d2만 따르고 resEndDay는 d2가 안 움직일 때의 경고에만 쓴다.
   const D2_NOV_1 = "1793458800072";
   const D2_DEC_1 = "1796050800000";
   const D2_JAN_1 = "1798729200000";
@@ -477,39 +477,42 @@ describe("북구 폴러: 추첨 대상 날짜", () => {
     await p.stop();
   });
 
-  describe("선착순 개시(10/19 월 10:00 KST)", () => {
-    // 결제 마감일(resEndDay 16, 금) 다음 월요일 10시다. 달력의 "선착순예약"이 16일부터 그려지지만 그 전에 열리지 않는다.
-    const at = (when: string, server: ReturnType<typeof bukguServer>) => run({ from: "2026-11-01" }, { server, now: when });
-
-    it("달력 상한이 12/01로 올라 있어도 개시 시각 전에는 다음 달 날짜를 알리지 않는다", async () => {
-      const p = at("2026-10-19T09:59:00+09:00", withD2(D2_DEC_1));
-      await settle();
-      expect(p.sent).toHaveLength(0);
-      expect(p.allRequests.filter((r) => r.method === "POST")).toEqual([]);
-      await p.stop();
-    });
-
-    it("개시 시각 뒤 달력 상한이 12/01이면 다음 달 날짜를 알린다", async () => {
-      const p = at("2026-10-19T10:01:00+09:00", withD2(D2_DEC_1));
+  describe("달력 상한(d2)이 연 날짜", () => {
+    // 다음 달 날짜는 예약 화면의 달력 상한(d2)이 그날을 열어 줬을 때만, 표가 "예약가능"이라고 하는 자리를 알린다. 시각으로 정한 개시 규칙은 없다.
+    // d2의 한국 날짜가 상한이고 그날 자체는 열린 날이 아니다(엄격한 `<`). 기록한 d2 = 11/01 00:00:00.072 KST에서 11/01은 추첨 대상인데 표가 25자리 모두 예약가능이었다.
+    it("달력 상한이 12/01로 올라가면 월요일 10시 전이어도 다음 달 날짜를 알린다", async () => {
+      const p = run({ from: "2026-11-01" }, { server: withD2(D2_DEC_1), now: "2026-10-13T00:10:00+09:00" });
       await settle();
       expect(p.sent).toHaveLength(1);
       expect(p.sent[0]!.text).toContain("일반데크");
+      expect(kinds(p)).toEqual([]);
       await p.stop();
     });
 
-    it("개시 시각 뒤에도 달력 상한(d2)이 그 날짜까지 열려 있지 않으면 알리지 않는다(상한 날짜 자체는 `>` 비교 때문에 눌리지만 열린 날이 아니다)", async () => {
-      const p = at("2026-10-19T10:01:00+09:00", bukguServer());
+    it("달력 상한이 이달 말(11/01)에 머물면 개시 시각 뒤에도 다음 달 날짜를 알리지 않고 표를 조회하지 않는다", async () => {
+      const p = run({ from: "2026-11-01" }, { server: bukguServer(), now: "2026-10-19T10:01:00+09:00" });
       await settle();
       expect(p.sent).toHaveLength(0);
       expect(p.allRequests.filter((r) => r.method === "POST")).toEqual([]);
       await p.stop();
     });
 
-    it("두 달 뒤 날짜는 달력 상한이 넘어가도 알리지 않는다(조례: 사용일이 속한 월의 전월부터 예약)", async () => {
-      const p = run({ from: "2026-12-05" }, { server: withD2(D2_JAN_1), now: "2026-10-25T09:00:00+09:00" });
+    it("상한 날짜 자체(12/01)는 알리지 않고 그 전날(11/30)은 알린다", async () => {
+      const edge = run({ from: "2026-12-01" }, { server: withD2(D2_DEC_1), now: "2026-10-25T09:00:00+09:00" });
+      await settle();
+      expect(edge.sent).toHaveLength(0);
+      expect(edge.allRequests.filter((r) => r.method === "POST")).toEqual([]);
+      await edge.stop();
+      const before = run({ from: "2026-11-30" }, { server: withD2(D2_DEC_1), now: "2026-10-25T09:00:00+09:00" });
+      await settle();
+      expect(before.sent).toHaveLength(1);
+      await before.stop();
+    });
+
+    it("상한 날짜의 밀리초(00:00:00.072)가 붙어도 그 날짜는 열린 날로 치지 않는다", async () => {
+      const p = run({ from: "2026-12-01" }, { server: withD2("1796050800072"), now: "2026-10-25T09:00:00+09:00" });
       await settle();
       expect(p.sent).toHaveLength(0);
-      expect(p.allRequests.filter((r) => r.method === "POST")).toEqual([]);
       await p.stop();
     });
 
@@ -519,14 +522,93 @@ describe("북구 폴러: 추첨 대상 날짜", () => {
       expect(p.sent).toHaveLength(1);
       await p.stop();
     });
+
+    it("달력 상한이 닿지 않는 날짜는 알리지 않는다(상한이 12/01이면 12/05는 닫혀 있다)", async () => {
+      const p = run({ from: "2026-12-05" }, { server: withD2(D2_DEC_1), now: "2026-10-25T09:00:00+09:00" });
+      await settle();
+      expect(p.sent).toHaveLength(0);
+      expect(p.allRequests.filter((r) => r.method === "POST")).toEqual([]);
+      await p.stop();
+    });
+
+    it("상한이 더 올라가 있으면 두 달 뒤 날짜도 달력이 연 날짜로 알린다", async () => {
+      const p = run({ from: "2026-12-05" }, { server: withD2(D2_JAN_1), now: "2026-10-25T09:00:00+09:00" });
+      await settle();
+      expect(p.sent).toHaveLength(1);
+      await p.stop();
+    });
+
+    it("예약 화면 GET은 다음 달 이후 날짜가 걸린 바퀴에만 한 번 나가고 간격은 5초 + 지터다", async () => {
+      const p = run({ from: "2026-11-29", to: "2026-11-30" }, { server: withD2(D2_DEC_1), now: "2026-10-25T09:00:00+09:00" });
+      await settle();
+      expect(p.allRequests.map((r) => `${r.method} ${new URL(r.url).pathname}`)).toEqual([
+        "GET /Pmreservation.do",
+        "POST /ajax/reservationCntAjax.do",
+        "POST /ajax/reservationCntAjax.do",
+      ]);
+      expect(p.requestTimes[1]! - p.requestTimes[0]!).toBe(6_500);
+      expect(p.requestTimes[2]! - p.requestTimes[1]!).toBe(6_500);
+      await p.stop();
+    });
+  });
+
+  describe("선착순 개시 뒤에도 달력 상한(d2)이 안 움직이면 경고", () => {
+    // 선착순 개시 힌트: 결제 마감일(resEndDay 16, 금) 다음 월요일 10:00 KST = 10/19. 알림 판정에는 쓰지 않는다. d2가 이달 말 한계(11/01)에 머무는 것을 사람에게 알리는 경고(로그)에만 쓴다.
+    const stuck = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "bukgu lottery gate stuck").map((l) => l.fields);
+
+    it("개시 시각 뒤에도 d2가 11/01에 머물고 다음 달 날짜를 감시하면 한 번 경고하고 알리지는 않는다", async () => {
+      const p = run({ from: "2026-11-01" }, { server: bukguServer(), now: "2026-10-19T10:01:00+09:00" });
+      await settle();
+      expect(stuck(p)).toEqual([{ limitDate: "2026-11-01", firstComeAt: "2026-10-19T10:00:00+09:00" }]);
+      expect(p.sent).toHaveLength(0);
+      expect(kinds(p)).toEqual([]);
+      await p.clock.advance(150_000);
+      await settle();
+      expect(stuck(p)).toHaveLength(1); // 같은 달 같은 정체는 한 번만
+      await p.stop();
+    });
+
+    it("개시 시각 전에는 d2가 11/01에 머물러도 경고하지 않는다", async () => {
+      const p = run({ from: "2026-11-01" }, { server: bukguServer(), now: "2026-10-19T09:59:00+09:00" });
+      await settle();
+      expect(stuck(p)).toEqual([]);
+      await p.stop();
+    });
+
+    it("개시 시각 뒤 d2가 12/01로 올라가 있으면 경고하지 않는다", async () => {
+      const p = run({ from: "2026-11-01" }, { server: withD2(D2_DEC_1), now: "2026-10-19T10:01:00+09:00" });
+      await settle();
+      expect(stuck(p)).toEqual([]);
+      await p.stop();
+    });
+
+    it("이달 날짜만 감시하면 예약 화면을 받지 않으므로 경고도 없다", async () => {
+      const p = run({ from: "2026-10-25" }, { server: bukguServer(), now: "2026-10-19T10:01:00+09:00" });
+      await settle();
+      expect(stuck(p)).toEqual([]);
+      await p.stop();
+    });
+
+    it("결제 마감일(resEndDay)을 읽을 수 없으면 개시 힌트가 없어 경고하지 못하고, 그 사실을 로그에 한 번 남기며, 알림 판정은 d2만으로 그대로다", async () => {
+      for (const change of [(h: string) => h.replace(/var resEndDay = '16';/, ""), (h: string) => h.replace("var resEndDay = '16';", "var resEndDay = '0';")]) {
+        const p = run({ from: "2026-11-01" }, { server: pageWith(change), now: "2026-10-19T10:01:00+09:00" });
+        await settle();
+        expect(stuck(p)).toEqual([]);
+        expect(p.logs.filter((l) => l.msg === "bukgu lottery gate drift").map((l) => l.fields)).toEqual([{ change: "resEndDay-unreadable" }]);
+        expect(kinds(p)).toEqual([]);
+        await p.stop();
+      }
+      const open = run({ from: "2026-11-15" }, { server: pageWith((h) => h.replace(/var resEndDay = '16';/, "").replace(D2_NOV_1, D2_DEC_1)), now: "2026-10-13T00:10:00+09:00" });
+      await settle();
+      expect(open.sent).toHaveLength(1);
+      await open.stop();
+    });
   });
 
   describe("예약 화면 신호 분류", () => {
     it.each([
       ["달력 상한(d2)이 없음", (h: string) => h.replace(/var d2= \d+;/, "var d2 = null;")],
       ["달력 상한(d2)이 숫자가 아님", (h: string) => h.replace(/var d2= \d+;/, "var d2= 'x';")],
-      ["결제 마감일(resEndDay)이 없음", (h: string) => h.replace(/var resEndDay = '16';/, "")],
-      ["결제 마감일(resEndDay)이 날짜가 아님", (h: string) => h.replace("var resEndDay = '16';", "var resEndDay = '0';")],
     ])("%s이면 unrecognized이고 알리지 않으며 그 날짜의 표를 조회하지 않는다", async (_name, change) => {
       const p = run({ from: "2026-11-01" }, { server: pageWith(change) });
       await settle();

@@ -392,18 +392,40 @@ describe("미리해 폴러", () => {
         await p.stop();
       });
 
-      it("425가 120초 넘게 이어지면 그 바퀴는 transient로 끝나고 예약 화면 요청이 나가지 않는다", async () => {
-        const p = run({ from: "2026-10-14" }, { server: mirihaeServer({ waiting: () => waiting425(9) }) });
-        await settle();
-        for (let i = 0; i < 13; i++) {
-          await p.clock.advance(10_000);
+      const waits = (p: ReturnType<typeof run>) => p.allRequests.filter((r) => r.method === "GET" && r.url.startsWith("https://cdn.mirihae.com/api/waiting")).length;
+      /** 대기 확인은 첫 확인부터 10초마다라 n번째 확인이 n×10초에 나간다. 10초 타이머가 하나씩 깨도록 10초 이하 걸음으로 시계를 옮긴다. */
+      const advanceTo = async (p: ReturnType<typeof run>, seconds: number) => {
+        const target = Date.parse(NOW) + seconds * 1000;
+        while (p.clock.now().getTime() < target) {
+          await p.clock.advance(Math.min(10_000, target - p.clock.now().getTime()));
           await settle();
         }
+      };
+
+      it("대기가 120초 직전(110초째 확인)까지 이어져도 계속 기다렸다가 입장하고 알린다", async () => {
+        const p = run({ from: "2026-10-14" }, { server: mirihaeServer({ waiting: (n) => (n < 11 ? waiting425(11 - n) : undefined) }) });
+        await settle();
+        await advanceTo(p, 110);
+        expect(waits(p)).toBe(12);
+        expect(failedKinds(p)).toEqual([]);
+        expect(p.sent).toHaveLength(1);
+        expect(p.sent[0]!.text).toContain("야영장A · 남은 18");
+        await p.stop();
+      });
+
+      it("425가 120초를 넘게 이어지면 120초째 확인에서 그 바퀴를 포기해 transient로 끝나고 그 뒤로 확인도 예약 화면 요청도 나가지 않는다", async () => {
+        const p = run({ from: "2026-10-14" }, { server: mirihaeServer({ waiting: () => waiting425(9) }) });
+        await settle();
+        await advanceTo(p, 119); // 120초 직전까지는 포기하지 않는다
+        expect(failedKinds(p)).toEqual([]);
+        expect(waits(p)).toBe(12); // 0, 10, …, 110초째
+        await advanceTo(p, 120);
         expect(failedKinds(p)).toEqual(["transient"]);
         expect(p.logs.find((l) => l.msg === "query failed")!.fields?.message).toMatch(/120초/);
+        expect(waits(p)).toBe(13);
+        await advanceTo(p, 150);
+        expect(waits(p)).toBe(13); // 포기한 바퀴는 더 묻지 않는다
         expect(gateToken(p)).toBe(false);
-        const polls = p.allRequests.filter((r) => r.method === "GET" && r.url.startsWith("https://cdn.mirihae.com/api/waiting")).length;
-        expect(polls).toBeLessThanOrEqual(13); // 120초 안에 10초 간격이다
         expect(p.sent).toHaveLength(0);
         await p.stop();
       });

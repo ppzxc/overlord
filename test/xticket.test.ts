@@ -276,6 +276,7 @@ describe("xticket 신호 분류", () => {
   it.each([
     ["error1 + redirect(로그인 요구)", html(JSON.stringify({ error1: { message: "로그인이 필요합니다." }, redirect: true, returnUrl: "/web/main" }))],
     ["로그인 화면 HTML", html('<html><form action="/Web/Member/MemberLogin.json"><input id="login_id"><input id="login_passwd"></form></html>')],
+    ["HTTP 401", { status: 401, body: "" }],
     ["HTTP 403", { status: 403, body: "" }],
     ["HTTP 429", { status: 429, body: "" }],
     ["차단 화면", html("<html><title>접근이 차단되었습니다</title><body>비정상적인 접근이 감지되어 차단되었습니다.</body></html>")],

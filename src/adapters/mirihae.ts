@@ -445,6 +445,12 @@ const monthOf = (date: string) => date.slice(0, 7);
  * 조회 단위 하나를 달력으로 판정한다. 밤마다 칸에 `click`이 있고 구역의 남은 수가 1 이상이어야 빈자리이며 남은 수는 밤마다의 최솟값이다(같은 자리가 이어진다는 보장은 없다).
  * 어느 밤이든 `click`이 없으면 빈자리 없음이다. 밤이 속한 달의 달력을 받지 못했으면 그 달을 읽다 난 오류(`monthFailure`)가 이 단위의 결과다.
  */
+/**
+ * 강천섬은 남은 수가 없는 구역의 `dl`을 그 날짜 칸에서 뺀다(2026-10-13 기록 10/17: 5구역 중 3구역만 나온다). 카탈로그 `ref.soldOutOmitted`가 있는 시설은 `click` 칸에서 안 보이는 구역을 남은 수 0으로 읽는다.
+ * 다른 시설은 모든 구역을 보여 주므로 구역이 안 보이면 구조 변경이다. 구역 이름이 바뀐 경우는 `warnZoneDrift`의 경고로 드러난다.
+ */
+const omitsSoldOut = (facility: string): boolean => fieldsRef(INFO, facility, ["tenant", "pageId"]).soldOutOmitted === "true";
+
 function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, monthFailure: AdapterError | undefined): AvailableSite[] | AdapterError {
   let remaining = Infinity;
   for (const night of nightsOf(q)) {
@@ -453,7 +459,7 @@ function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, monthFail
     const day = calendar.days.get(night);
     if (!day) return new UnitStructureError(`예약 화면: ${night} 날짜 칸이 달력에 없다`);
     if (!day.open) return [];
-    const count = day.zones.get(q.zone);
+    const count = day.zones.get(q.zone) ?? (omitsSoldOut(q.facility) ? 0 : undefined);
     if (count === undefined) return new UnitStructureError(`예약 화면: ${night} 칸에 감시하는 구역 ${q.zone}이(가) 없다`);
     remaining = Math.min(remaining, count);
   }

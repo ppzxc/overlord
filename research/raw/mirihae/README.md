@@ -169,3 +169,10 @@ Node 기본 루트 CA로 `yeojuuc.or.kr`, `camp.yjcf.or.kr`, `cdn.mirihae.com`(4
 
 - 최대 박수: 확인하지 못했다. 대신 오토 화면의 `fn_endDateCheck`에는 박수 검사나 "최대예약일수" 문구가 없고(단양 화면에 있던 `nightCheck.do` 호출도 없다) `reservation.js`에도 없다. 날짜를 고른 뒤의 서버 호출만 한도를 알 수 있으므로 부르지 않았다. 이 조각은 1박으로 시작한다.
 - 추첨: 화면 어디에도 추첨 문구가 없다("추첨" 0건). 해당 없음/미확인으로 두고 날짜 가림 규칙을 넣지 않는다. 우선예약(온라인 인증)이 따로 있다.
+
+## 강천섬 후속 확인 (2026-10-13, #111)
+
+- 다른 달 달력 경로: 화면이 싣는 `/camping/js/v2/reservation-page.js`(`yjcf_reservation-page.js`로 저장, 정적 파일 한 번 요청)의 `fn_select_month`가 `$.post("/camping/calendar.do", $("#searchForm").serialize(), …)`다. 같은 호스트(`camp.yjcf.or.kr`)의 절대 경로이고 단양과 같다. 화면 경로 접두어(`/gangcheon/camping/`)가 붙지 않는다. 날짜를 고른 뒤의 호출(`tokenCheck.do`, `initSelectReservation.do`, `selectItemList.do`, `nightCheck.do` 등)도 `/camping/…` 절대 경로이고 접근 금지 목록의 단양 경로와 같다. 부르지 않았다.
+- `dd` 섞임: `50,000원`은 날짜 칸 밖의 이용료 목록(`div.price > dl > dd`), 행사 문구는 `span.event-nm-label`(title)이고 둘 다 `dl.schedule` 밖이다. 날짜 칸 안 `dl.schedule`의 `dd`만 읽으면 구역 5개(`세종대왕`·`원경왕후`·`효종대왕`·`인현왕후`·`명성황후`)만 나온다.
+- 남은 수가 없는 구역은 그 날짜 칸에서 `dl`이 빠진다(10/17은 세종대왕 1·효종대왕 0·명성황후 1만 나온다). 카탈로그 `ref.soldOutOmitted`로 0으로 읽는다. 여주 대신·금은모래 화면은 모든 구역이 항상 나온다.
+- 추첨: 강천섬 화면에도 추첨 문구가 없다(해당 없음/미확인). 최대 박수는 확인하지 못해 1박이다.

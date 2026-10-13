@@ -843,7 +843,7 @@ ${lines}
   });
 
   it("facility 없는 감시 조건은 시설이 하나뿐이어도 위치와 쓸 수 있는 시설 코드와 함께 거부된다", () => {
-    expect(problems(block("    zones: [야영장A]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: danyang-cheondong, danyang-darian, danyang-soseonam, danyang-daegang, yeoju-daesin-auto$/);
+    expect(problems(block("    zones: [야영장A]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: danyang-cheondong, danyang-darian, danyang-soseonam, danyang-daegang, yeoju-daesin-auto, yeoju-daesin-welling, yeoju-geumeunmoraet, yeoju-gangcheonseom$/);
   });
 
   it("없는 시설은 쓸 수 있는 값과 함께 거부된다", () => {

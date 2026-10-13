@@ -704,6 +704,10 @@ export const mirihaePage = (): string => mirihaeRaw("camping_V39628874.html");
  * 10/14 73, 10/17 0, 10/20·10/27 정기 휴장일(click 없음)이다.
  */
 export const mirihaeYeojuPage = (): string => mirihaeRaw("yeoju_epoc_Z65332353_screen.html");
+/** 기록한 여주 대신 웰빙(`epoc/B24626523`), 금은모래(`gsmc/Q86949745`), 강천섬(`camp.yjcf.or.kr/gangcheon/camping/Y35294962`) 예약 화면(2026-10-13 13:09 ~ 13:15 KST, research/raw/mirihae). */
+export const mirihaeYeojuWellingPage = (): string => mirihaeRaw("yeoju_epoc_B24626523_screen.html");
+export const mirihaeYeojuGsmcPage = (): string => mirihaeRaw("yeoju_gsmc_Q86949745_screen.html");
+export const mirihaeGangcheonPage = (): string => mirihaeRaw("yjcf_gangcheon_Y35294962_screen.html");
 export function mirihaeYeojuPageWith(counts: Record<string, Record<string, number | string>>, edit?: ($: cheerio.CheerioAPI) => void): string {
   const $ = cheerio.load(mirihaeYeojuPage());
   for (const [date, zones] of Object.entries(counts)) {

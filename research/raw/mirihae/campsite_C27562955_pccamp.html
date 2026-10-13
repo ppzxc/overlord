@@ -1,0 +1,2275 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+
+
+
+
+
+
+
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>예약하기 | 포천비둘기낭 캠핑 | 포천 비둘기낭 캠핑장</title>
+
+    <!-- 공통페이지 -->
+    
+
+
+
+
+
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="apple-mobile-web-app-title" content="예약관리시스템 미리해" />
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="shortcut icon" href="/mirihae/images/favicon.ico" type="image/x-icon">
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+<link href="/campsite/css/xeicon.css" rel="stylesheet" type="text/css" />
+<link href="/campsite/css/swiper-bundle.css" rel="stylesheet" type="text/css" />
+<link href="/campsite/css/jquery-ui.css" rel="stylesheet" type="text/css" />
+<link href="/campsite/css/pignose.calendar.css" rel="stylesheet" type="text/css" />
+<link href="/campsite/css/common.css?v=2" rel="stylesheet" type="text/css" />
+<link href="/campsite/css/pin.css" rel="stylesheet" type="text/css" />
+<script src="/campsite/js/jquery.min.js"></script>
+<script src="/campsite/js/jquery-ui.js"></script>
+<script src="/campsite/js/swiper-bundle.js"></script>
+
+<script src="/campsite/js/pignose.calendar.full.min.js"></script>
+<script src="/campsite/js/common.js?v=3"></script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-S66WV34DBP"></script>
+<script>	
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-S66WV34DBP');
+</script>
+
+
+
+
+<!-- pccamp 전용 태그 Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-4TY8LRKCNL"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-4TY8LRKCNL');
+</script>
+
+
+
+
+    
+        
+            <meta property="og:title" content="포천비둘기낭캠핑장" />
+            <meta property="og:description" content="신비로운 풍광이 나타는 비둘기낭 폭포와 함께 드넓은 잔디에서 오토캠핑을 즐겨보세요" />
+            <meta property="og:type" content="website" />
+            <meta property="og:image" content="https://mirihae.com/campsite/images/pccamp/og.jpg" />
+            <meta property="og:url" content="https://mirihae.com/pccamp" />
+            <link href='/campsite/css/pccamp/current.css?v=3' rel="stylesheet" type="text/css" />
+            <link href='/campsite/css/pccamp/pin.css?v=2' rel="stylesheet" type="text/css" />
+            <style>
+                .huge-widget.map-district .ui-widget .ui-body .map-picker{display: flex;flex-direction: column;overflow: hidden;}
+            </style>
+        
+    
+    <script src='/campsite/js/sub.js?v=4'></script>
+    <script>
+        
+        var selectItemCheckFlag = true;
+        $(document).keydown(function (e) {
+            if($("#reloadFlag").val() == "0"){
+                if (e.which === 116) {
+                    if (typeof event == "object") {
+                        event.keyCode = 0;
+                    }
+                    return false;
+                } else if (e.which === 82 && e.ctrlKey) {
+                    return false;
+                }
+            }
+        });
+
+        $(document).ready(function(){
+            
+            $("#reloadFlag").val("1");
+            $(".loading").remove();
+
+            
+            $('.menu-n li').each(function (index, item) {
+                var str = $(this).find("a").attr("href");
+                console.log(str)
+                if(str.indexOf("C27562955") != -1)
+                {
+                    $(this).addClass("active");
+                }
+            });
+
+            
+            var swiper = new Swiper( '.images', {
+                autoplay: {
+                    delay: 3500,
+                    disableOnInteraction: false,
+                    loop: true,
+                },
+                pagination: {
+                    el: ".swiper-pagination",
+                    type: "progressbar",
+                },
+            });
+
+            mo_check();
+            map_size();
+
+        });
+
+        $(window).resize(function () {
+            mo_check();
+        });
+
+        function mo_check() {
+            var width_size = window.innerWidth;
+            if (width_size > 810) {
+                $(".sub .detail .reserv-ui .choose").css("display", "block");
+                $("body").removeClass("paying");
+
+                $("#map .map-area").hide();
+                $("#map .map-area.web").show();
+            }else{
+                if(!$("body").hasClass("paying")){
+                    $(".sub .detail .reserv-ui .choose").css("display", "none");
+                }
+                $("#map .map-area").hide();
+                $("#map .map-area.mobile").show();
+            }
+        }
+
+        function fn_comma(num){
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        function fn_date_check(){
+            var testString = $("#selectDate").val();		// 원래 문자열
+            var regex = /[^0-9]/g;							// 숫자가 아닌 문자열을 선택하는 정규식
+            var selectDate = testString.replace(regex, "");	// 원래 문자열에서 숫자가 아닌 모든 문자열을 빈 문자로 변경
+
+            if(selectDate == ""){
+                alert("이용일을 선택 해주세요");
+                return false;
+            }
+
+            var y = selectDate.substring(0, 4);
+            m = selectDate.substring(4, 6);
+            d = selectDate.substr(6);
+            var datecheckResult = true;
+            var dateRegex = /^(?=\d)(?:(?:31(?!.(?:0?[2469]|11))|(?:30|29)(?!.0?2)|29(?=.0?2.(?:(?:(?:1[6-9]|[2-9]\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00)))(?:\x20|$))|(?:2[0-8]|1\d|0?[1-9]))([-.\/])(?:1[012]|0?[1-9])\1(?:1[6-9]|[2-9]\d)?\d\d(?:(?=\x20\d)\x20|$))?(((0?[1-9]|1[012])(:[0-5]\d){0,2}(\x20[AP]M))|([01]\d|2[0-3])(:[0-5]\d){1,2})?$/;
+            datecheckResult = dateRegex.test(d+'-'+m+'-'+y);
+            console.log(datecheckResult);
+
+            if(!datecheckResult){
+                alert("이용일을 확인 해주세요");
+                return false;
+            }
+
+            var now = new Date();
+            var tDate = new Date(y,(m-1),d);
+            if(now >= Date.parse(tDate)){
+                alert("이용일은 오늘 이후부터 선택 가능합니다.");
+                return false;
+            }
+            $("#selectDate").val(getFormatDate(tDate));
+            return true;
+        }
+
+        
+        var acnt = 0;
+        var calendar_open_flag = false;
+        function fn_calendar(){
+
+            if(!calendar_open_flag){
+                calendar_open_flag = true;
+                if($("#calendarModal").length > 0){
+                    $("body").addClass("date-time-pick-mode");
+                }else{
+                    
+                    $.post('/campsite/calendar.do', $("#searchForm").serialize(), function(data) {
+                        $("body").prepend(data);
+                        $("body").addClass("date-time-pick-mode");
+                        $(".reserv-ui").removeClass( 'active' );
+                        $(".cal-huge-full ").addClass("date-time");
+                    })
+                }
+            }
+
+        }
+
+        
+        var mflag = true;
+        function fn_select_month(date){
+
+            console.log("@function fn_select_month START !! @param:: " + date);
+            console.log("@mflage :: " + mflag);
+
+            $("#reloadFlag").val("0");
+            $("#loading").show();
+
+            if(mflag){
+                mflag = false;
+                $("#selectMonth").val(date);
+
+                $.post('/campsite/cal.do', $("#calendarForm").serialize(), function(data) {
+                    $("#calendar").empty();
+                    $("#calendar").append(data);
+
+                    var startTempDate = $("#selectStartDateTemp").val();
+                    var endTempDate = $("#selectEndDateTemp").val();
+
+                    console.log("startTempDate ["+startTempDate+"]");
+                    console.log("endTempDate ["+endTempDate+"]");
+
+                    
+                    
+                    
+                    $("#"+startTempDate).addClass("active");
+                    $("#"+startTempDate).find(".dateP").append("<span class=\"selectText\">입실일</span>");
+
+                    $("#"+endTempDate).addClass("active");
+                    $("#"+endTempDate).find(".dateP").append("<span class=\"selectText\">퇴실일</span>");
+
+                    var start = $("#"+startTempDate).data("index");
+                    var end = $("#"+endTempDate).data("index");
+                    for(var i = start; i <= end; i ++){
+                        $(".td"+i).addClass("range");
+                    }
+                    
+                    
+
+                }).done(function() {
+                    console.log("@function fn_select_month END !!");
+                    mflag = true;
+
+                    $("#reloadFlag").val("1");
+
+                }).fail(function(data, textStatus, errorThrown){
+                    console.log("@function fn_select_month FAIL !!!!!");
+                    $("#reloadFlag").val("1");
+                    fn_select_month(date);
+                });
+
+            }else{
+                alert("잠시만 기다려주세요");
+            }
+        }
+        
+
+        function fn_calendar_close(){
+            $("body").removeClass("date-time-pick-mode");
+            calendar_open_flag = false;
+            selectDateFlag = true;
+            $("#calendarModal").remove();
+        }
+
+        
+        function fn_change_date(){
+            $(".initTarget").val("");
+            $(".ticketCnt").val(0);
+            var html = "";
+            html+="<li>";
+            html+="    <p class=\"name\"></p>";
+            html+="    <p class=\"price\">0</p>";
+            html+="</li>";
+            $("#totalTicketList").html(html);
+            $("#totalPrice").text(0);
+            fn_step1();
+        }
+
+
+        function fn_map_show(){
+
+            console.log("map startdate :: " + $("#selectStartDate").val());
+            console.log("map selectEndDate :: " + $("#selectEndDate").val());
+
+            if($("#selectStartDate").val() == "" || $("#selectEndDate").val() == "" ){
+                alert("날짜를 선택해주세요");
+                return
+            }
+
+            $("#selectStartDateText").text($("#selectStartDate").val());
+            $("#selectEndDateText").text($("#selectEndDate").val());
+            map_size();
+            fn_pin_load()
+            $("body").addClass("huge-widget-mode");
+        }
+
+        function fn_map_hide(){
+            $("body").removeClass("huge-widget-mode");
+        }
+
+
+        
+        var submitBtnFlag = true;
+        
+        var selectDateFlag = true;
+        
+        var pinFlag = true;
+        
+        var pinUseFlag = true;
+
+
+        var pinLoading = true;
+        function fn_pin_load(){
+            console.log(" @@@ fn_pin_load @@@ ");
+
+            if(pinLoading){
+                pinLoading = false;
+                $(".map-district .map .pin").remove();
+                $(".pin-area").removeClass("select");
+                $(".pin-area .pin").removeClass("active");
+                $(".pin-area .pin").removeClass("cursor");
+                $(".pin-area .pin").addClass("disabled");
+
+                $.ajax({
+                    url: '/campsite/preOpenCheck.do',
+                    cache: false,
+                    async: false,
+                    type: "post",
+                    data: $('form[name=searchForm]').serialize(),
+                    dataType:'json',
+                    success: function(data1){
+
+                        console.log("data1.soldoutCategoryList :: "+data1.soldoutCategoryList);
+                        console.log("data1.preOpenCheck :: "+data1.preOpenCheck);
+                        console.log("data1.resultCode :: "+data1.resultCode);
+
+                        if(data1.resultCode != "200"){
+                            alert("예약기간이 아닙니다.")
+                            pinLoading = true;
+                        }else{
+
+                            var soldoutCategoryList = data1.soldoutCategoryList;
+                            var preOpenCheck = data1.preOpenCheck;
+                            $("#preOpenCheck").val(preOpenCheck)
+
+                            $.ajax({
+                                url: '/campsite/selectAjaxDatePinInfo.do',
+                                cache: false,
+                                async: false,
+                                type: "post",
+                                data: $('form[name=searchForm]').serialize(),
+                                dataType:'json',
+                                success: function(data){
+                                    var pinCategoryList = data.pinCategoryList;
+                                    $.each(pinCategoryList, function (index, item) {
+
+                                        console.log(item.totalcnt)
+                                        console.log(item.usablecnt)
+
+                                        var pinHtml = "";
+                                        $.each(item.pinList, function (index, pin) {
+                                            pinHtml += "<div style=\"left:"+pin.positionLeft+"px;top:"+pin.positionTop+"px\" data-name=\""+pin.itemNm+"\" data-category=\""+pin.categoryNm+"\"	";
+                                            pinHtml += " data-categoryusable=\"true\"	";
+                                            pinHtml += " class=\"pin "+pin.categoryId+" "+pin.itemId+" "+pin.color+" "+pin.deck+" ";
+
+                                            if(preOpenCheck == "Y" && soldoutCategoryList.indexOf(pin.categoryId) != -1){
+                                                pinHtml += " disabled ";
+                                                pinHtml += "\" title=\"마감되었습니다.(선택불가) "+pin.itemNm +"\"";
+                                                pinHtml += "\" onclick=\"alert('마감되었습니다.(선택불가)')\"";
+                                            }else if(pin.useAt == "N"){
+                                                pinHtml += " disabled ";
+                                                pinHtml += "\" title=\"이미 예약된 자리입니다!(선택불가) "+pin.itemNm +"\"";
+                                                pinHtml += "\" onclick=\"alert('이미 예약된 자리입니다!(선택불가)')\"";
+                                            }else{
+                                                pinHtml += " cursor ";
+                                                pinHtml += "\" title=\""+pin.itemNm +"\"";
+                                                pinHtml += " onclick=\"fn_select_pin('"+pin.itemId+"');\"";
+                                                pinHtml += " tabindex=\"0\"";
+                                                pinHtml += "onkeydown=\"if(event.keyCode == 13){fn_select_pin('"+pin.itemId+"');}\"";
+                                            }
+                                            pinHtml += ">";
+                                            pinHtml += "<div class=\"marker\"><span>"+pin.itemNo+"</span></div>";
+                                            pinHtml += "<div class=\"deco\"></div>";
+                                            pinHtml += "</div>";
+                                        });
+                                        $(".map-district .map").append(pinHtml);
+                                    })
+
+                                    $(".map-district .pin").mouseenter(function () {
+                                        if($(this).hasClass("disabled")) {
+                                        } else {
+                                            $(this).addClass("over");
+                                        }
+                                    });
+
+                                    $(".map-district .pin").mouseleave(function () {
+                                        $(this).removeClass("over");
+                                    });
+
+                                    $("#reloadFlag").val("1");
+                                    $("#loading").hide();
+
+                                    $('#selectItemList .selectItem').each(function (index, item) {
+                                        var selectItemId = $(this).attr("data-id");
+                                        if(typeof selectItemId == "undefined" || selectItemId == null || selectItemId == ""){
+                                        }else{
+                                            console.log("selectItemId >> "+selectItemId)
+                                            $(".map-district .pin."+selectItemId).addClass("active");
+                                            $(".map-district .pin."+selectItemId).removeClass("disabled");
+                                            $(".map-district .pin."+selectItemId).attr("onclick","fn_cancel_select('"+selectItemId+"')");
+
+                                        }
+                                    });
+                                    pinFlag = true;
+                                    pinLoading = true;
+                                    selectDateFlag = true;
+                                    submitBtnFlag = true;
+                                }
+                            })
+
+                        }
+                    }
+                })
+
+                pinUseFlag = true;
+            }
+        }
+
+        function fn_select_pin(id){
+            console.log(">>>>>>>>>>>>>>>>>>>>>  selectPin <<<<<<<<<<<<<<<<<<<<");
+            console.log("fn_select_pin !!!  pinFlag="+pinFlag+", selectDateFlag="+selectDateFlag+", submitBtnFlag="+submitBtnFlag+", pinUseFlag="+pinUseFlag);
+
+            if(!submitBtnFlag){
+                return;
+            }
+
+            // 이미 선택된 자리면 취소처리하기 ----------------------------------------
+            var addFlag = true;
+            $('#selectItemList .selectItem').each(function (index, item) {
+                var selectItemId = $(this).attr("data-id");
+                if(typeof selectItemId == "undefined" || selectItemId == null || selectItemId == ""){
+                }else{
+                    cnt ++;
+                    if(selectItemId == id){
+                        addFlag = false;
+                    }
+                }
+            });
+            console.log("addFlag="+addFlag);
+            if(!addFlag){
+                fn_cancel_select(id);
+                return;
+
+            }
+            // 이미 선택된 자리면 취소처리하기 ----------------------------------------
+
+            if(pinFlag){
+
+                pinFlag = false;
+                submitBtnFlag = false; 
+                selectDateFlag = false; 
+
+                var selectItemCnt = $("#selectItemList .selectItem").length;
+                console.log("selectItemCnt : "+ selectItemCnt);
+                var pinActive = $(".map-district .pin.active").length;
+                console.log("pinActive : "+ pinActive);
+
+                var preOpenCheck = $("#preOpenCheck").val();
+                var maxItemSelectCnt = 2;
+                if(preOpenCheck == "Y"){
+                    maxItemSelectCnt = 2;
+                }
+
+                var startDate = $("#selectStartDate").val();
+                console.log("startDate : "+ startDate);
+                console.log(startDate.indexOf("2023-03"));
+                if(startDate.indexOf("2023-03") != -1){
+                    maxItemSelectCnt = 0;
+                }
+
+                console.log("maxItemSelectCnt >> " + maxItemSelectCnt);
+                if(selectItemCnt > maxItemSelectCnt || pinActive > maxItemSelectCnt){
+                    alert("최대 "+(maxItemSelectCnt+1)+"개 사이트만 선택가능합니다.");
+                    pinFlag = true;
+                    submitBtnFlag = true; 
+                    selectDateFlag = true; 
+                    return;
+                }
+
+                console.log("@ id " + id);
+                console.log("pinFlag :: " + pinFlag);
+                console.log("pinUseFlag :: " + pinUseFlag);
+
+                if($(".calendar .table").hasClass("period") && $("#selectEndDate").val() == ""){
+                    alert("퇴실일을 선택해주세요");
+                    pinFlag = true;
+                    selectDateFlag = true;
+                    submitBtnFlag = true;
+                    return;
+                }
+
+                
+                $("#selectItemId").val(id);
+                $("#checkType").val("selectPin");
+                $("#check").remove();
+                $.post('/campsite/selectReservationCheck.do', $("#searchForm").serialize(), function(data) {
+                    console.log(">>>>>>>>>>>>>>>>>>>>>  data <<<<<<<<<<<<<<<<<<<<");
+                    console.log(data);
+                    $("body").append(data);
+                })
+
+            }
+        }
+
+        function fn_next(flag){
+            console.log("fn_next flag="+flag);
+            if(flag){
+                var id = $("#selectItemId").val();
+                var category = $(".pin."+id).data("category");
+                var item = $(".pin."+id).data("name");
+                if(!$(".pin."+id).hasClass('active')){
+                    $("#selectItemId").val(id);
+                    $("#check").remove();
+                    $.post('/campsite/selectTicketInfo.do', $("#searchForm").serialize(), function(data) {
+                        $("body").append(data);
+                    }).done(function() {
+                        selectDateFlag = true;
+                        pinUseFlag = true;
+                        pinFlag = true;
+                        fn_totalPrice();
+                    })
+
+                }else{
+                    fn_cancel_select_item(id);
+                }
+
+            }else{
+                pinFlag = true;
+                selectDateFlag = true;
+                submitBtnFlag = true;
+            }
+        }
+
+
+        function fn_select(category, item, id){
+            console.log(">>> pinUseFlag<<< " + pinUseFlag);
+            if(confirm("["+ category +" - "+ item + "]을 선택하였습니다 \n선택된 자리는 20분 이내에 예약이 완료되지 않으면 다른 고객이 예약하실 수 있습니다.")){
+                $("#selectTicketInfo .empty").hide();
+                $(".pin."+id).addClass('active');
+                submitBtnFlag = true;
+                var itemNm = $(".pin."+id).attr("data-name");
+                $(".pin."+id).attr("onclick", "fn_cancel_select('"+id+"')");
+
+                var cnt = 0;
+                var addFlag = true;
+                $('#selectItemList .selectItem').each(function (index, item) {
+                    var selectItemId = $(this).attr("data-id");
+                    if(typeof selectItemId == "undefined" || selectItemId == null || selectItemId == ""){
+                    }else{
+                        cnt ++;
+                        if(selectItemId == id){
+                            addFlag = false;
+                        }
+                    }
+                });
+                console.log("addFlag="+addFlag)
+                console.log("cnt="+cnt)
+                if(addFlag){
+                    var selectItemHtml = "<p class=\"selectItem\" data-id='"+id+"'>"+itemNm+"</p>";
+                    $("#selectItemList").append(selectItemHtml);
+                }
+
+                if(cnt > 0 || addFlag){
+                    $("#itemInit").hide();
+                    $(".map-district .select-complete").addClass("ed");
+                }else{
+                    $(".map-district .select-complete").removeClass("ed");
+                }
+
+            }else{
+                fn_cancel_select_item(id);
+            }
+
+        }
+        
+
+
+        var cancelFlag = true;
+        function fn_cancel_select(id){
+            if(confirm("선택한 자리를 취소하시겠습니까?")){
+                fn_cancel_select_item(id);
+            }else{
+                cancelFlag = true;		// 취소 가능여부 초기화
+                pinFlag = true;			// 핀 선택 초기화
+                submitBtnFlag = true;	// 저장버튼 선택 초기화
+                selectDateFlag = true;
+            }
+            console.log("fn_cancel_select :: pinFlag="+pinFlag+", selectDateFlag="+selectDateFlag+", pinUseFlag="+pinUseFlag+", pinUseFlag="+pinUseFlag);
+        }
+
+        function fn_cancel_select_item(id){
+            if(cancelFlag){
+                cancelFlag = false;
+                $("#selectItemId").val(id);
+                $.ajax({
+                    url: '/camping/deSelectTicket.do',
+                    cache: false,
+                    async: false,
+                    type: "post",
+                    data: $('form[name=searchForm]').serialize(),
+                    dataType:'json',
+                    success: function(data){
+                        console.log("@@ deselectTicket="+data.resultFlag);
+                        if(data.resultFlag){
+                            $(".pin."+id).removeClass('active');
+                            $(".pin."+id).find("input[type=checkbox]").prop("checked", false);
+                            $("#selectTicketInfo").find("."+id).remove();
+                            var len = $("#selectTicketInfo").find(".select-pin").length;
+                            if(len < 1){
+
+                            }else{
+                            }
+
+                            var cnt = 0;
+                            $('#selectItemList .selectItem').each(function (index, item) {
+                                var selectItemId = $(this).attr("data-id");
+                                if(typeof selectItemId == "undefined" || selectItemId == null || selectItemId == ""){
+                                }else{
+                                    if(selectItemId == id){
+                                        $(this).remove();
+                                    }else{
+                                        cnt ++;
+                                    }
+                                }
+                            });
+
+                            if(cnt > 0){
+                                $("#itemInit").hide();
+                                $(".map-district .select-complete").addClass("ed");
+                            }else{
+                                $("#itemInit").show();
+                                $(".map-district .select-complete").removeClass("ed");
+                            }
+
+                            $(".pin."+id).attr("onclick", "fn_select_pin('"+id+"')");
+                        }
+
+                        fn_totalPrice();
+                    },
+                    complete : function () {
+                        console.log("@@@ complete >>>> ");
+                        cancelFlag = true;		// 취소 가능여부 초기화
+                        pinFlag = true;			// 핀 선택 초기화
+                        submitBtnFlag = true;	// 저장버튼 선택 초기화
+                        selectDateFlag = true;
+                    }
+                }).always(function(){
+                    console.log("@@@ always >>>> ");
+                    cancelFlag = true;		// 취소 가능여부 초기화
+                    pinFlag = true;			// 핀 선택 초기화
+                    submitBtnFlag = true;	// 저장버튼 선택 초기화
+                    selectDateFlag = true;
+                })
+
+                console.log("fn_cancel_select_item pinFlag="+pinFlag+", selectDateFlag="+selectDateFlag+", pinUseFlag="+pinUseFlag+", pinUseFlag="+pinUseFlag);
+            }
+        }
+
+        function fn_discount_select_click(){
+            if($("#selectTicketInfo").find(".select-pin").length < 1 && $("input[name=discountIds]:checked").val() != ""){
+                alert("예약 할 자리를 먼저 선택해주세요");
+                $("#none").prop("checked",true);
+                return;
+            }
+            // fn_discount_select()
+        }
+
+        function fn_mo_hide(){
+            $(".choose").slideUp("fast");
+            $(".sub .detail .reserv-ui a.pay").text("예약하기");
+            $("body").removeClass("paying");
+        }
+
+        function fn_totalPrice(){
+            $.post('/campsite/totalTicketPrice.do', $("#searchForm").serialize(), function(data) {
+                $(".total-payment").html(data);
+            })
+        }
+
+
+        function fn_save(){
+
+            var width_size = window.outerWidth;
+            if (width_size <= 812) {
+                //모바일
+
+                if($("body").hasClass("paying")){
+                    /* $(".sub .detail .reserv-ui .choose").css("display", "none");
+                    $("body").removeClass("paying");	 */
+                }else{
+                    $(".sub .detail .reserv-ui .choose").css("display", "block");
+                    $("body").addClass("paying");
+                    return;
+                }
+
+            }
+
+            if($("#selectStartDate").val() == "" || $("#selectEndDate").val() == "" ){
+                alert("날짜를 선택해주세요");
+                return
+            }
+            var itemChecknt = 0;
+            $('#selectItemList .selectItem').each(function (index, item) {
+                var selectItemId = $(this).attr("data-id");
+                if(typeof selectItemId == "undefined" || selectItemId == null || selectItemId == ""){
+                }else{
+                    itemChecknt ++;
+                }
+            });
+
+            if(itemChecknt < 1){
+                alert("자리를 선택해주세요");
+                return;
+            }
+
+            if(confirm("예약하시겠습니까?")){
+                document.searchForm.action = '/campsite/reservationForm.do';
+                document.searchForm.submit();
+            }
+        }
+
+
+        function close_popup(id) {
+            var targetNotTodayBox = id + "_notToday";
+            console.log(targetNotTodayBox); //확인
+            if ($("#" + targetNotTodayBox).prop("checked")) {
+                setCookie(targetNotTodayBox, 'Y', 1);
+                console.log("setted cookie");
+            }
+            $("#" + id).fadeOut();
+        }
+
+        $(document).ready(function(){
+
+            
+
+
+        });
+
+        //쿠키 세팅
+        function setCookie(xname, xvalue, expiredays) {
+            var todayDate = new Date();
+            todayDate.setDate(todayDate.getDate() + expiredays);
+            document.cookie = xname + "=" + escape(xvalue) + "; path=/; expires=" + todayDate.toGMTString() + ";";
+            console.log(document.cookie);
+        }
+
+        // 쿠키 존재 여부 확인
+        function getCookie(cookieName) {
+            var nameOfCookie = cookieName + "=";
+            var x = 0;
+            while (x <= document.cookie.length ) {
+                var y = (x+nameOfCookie.length);
+                if(document.cookie.substring(x, y) == nameOfCookie) {
+                    if((endOfCookie = document.cookie.indexOf( ";", y )) == -1)
+                        endOfCookie = document.cookie.length;
+                    return unescape(document.cookie.substring(y, endOfCookie));
+                }
+                x = document.cookie.indexOf( " ", x ) + 1;
+                if (x == 0)  break;
+            }
+            return "";
+        }
+
+        
+        var pflag = true;
+        function fn_cert_popup(){
+            if(pflag){
+                $("#certPopup").remove();
+                pflag = false;
+                $.post("/cert/pccamp/manualCheckPopoup.do", $("#searchForm").serialize(), function(data) {
+                    $("body").addClass("modal-on");
+                    $("body").prepend(data);
+                }).done(function() {
+                })
+            }
+        }
+
+        function fn_cert_popup_close(){
+            $("body").removeClass("modal-on");
+            $(".modal.certification").remove();
+            pflag = true;
+        }
+        
+    </script>
+    <style>
+
+        .huge-widget > .head.date {
+            padding: 15px var(--padding);
+            position: relative;
+            z-index: 2;
+        }
+        .huge-widget > .head.date h3 {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-size: 1.2em;
+        }
+
+        #calendar td.click:hover:before {
+            content: "날짜를 선택해주세요";
+        }
+        #calendar td.click:hover:before,
+        #calendar td.click:focus:before {
+            content: "입실일을 선택해주세요";
+        }
+        #calendar td.click:hover:before,
+        #calendar td.click:focus:before {
+            content: "퇴실일을 선택해주세요";
+        }
+        #calendar td .element{padding:0px 5px 10px 10px}
+        #calendar td.click:hover:before{content:"";display:none }
+        #calendar td .district dl.schedule {font-size: .85em;overflow: hidden;clear: both;line-height: 18px; color: #252D3A; cursor: pointer;transition: .2s;padding-left:20px}
+        #calendar td .district .schedule dt{}
+        #calendar td .district dl.schedule dt {height: 18px;width: 18px;line-height: 18px;font-weight: bold;text-align: center;border-radius: 50%;float: left;color: #fff;font-size: .8em; margin-right: 4px;background:#000;position: absolute;left:10px;}
+        #calendar td .district .schedule dd{padding-right:10px}
+
+
+
+        .cal-huge.ui-widget.ui-widget-content .cal-btns a.select-complete::after{content:''}
+
+
+        #calendar .district dl.schedule.color1 dt {background-color: #dd006f}
+        #calendar .district dl.schedule.color2 dt {background-color: #4d00ac}
+        #calendar .district dl.schedule.color3 dt {background-color: #0d89e1}
+        #calendar .district dl.schedule.color4 dt {background-color: #fee400}
+        #calendar .district dl.schedule.color5 dt {background-color: #a400a1}
+        #calendar .district dl.schedule.color6 dt {background-color: #fee400}
+        #calendar .district dl.schedule.color7 dt {background-color: #a400a1}
+
+        #calendar .district dl.schedule.color1.active {background-color: #dd006f; color: #fff; font-weight: bold;}
+        #calendar .district dl.schedule.color2.active {background-color: #4d00ac; color: #fff; font-weight: bold;}
+        #calendar .district dl.schedule.color3.active {background-color: #0d89e1; color: #fff; font-weight: bold;}
+        #calendar .district dl.schedule.color4.active {background-color: #fee400; color: #fff; font-weight: bold;}
+        #calendar .district dl.schedule.color5.active {background-color: #a400a1; color: #fff; font-weight: bold;}
+        #calendar .district dl.schedule.color6.active {background-color: #116c43; color: #fff; font-weight: bold;}
+        #calendar .district dl.schedule.color6.active {background-color: #a400a1; color: #fff; font-weight: bold;}
+
+        /** 기본 컬러 **/
+        .map .pin .marker{background-color: #999;}
+        .map .pin .marker:after{border-top-color: #999;}
+
+        /* 섹션컬러 */
+        .color1 {color: #dd006f !important;}
+        .color2 {color: #4d00ac !important;}
+        .color3 {color: #0d89e1 !important;}
+        .color4 {color: #fee400 !important;}
+        .color5 {color: #a400a1 !important;}
+        .color6 {color: #fee400 !important;}
+        .color7 {color: #a400a1 !important;}
+
+        .color1.active.pin .marker::before{color: #dd006f !important;}
+        .color2.active.pin .marker::before{color: #4d00ac !important;}
+        .color3.active.pin .marker::before{color: #0d89e1 !important;}
+        .color4.active.pin .marker::before{color: #fee400 !important;}
+        .color5.active.pin .marker::before{color: #a400a1 !important;}
+        .color6.active.pin .marker::before{color: #fee400 !important;}
+        .color7.active.pin .marker::before{color: #a400a1 !important;}
+
+        .map .pin.color1.active .marker span{color: #dd006f}
+        .map .pin.color2.active .marker span{color: #4d00ac}
+        .map .pin.color3.active .marker span{color: #0d89e1}
+        .map .pin.color4.active .marker span{color: #fee400}
+        .map .pin.color5.active .marker span{color: #a400a1}
+        .map .pin.color6.active .marker span{color: #fee400}
+
+        .map .pin.color1 .marker{background-color: #dd006f;}
+        .map .pin.color1 .marker:after {border-top-color: #dd006f;}
+        .map .pin.color1.active .marker{background-color: #dd006f !important;}
+        .map .pin.color1.active .marker:after {border-top-color: #dd006f !important;}
+
+        .map .pin.color2 .marker{background-color: #4d00ac;}
+        .map .pin.color2 .marker:after{border-top-color: #4d00ac;}
+        .map .pin.color2.active .marker{background-color: #4d00ac !important;}
+        .map .pin.color2.active .marker:after{border-top-color: #4d00ac !important;}
+
+        .map .pin.color3 .marker {background-color: #0d89e1;}
+        .map .pin.color3 .marker:after{border-top-color: #0d89e1;}
+        .map .pin.color3.active .marker {background-color: #0d89e1 !important;}
+        .map .pin.color3.active .marker:after{border-top-color: #0d89e1 !important;}
+
+        .map .pin.color4 .marker{background-color: #fee400;}
+        .map .pin.color4 .marker:after{border-top-color: #fee400;}
+        .map .pin.color4.active .marker{background-color: #fee400 !important;}
+        .map .pin.color4.active .marker:after{border-top-color: #fee400 !important;}
+
+        .map .pin.color5 .marker{background-color: #a400a1;}
+        .map .pin.color5 .marker:after {border-top-color: #a400a1;}
+        .map .pin.color5.active .marker{background-color: #a400a1 !important;}
+        .map .pin.color5.active .marker:after {border-top-color: #a400a1 !important;}
+
+        .map .pin.color6 .marker{background-color: #fee400;}
+        .map .pin.color6 .marker:after {border-top-color: #fee400;}
+        .map .pin.color6.active .marker{background-color: #fee400 !important;}
+        .map .pin.color6.active .marker:after {border-top-color: #fee400 !important;}
+
+        .map .pin.color7 .marker{background-color: #a400a1;}
+        .map .pin.color7 .marker:after {border-top-color: #a400a1;}
+        .map .pin.color7.active .marker{background-color: #a400a1 !important;}
+        .map .pin.color7.active .marker:after {border-top-color: #a400a1 !important;}
+
+        .map-district .map-area{max-width:1024px}
+        .map-area .sect-descript li.color1::before {background-color: #dd006f;}
+        .map-area .sect-descript li.color2::before {background-color: #4d00ac;}
+        .map-area .sect-descript li.color3::before {background-color: #0d89e1;}
+        .map-area .sect-descript li.color4::before {background-color: #fee400;}
+        .map-area .sect-descript li.color5::before {background-color: #a400a1;}
+        .map-area .sect-descript li.color6::before {background-color: #fee400;}
+        .map-area .sect-descript li.color7::before {background-color: #a400a1;}
+
+        .map .pin.color4 .marker span{color:#000}
+
+        .map .pin .marker span{height: 18px;border: 0;background-color: transparent; width: 100%;
+            padding: 0; text-align: center;font-size: 0.65em;font-weight: 500;letter-spacing: 0;display: block;
+            position: relative;z-index: 10;font-weight: bold;color:#fff;line-height:18px;}
+
+        .map .pin.active .marker span {height: 14px;width: 14px;  background: #fff;border-radius: 50%;transition: 0.3s;margin: 0 2px;font-weight: bold;letter-spacing: -0.5px;position: relative;top: 2px;}
+        .map .pin.disabled  .marker span{color:#666}
+
+        .cal-huge.ui-widget.ui-widget-content .ui-body table td{position:relative}
+        .cal-huge.ui-widget.ui-widget-content .ui-body table td.select{top:0px}
+
+        .selectItem{cursor: pointer;width: 100%;border: none;display: block;padding: 0;outline: 0;height: auto;padding: 0 20px 0 var(--padding);background-color: transparent;font-size: 1rem;height: 36px;padding-top:10px}
+        #itemInit{cursor: pointer;width: 100%;border: none;display: block;padding: 0;outline: 0;height: auto;padding: 0 20px 0 var(--padding);background-color: transparent;font-size: 1rem;height: 36px;padding-top:10px}
+
+        .huge-widget .ui-widget .btns a.select-complete::after{content:'닫기'}
+        .cal-huge.ui-widget.ui-widget-content .cal-btns a.select-complete.ed::after, .huge-widget .ui-widget a.select-complete.ed::after{content:'선택완료'}
+
+        /* #calendar td.select:after{position:absolute;content: "선택일"; border-radius: 23px;font-size: .7rem;line-height: 1;top: 5px;left: 32px;z-index: 10;padding: 5px 9px;   background-color: #252D3A;color: #fff;margin-top:5px}
+        #calendar td.active:after {position:absolute;content: "입실일"; border-radius: 23px;font-size: .7rem;line-height: 1;top: 5px;left: 32px;z-index: 10;padding: 5px 9px;   background-color: #252D3A;color: #fff;margin-top:5px}
+        #calendar td.second-active:after {position:absolute;content: "퇴실일";border-radius: 23px;font-size: .7rem;line-height: 1;top: 5px;left: 32px;z-index: 10;padding: 5px 9px;   background-color: #252D3A;color: #fff;margin-top:5px}
+         */
+        #calendar td.range > .dateP{background-color: #252D3A;color: #ffffff;font-weight: 600;width:100%}
+        #calendar td.range > .dateP span{color:#fff}
+        .cal-huge.ui-widget.ui-widget-content .ui-state-default, .cal-huge.ui-widget.ui-widget-content .ui-widget-content .ui-state-default{padding:0px}
+        #calendar td > p.dateP > span{display:inline-block}
+        #calendar td > p.dateP > span.selectText{border-radius: 23px;display:inline-block; font-size: .7rem;line-height: 1;z-index: 10;padding: 5px 9px;background-color: #252D3A;color: #fff;margin-top: 5px;}
+
+        .paying .sub .contents .article .header{z-index:-1}
+        .sub .contents .article .header{z-index:2}
+        @media ( max-width : 600px) {
+            .map-area.web {display: none;}
+            .map-area.mobile {
+                display: block;
+            }
+        }
+
+        #calendar td.preOpen {
+            background: #ECF6FD !important;
+        }
+        .ment.on{background:#ECF6FD;color: #000; animation: initial !important;border:0px !important}
+        #calendar .district dl.schedule.soldout dt{background-color:#999 !important}
+
+    </style>
+
+    
+        <style>
+            #calendar td.range .district{opacity: 0; display: none;}
+            #selectDateResult{opacity:1 !important; display: block  !important;}
+        </style>
+    
+
+    
+        <style>
+            .map .pin.active .marker span{height: 20px;width: 20px;top: 0px;font-size: 0.8em;}
+            .map .pin.color4 .marker span{color:#fff}
+            .map .pin.disabled.color4 .marker span{color:#000}
+
+            #calendar .district dl.schedule.color1 dt {background-color: #00ac22}
+            #calendar .district dl.schedule.color2 dt {background-color: #0076cb}
+            #calendar .district dl.schedule.color3 dt {background-color: #ed0077}
+            #calendar .district dl.schedule.color4 dt {background-color: #be00db}
+            #calendar .district dl.schedule.color5 dt {background-color: #ee7f00}
+
+            #calendar .district dl.schedule.color1.active {background-color: #00ac22; color: #fff; font-weight: bold;}
+            #calendar .district dl.schedule.color2.active {background-color: #0076cb; color: #fff; font-weight: bold;}
+            #calendar .district dl.schedule.color3.active {background-color: #ed0077; color: #fff; font-weight: bold;}
+            #calendar .district dl.schedule.color4.active {background-color: #be00db; color: #fff; font-weight: bold;}
+            #calendar .district dl.schedule.color5.active {background-color: #ee7f00; color: #fff; font-weight: bold;}
+
+            /* 섹션컬러 */
+            .color1 {color: #00ac22 !important;}
+            .color2 {color: #0076cb !important;}
+            .color3 {color: #ed0077 !important;}
+            .color4 {color: #be00db !important;}
+            .color5 {color: #ee7f00 !important;}
+
+            .color1.active.pin .marker::before{color: #00ac22 !important;}
+            .color2.active.pin .marker::before{color: #0076cb !important;}
+            .color3.active.pin .marker::before{color: #ed0077 !important;}
+            .color4.active.pin .marker::before{color: #be00db !important;}
+            .color5.active.pin .marker::before{color: #ee7f00 !important;}
+
+            .map .pin.color1.active .marker span{color: #00ac22}
+            .map .pin.color2.active .marker span{color: #0076cb}
+            .map .pin.color3.active .marker span{color: #ed0077}
+            .map .pin.color4.active .marker span{color: #be00db}
+            .map .pin.color5.active .marker span{color: #ee7f00}
+
+            .map .pin.color1 .marker{background-color: #00ac22;}
+            .map .pin.color1 .marker:after {border-top-color: #00ac22;}
+            .map .pin.color1.active .marker{background-color: #00ac22 !important;}
+            .map .pin.color1.active .marker:after {border-top-color: #00ac22 !important;}
+
+            .map .pin.color2 .marker{background-color: #0076cb;}
+            .map .pin.color2 .marker:after{border-top-color: #0076cb;}
+            .map .pin.color2.active .marker{background-color: #0076cb !important;}
+            .map .pin.color2.active .marker:after{border-top-color: #0076cb !important;}
+
+            .map .pin.color3 .marker {background-color: #ed0077;}
+            .map .pin.color3 .marker:after{border-top-color: #ed0077;}
+            .map .pin.color3.active .marker {background-color: #ed0077 !important;}
+            .map .pin.color3.active .marker:after{border-top-color: #ed0077 !important;}
+
+            .map .pin.color4 .marker{background-color: #be00db;}
+            .map .pin.color4 .marker:after{border-top-color: #be00db;}
+            .map .pin.color4.active .marker{background-color: #be00db !important;}
+            .map .pin.color4.active .marker:after{border-top-color: #be00db !important;}
+
+            .map .pin.color5 .marker{background-color: #ee7f00;}
+            .map .pin.color5 .marker:after {border-top-color: #ee7f00;}
+            .map .pin.color5.active .marker{background-color: #ee7f00 !important;}
+            .map .pin.color5.active .marker:after {border-top-color: #ee7f00 !important;}
+
+            .map-area .sect-descript li.color1::before {background-color: #00ac22;}
+            .map-area .sect-descript li.color2::before {background-color: #0076cb;}
+            .map-area .sect-descript li.color3::before {background-color: #ed0077;}
+            .map-area .sect-descript li.color4::before {background-color: #be00db;}
+            .map-area .sect-descript li.color5::before {background-color: #ee7f00;}
+
+            .list.vertical.row2.prices li .thumb{height:190px}
+            .map .pin .marker > p{color:#fff}
+            @media ( max-width : 600px) {
+                .huge-widget.map-district .ui-widget .ui-body, .huge-widget.map-district .ui-widget .ui-body .map-picker{    display: flex; flex-direction: column;    overflow: hidden;}
+                .auth .floating > div.float-el{flex-direction: row;}
+            }
+            .sect.notice-area p{font-size:1em}
+            .floating {
+                position: relative;
+                width: 100%;
+                top: 0px !important;
+                right: 0px !important;
+                bottom: auto;
+                z-index: 5;
+                display: block;
+                flex-direction: column;
+                gap: 10px;
+                overflow: hidden;
+                border-top-left-radius: 11px;
+                border-top-right-radius: 11px;
+            }
+
+            .onlineCertBtn {
+                margin-bottom:10px;
+                color: #fff;
+                padding: 5px 10px;
+                display: inline-block;
+                background: linear-gradient(to left, #ff7100, #f54900);
+                cursor: pointer;
+                border-radius: 5px;
+                width: 100%;
+                text-align: center;
+            }
+            .floating p{font-size:13px}
+
+            @media (max-width: 1530px) {
+                .scrolled .main .floating, .scrolled.ui-fix .sub .floating {
+                    top: 10px !important;
+                }
+                .auth .reserv-ui {
+                    margin-top:0px
+                }
+                .auth .floating {
+                    top: 0px !important;
+                }
+            }
+
+            @media (max-width: 812px) {
+                .auth .floating > div.float-el {
+                    flex-direction: row;
+                }
+                .floating{position:fixed}
+                .onlineCertBtn{margin-bottom:0px}
+                .auth .floating{
+                    top: -110px !important;
+                }
+                .scrolled .main .floating, .scrolled.ui-fix .sub .floating {
+                    top: -110px !important;
+                }
+                .auth .floating .text{flex:1}
+            }
+            .modal .modal-popup{width:600px}
+            @media (max-width: 620px) {
+                .modal .modal-popup{width:90%}
+            }
+
+        </style>
+    
+
+
+</head>
+<body oncontextmenu="return false">
+
+
+	
+	
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/global/css/layouts/notice-layers.css?v=20260810-2">
+
+<div class="notice-layers" id="pccamp_C27562955_notice">
+  <ul class="notice-layer">
+    
+      <li class="on" id="popup1" name="popup1">
+        
+        
+        
+        
+        
+          
+          
+            <img src="/common/getImage.do?atchFileId=FILE_8bcd0c8eb804426" alt="차단기 설치 안내문">
+          
+        
+      </li>
+    
+  </ul>
+  <div class="closes">
+    <a href="#" class="close-week"><i class="xi-check-circle-o"></i>일주일 동안 닫기</a>
+    <a href="#" class="close-today"><i class="xi-check-circle-o"></i>오늘 하루 닫기</a>
+    <a href="#" class="close"><i class="xi-close"></i>전부 닫기</a>
+  </div>
+</div>
+<script defer src="/global/js/common/notice-layers.js?v=20260707-1"></script>
+
+
+<div class="loading" style="pointer-events: unset;display:flex;z-index:99">
+    <div class="img"></div>
+    <p style="display: block;padding-top: 210px;position: absolute;font-weight: bold;text-align:center">로딩 중...<br />잠시만 기다려주세요.</p>
+</div>
+<div class="wrap sub reservation auth"><!-- has-tab -->
+
+    <!-- gnb -->
+    
+        
+        
+    
+
+
+
+
+
+
+<script type="text/javascript">
+function fncLogout(){
+	if(confirm("로그아웃 하시겠습니까?")){
+		document.logoutForm.action =  "/logout.do";
+		document.logoutForm.submit();
+	}
+}
+function fn_login(){
+	document.logoutForm.action =  "/pccamp/login.do";
+	document.logoutForm.submit();
+}
+function myPage(){
+	document.logoutForm.action =  "/mypage.do";
+	document.logoutForm.submit();
+}
+</script>
+<style>
+.mirihae-menu a{display:block;width:100%;height:100%}
+@media (max-width: 812px){
+	.gnb .menu .mirihae-menu ul li {
+	    padding:0px;
+	}
+}
+</style>
+<form name="logoutForm" method="post">
+<input type="hidden" name="returnUrl" value="/pccamp/campsite">
+<input type="hidden" name="groupCode" value="pccamp">
+</form>
+<div class="gnb">
+	<ul class="menu">
+		<li class="logo">
+			<a href="https://camp.pcfac.or.kr ">
+				<img src="/common/getImage.do?atchFileId=FILE_8229bddc7752472&fileSn=0" class="logoImg" />
+			</a>
+		</li>
+		<li class="coll"></li>
+		<li class="menus">
+			<ul class="menu-n">
+				
+				<li><a href="https://camp.pcfac.or.kr/board.html" >공지사항</a></li>
+				
+				<li><a href="/pccamp/campsite/C27562955" >포천비둘기낭 캠핑 예약</a></li>
+				
+				<li class="reservationInfo"><a href="/pccamp/camping/reservation/list.do" >예약확인</a></li>
+			</ul>
+			<div class="mirihae-menu">
+                <ul>
+                	
+					
+                </ul>
+			</div>
+		</li>
+	</ul>
+</div>
+
+    <div class="contents">
+        <form name="searchForm" id="searchForm" action="" method="post">
+            <input type="hidden" name="tocken" id="tocken" value="20261013095142-<MASKED>" />
+            <input type="hidden" name="approvalId" id="approvalId" />
+            <input type="hidden" name="checkType" id="checkType" />
+            <input type="hidden" name="device" id="device" value="pc" />
+            <input type="hidden" name="pageId" id="pageId" value="C27562955" />
+            <input type="hidden" name="groupCode" id="groupCode" value="pccamp" />
+            <input type="hidden" name="selectStartDate" id="selectStartDate" value="" />
+            <input type="hidden" name="selectEndDate" id="selectEndDate" value="" />
+            <input type="hidden" name="selectCategoryId" id="selectCategoryId" />
+            <input type="hidden" name="selectMonth" value="2026-10" />
+            <input type="hidden" name="selectItemId" id="selectItemId" />
+            <input type="hidden" name="selectPageItemType" id="selectPageItemType" value="" />
+            <input type="hidden" name="selectBusSeatId" id="selectBusSeatId" />
+            <input type="hidden" id="realPrice" />
+            <input type="hidden" name="cnt" id="cnt" />
+            <input type="hidden" name="infoType" id="infoType" />
+            <input type="hidden" id="reloadFlag" value="0" />
+            <input type="hidden" id="payFlag" value="0" />
+            <input type="hidden" id="paySubmit" value="0" />
+            <input type="hidden" id="payCheck" value="0" />
+            <input type="hidden" id="preOpenCheck" value="N" />
+            <div class="article">
+                
+                
+                
+                
+                    <div class="header">
+                        <h1>신비로운 풍광이 나타는 비둘기낭 폭포와 함께 드넓은 잔디에서 오토캠핑을 즐겨보세요</h1>
+                    </div>
+                
+
+            </div>
+            <div class="images swiper-container">
+                <ul id="banner_main" class="swiper-wrapper">
+                    
+                        <li class="swiper-slide" style="background-image: url(https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/IE002340430_STD.jpg);" data-img="https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/IE002340430_STD.jpg" ></li>
+                    
+                        <li class="swiper-slide" style="background-image: url(https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/2022042716150600.jpeg);" data-img="https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/2022042716150600.jpeg" ></li>
+                    
+                        <li class="swiper-slide" style="background-image: url(https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/20161110022122680c1k.jpg);" data-img="https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/20161110022122680c1k.jpg" ></li>
+                    
+                        <li class="swiper-slide" style="background-image: url(https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/DJI_0145.JPG);" data-img="https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/DJI_0145.JPG" ></li>
+                    
+                        <li class="swiper-slide" style="background-image: url(https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/DJI_0142.JPG);" data-img="https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/DJI_0142.JPG" ></li>
+                    
+                        <li class="swiper-slide" style="background-image: url(https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/DJI_0137.JPG);" data-img="https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/DJI_0137.JPG" ></li>
+                    
+                        <li class="swiper-slide" style="background-image: url(https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/DJI_0140.JPG);" data-img="https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/DJI_0140.JPG" ></li>
+                    
+                        <li class="swiper-slide" style="background-image: url(https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/DJI_0141.JPG);" data-img="https://publish.datafarm.co.kr/mirihae/user/pc-pigeon/images/img/DJI_0141.JPG" ></li>
+                    
+                </ul>
+                <div class="swiper-pagination">
+                </div>
+            </div>
+            <div class="detail">
+                <div class="detail-contents">
+                    <div class="sub-detail">
+                        
+                            <div class="sect notice-area swiper-container">
+                                <ul class="swiper-wrapper">
+                                    <li class="swiper-slide reserv-date">
+                                        <h4>비둘기낭 캠핑장 예약 안내</h4>
+                                        <div class="notice-ment">
+                                            <p>● 포천시민 우선예약기간: 매월 첫 평일 오전 11시부터 7일간</p>
+                                            <p>● 우선예약대상 : 주민등록 주소지가 포천시로 등록된 자</p>
+                                            <p>● 일반예약 접수일정: 우선예약 종료된 이후 첫 평일 오전11시 </p>
+                                            <a href="https://camp.pcfac.or.kr/board.html" target="_blank" style="display: inline-block;padding: 5px 10px;border: 1px solid #ddd;font-size: 14px;margin-top: 5px;">자세히보기</a>
+                                        </div>
+                                    </li>
+                                </ul>
+                                <div class="swiper-nav">
+                                    <div class="swiper-prev"><i class="xi-angle-left-thin"></i></div>
+                                    <div class="swiper-pagination"></div>
+                                    <div class="swiper-next"><i class="xi-angle-right-thin"></i></div>
+                                </div>
+                            </div>
+                        
+                        
+                                     
+              <div class="sect">
+                <div class="head">
+                  <h3>이용요금</h3>
+                  <p>성수기 요금은 7월 1일부터 8월 31일까지의 요금이며, 그 외의 기간은 비수기 요금이 적용됩니다</p>
+                  <p>1일 사용시간 : 당일14:00∼ 익일 11:00 기준이며, 퇴실시간 초과 시 추가요금이 징수됩니다.</p>
+                  <p>퇴실시간 초과 시 추가요금은 추가 요금안내를 확인하세요.</p>
+                </div>
+                <!-- 구 요금표 -->
+                <!-- <ul class="option">
+                  <li>
+                    <h5 class="item-name">대형(130㎡) 캐러반 사이트</h5>
+                    <p>주차 2대, 텐트 2개 이하</p>
+                    <dl class="price">
+                      <dt>주말,휴일</dt>
+                      <dd>33,000원</dd>
+                      <dt>평일</dt>
+                      <dd>33,000원</dd>
+                    </dl>
+                  </li>
+                  <li>
+                    <h5 class="item-name">중형(1130㎡) 캐러반 사이트</h5>
+                    <p>주차 2대, 텐트 2개 이하</p>
+                    <dl class="price">
+                      <dt>주말,휴일</dt>
+                      <dd>33,000원</dd>
+                      <dt>평일</dt>
+                      <dd>28,000원</dd>
+                    </dl>
+                  </li>
+                  <li>
+                    <h5 class="item-name">소형(80㎡) 캐러반 사이트</h5>
+                    <p>주차 1대, 텐트 1개 이하</p>
+                    <dl class="price">
+                      <dt>주말,휴일</dt>
+                      <dd>25,000원</dd>
+                      <dt>평일</dt>
+                      <dd>20,000원</dd>
+                    </dl>
+                  </li>
+                </ul> -->
+
+                <!-- 썸네일 요금표 -->
+                <ul class="list horizon prices">
+                  <li>
+                    <div class="thumb" style="background-image: url(/campsite/images/pccamp/thumb.jpg)"></div>
+                    <div class="infos">
+                      <div class="info">
+                        <h4 class="category">1개소/1대당</h4>
+                        <h2>오토캠핑장</h2>
+                        <p>전기사용료 3,000원 포함</p>
+                      </div>
+                      <div class="price-multi">
+                        <div class="price">
+                          <h6>성수기(7,8월)</h6>
+                          <dl>
+                            <dt>주말, 공휴일</dt>
+                            <dd>33,000원</dd>
+                          </dl>
+                          <dl>
+                            <dt>평일</dt>
+                            <dd>33,000원</dd>
+                          </dl>
+                        </div>
+                        <div class="price">
+                          <h6>비수기</h6>
+                          <dl>
+                            <dt>주말, 공휴일</dt>
+                            <dd>33,000원</dd>
+                          </dl>
+                          <dl>
+                            <dt>평일</dt>
+                            <dd>28,000원</dd>
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+		<ul class="list vertical prices row2">
+                  <li>
+                    <div class="thumb">
+                      <div class="with-swiper with-detail">
+                        <div class="swiper-container thumb-swiper">
+                          <ul class="swiper-wrapper">
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/A00001.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>A 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>
+                                <div class="text"><p>운영중</p></div>
+                              </div>
+                            </li>
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/A00002.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>A 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>
+                                <div class="text"><p>운영중</p></div>
+                              </div>
+                            </li>
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/A00003.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>A 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>
+                                <div class="text"><p>운영중</p></div>
+                              </div>
+                            </li>
+                          </ul>
+                          <div class="nav">
+                            <div class="swiper-button-prev"></div>
+                            <div class="close"><i class="xi-close-thin"></i></div>
+                            <div class="swiper-button-next"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="infos">
+                      <div class="info">
+                        <h4 class="category">A 사이트</h4>
+                        <h2>A 사이트 A01 ~ A06</h2>
+                      </div>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="thumb">
+                      <div class="with-swiper with-detail">
+                        <div class="swiper-container thumb-swiper">
+                          <ul class="swiper-wrapper">
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/B00001.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>B 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>                                
+                              </div>
+                            </li>
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/B00002.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>B 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>                            
+                              </div>
+                            </li>
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/B00003.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>B 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>                             
+                              </div>
+                            </li>
+                          </ul>
+                          <div class="nav">
+                            <div class="swiper-button-prev"></div>
+                            <div class="close"><i class="xi-close-thin"></i></div>
+                            <div class="swiper-button-next"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="infos">
+                      <div class="info">
+                        <h4 class="category">B 사이트</h4>
+                        <h2>B 사이트 B01 ~ B17</h2>               
+                      </div>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="thumb">
+                      <div class="with-swiper with-detail">
+                        <div class="swiper-container thumb-swiper">
+                          <ul class="swiper-wrapper">
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/C00001.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>C 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>                        
+                              </div>
+                            </li>
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/C00002.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>C 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>                         
+                              </div>
+                            </li>
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/C00003.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>C 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>                          
+                              </div>
+                            </li>
+                          </ul>
+                          <div class="nav">
+                            <div class="swiper-button-prev"></div>
+                            <div class="close"><i class="xi-close-thin"></i></div>
+                            <div class="swiper-button-next"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="infos">
+                      <div class="info">
+                        <h4 class="category">C 사이트</h4>
+                        <h2>C 사이트 C01 ~ C23</h2>           
+                      </div>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="thumb">
+                      <div class="with-swiper with-detail">
+                        <div class="swiper-container thumb-swiper">
+                          <ul class="swiper-wrapper">
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/D00001.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>D 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>                                
+                              </div>
+                            </li>
+                          </ul>
+                          <div class="nav">
+                            <div class="swiper-button-prev"></div>
+                            <div class="close"><i class="xi-close-thin"></i></div>
+                            <div class="swiper-button-next"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="infos">
+                      <div class="info">
+                        <h4 class="category">D 사이트</h4>
+                        <h2>D 사이트 D01 ~ D19</h2>
+                      </div>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="thumb">
+                      <div class="with-swiper with-detail">
+                        <div class="swiper-container thumb-swiper">
+                          <ul class="swiper-wrapper">
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/E00001.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>E 사이트</h4>
+                                <h3>사이트 면적: 8m x 10m</h3>                                
+                              </div>
+                            </li>
+                          </ul>
+                          <div class="nav">
+                            <div class="swiper-button-prev"></div>
+                            <div class="close"><i class="xi-close-thin"></i></div>
+                            <div class="swiper-button-next"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="infos">
+                      <div class="info">
+                        <h4 class="category">E 사이트</h4>
+                        <h2>E 사이트 B01 ~ B17</h2>                      
+                      </div>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="thumb">
+                      <div class="with-swiper with-detail">
+                        <div class="swiper-container thumb-swiper">
+                          <ul class="swiper-wrapper">
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/IE002340430_STD.jpg)"></div>
+                              <div class="detailed">
+                                <h4>인근 관광 시설</h4>
+                                <h3>비둘기낭폭포</h3>
+                                <div class="text">
+                                  <p>
+                                    내륙 유일의 현무암 협곡이 힘차게 흐르는 한탄강에 그림자를 드리우고 있으며, 주변에는 화적연, 주상절리대, 비둘기낭 등 한탄강8경이 경관을 한층
+                                    돋보이게 합니다.
+                                  </p>
+                                </div>
+                              </div>
+                            </li>
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/etc00004.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>인근 관광 시설</h4>
+                                <h3>한탄강 어울길</h3>
+                                <div class="text"><p></p></div>
+                              </div>
+                            </li>
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/B00005.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>편의 시설</h4>
+                                <h3>공동 취사장</h3>
+                                <div class="text">
+                                  <p>식수 수도꼭지는 식수만을 공급하며, 다른 용도의 사용은 금지되어 있습니다.</p>
+                                  <p>폐수는 반드시 지정된 곳에 버려 주시고 절대로 바닥에 버려서는 안 됩니다.</p>
+                                  <p>쓰레기는 지정된 장소에 종류별로 분류하여 내놓으셔야 합니다.</p>
+                                </div>
+                              </div>
+                            </li>
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/etc00002.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>편의 시설</h4>
+                                <h3>남,여 샤워장/화장실</h3>
+                                <div class="text"><p></p></div>
+                              </div>
+                            </li>
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/etc00003.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>편의 시설</h4>
+                                <h3>편의점</h3>
+                                <div class="text"><p></p></div>
+                              </div>
+                            </li>
+
+                            <li class="swiper-slide">
+                              <div class="img" style="background-image: url(/campsite/images/pccamp/etc00001.jpeg)"></div>
+                              <div class="detailed">
+                                <h4>편의 시설</h4>
+                                <h3>해충기피제 분사기</h3>
+                                <div class="text">
+                                  <p>모기, 진드기매개 감염병 쯔쯔가무시증, 중증열성혈소판감소증(SFTS) 예방을 위하여 설치되었으니 야외활동 전 사용하시기 바랍니다.</p>
+                                </div>
+                              </div>
+                            </li>
+                          </ul>
+                          <div class="nav">
+                            <div class="swiper-button-prev"></div>
+                            <div class="close"><i class="xi-close-thin"></i></div>
+                            <div class="swiper-button-next"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="infos">
+                      <div class="info">
+                        <h4 class="category">1개소/1대당</h4>
+                        <h2>인근 관광, 편의 시설</h2>
+                        <h5>비둘기낭 폭포, 한탄강 어울길, 취사장, 샤워장, 화장실, 편의점, 해충기피제 분사기, 전기 사용 가능</h5>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+	      <div class="sect sight">
+                <div class="map-picker">
+                  <div class="map-area">
+                    <div class="map string">
+                      <div id="pin-01-001" class="pin sect01"><div class="marker"><p>01</p></div><div class="deco"></div></div>
+                      <div id="pin-01-002" class="pin sect01"><div class="marker"><p>02</p></div><div class="deco"></div></div>
+                      <div id="pin-01-003" class="pin sect01"><div class="marker"><p>03</p></div><div class="deco"></div></div>
+                      <div id="pin-01-004" class="pin sect01"><div class="marker"><p>04</p></div><div class="deco"></div></div>
+                      <div id="pin-01-005" class="pin sect01"><div class="marker"><p>05</p></div><div class="deco"></div></div>
+                      <div id="pin-01-006" class="pin sect01"><div class="marker"><p>06</p></div><div class="deco"></div></div>
+
+                      <div id="pin-02-001" class="pin sect02"><div class="marker"><p>01</p></div><div class="deco"></div></div>
+                      <div id="pin-02-002" class="pin sect02"><div class="marker"><p>02</p></div><div class="deco"></div></div>
+                      <div id="pin-02-003" class="pin sect02"><div class="marker"><p>03</p></div><div class="deco"></div></div>
+                      <div id="pin-02-004" class="pin sect02"><div class="marker"><p>04</p></div><div class="deco"></div></div>
+                      <div id="pin-02-005" class="pin sect02"><div class="marker"><p>05</p></div><div class="deco"></div></div>
+                      <div id="pin-02-006" class="pin sect02"><div class="marker"><p>06</p></div><div class="deco"></div></div>
+                      <div id="pin-02-007" class="pin sect02"><div class="marker"><p>07</p></div><div class="deco"></div></div>
+                      <div id="pin-02-008" class="pin sect02"><div class="marker"><p>08</p></div><div class="deco"></div></div>
+                      <div id="pin-02-009" class="pin sect02"><div class="marker"><p>09</p></div><div class="deco"></div></div>
+                      <div id="pin-02-010" class="pin sect02"><div class="marker"><p>10</p></div><div class="deco"></div></div>
+                      <div id="pin-02-011" class="pin sect02"><div class="marker"><p>11</p></div><div class="deco"></div></div>
+                      <div id="pin-02-012" class="pin sect02"><div class="marker"><p>12</p></div><div class="deco"></div></div>
+                      <div id="pin-02-013" class="pin sect02"><div class="marker"><p>13</p></div><div class="deco"></div></div>
+                      <div id="pin-02-014" class="pin sect02"><div class="marker"><p>14</p></div><div class="deco"></div></div>
+                      <div id="pin-02-015" class="pin sect02"><div class="marker"><p>15</p></div><div class="deco"></div></div>
+                      <div id="pin-02-016" class="pin sect02"><div class="marker"><p>16</p></div><div class="deco"></div></div>
+                      <div id="pin-02-017" class="pin sect02"><div class="marker"><p>17</p></div><div class="deco"></div></div>
+
+                      <div id="pin-03-001" class="pin sect03"><div class="marker"><p>01</p></div><div class="deco"></div></div>
+                      <div id="pin-03-002" class="pin sect03"><div class="marker"><p>02</p></div><div class="deco"></div></div>
+                      <div id="pin-03-003" class="pin sect03"><div class="marker"><p>03</p></div><div class="deco"></div></div>
+                      <div id="pin-03-004" class="pin sect03"><div class="marker"><p>04</p></div><div class="deco"></div></div>
+                      <div id="pin-03-005" class="pin sect03"><div class="marker"><p>05</p></div><div class="deco"></div></div>
+                      <div id="pin-03-006" class="pin sect03"><div class="marker"><p>06</p></div><div class="deco"></div></div>
+                      <div id="pin-03-007" class="pin sect03"><div class="marker"><p>07</p></div><div class="deco"></div></div>
+                      <div id="pin-03-008" class="pin sect03"><div class="marker"><p>08</p></div><div class="deco"></div></div>
+                      <div id="pin-03-009" class="pin sect03"><div class="marker"><p>09</p></div><div class="deco"></div></div>
+                      <div id="pin-03-010" class="pin sect03"><div class="marker"><p>10</p></div><div class="deco"></div></div>
+                      <div id="pin-03-011" class="pin sect03"><div class="marker"><p>11</p></div><div class="deco"></div></div>
+                      <div id="pin-03-012" class="pin sect03"><div class="marker"><p>12</p></div><div class="deco"></div></div>
+                      <div id="pin-03-013" class="pin sect03"><div class="marker"><p>13</p></div><div class="deco"></div></div>
+                      <div id="pin-03-014" class="pin sect03"><div class="marker"><p>14</p></div><div class="deco"></div></div>
+                      <div id="pin-03-015" class="pin sect03"><div class="marker"><p>15</p></div><div class="deco"></div></div>
+                      <div id="pin-03-016" class="pin sect03"><div class="marker"><p>16</p></div><div class="deco"></div></div>
+                      <div id="pin-03-017" class="pin sect03"><div class="marker"><p>17</p></div><div class="deco"></div></div>
+                      <div id="pin-03-018" class="pin sect03"><div class="marker"><p>18</p></div><div class="deco"></div></div>
+                      <div id="pin-03-019" class="pin sect03"><div class="marker"><p>19</p></div><div class="deco"></div></div>
+                      <div id="pin-03-020" class="pin sect03"><div class="marker"><p>20</p></div><div class="deco"></div></div>
+                      <div id="pin-03-021" class="pin sect03"><div class="marker"><p>21</p></div><div class="deco"></div></div>
+                      <div id="pin-03-022" class="pin sect03"><div class="marker"><p>22</p></div><div class="deco"></div></div>
+                      <div id="pin-03-023" class="pin sect03"><div class="marker"><p>23</p></div><div class="deco"></div></div>
+
+                      <div id="pin-04-001" class="pin sect04"><div class="marker"><p>01</p></div><div class="deco"></div></div>
+                      <div id="pin-04-002" class="pin sect04"><div class="marker"><p>02</p></div><div class="deco"></div></div>
+                      <div id="pin-04-003" class="pin sect04"><div class="marker"><p>03</p></div><div class="deco"></div></div>
+                      <div id="pin-04-004" class="pin sect04"><div class="marker"><p>04</p></div><div class="deco"></div></div>
+                      <div id="pin-04-005" class="pin sect04"><div class="marker"><p>05</p></div><div class="deco"></div></div>
+                      <div id="pin-04-006" class="pin sect04"><div class="marker"><p>06</p></div><div class="deco"></div></div>
+                      <div id="pin-04-007" class="pin sect04"><div class="marker"><p>07</p></div><div class="deco"></div></div>
+                      <div id="pin-04-008" class="pin sect04"><div class="marker"><p>08</p></div><div class="deco"></div></div>
+                      <div id="pin-04-009" class="pin sect04"><div class="marker"><p>09</p></div><div class="deco"></div></div>
+                      <div id="pin-04-010" class="pin sect04"><div class="marker"><p>10</p></div><div class="deco"></div></div>
+                      <div id="pin-04-011" class="pin sect04"><div class="marker"><p>11</p></div><div class="deco"></div></div>
+                      <div id="pin-04-012" class="pin sect04"><div class="marker"><p>12</p></div><div class="deco"></div></div>
+                      <div id="pin-04-013" class="pin sect04"><div class="marker"><p>13</p></div><div class="deco"></div></div>
+                      <div id="pin-04-014" class="pin sect04"><div class="marker"><p>14</p></div><div class="deco"></div></div>
+                      <div id="pin-04-015" class="pin sect04"><div class="marker"><p>15</p></div><div class="deco"></div></div>
+                      <div id="pin-04-016" class="pin sect04"><div class="marker"><p>16</p></div><div class="deco"></div></div>
+                      <div id="pin-04-017" class="pin sect04"><div class="marker"><p>17</p></div><div class="deco"></div></div>
+                      <div id="pin-04-018" class="pin sect04"><div class="marker"><p>18</p></div><div class="deco"></div></div>
+                      <div id="pin-04-019" class="pin sect04"><div class="marker"><p>19</p></div><div class="deco"></div></div>
+
+                      <div id="pin-05-001" class="pin sect05"><div class="marker"><p>01</p></div><div class="deco"></div></div>
+                      <div id="pin-05-002" class="pin sect05"><div class="marker"><p>02</p></div><div class="deco"></div></div>
+                      <div id="pin-05-003" class="pin sect05"><div class="marker"><p>03</p></div><div class="deco"></div></div>
+                      <div id="pin-05-004" class="pin sect05"><div class="marker"><p>04</p></div><div class="deco"></div></div>
+                      <div id="pin-05-005" class="pin sect05"><div class="marker"><p>05</p></div><div class="deco"></div></div>
+                      <div id="pin-05-006" class="pin sect05"><div class="marker"><p>06</p></div><div class="deco"></div></div>
+                      <div id="pin-05-007" class="pin sect05"><div class="marker"><p>07</p></div><div class="deco"></div></div>
+                      <div id="pin-05-008" class="pin sect05"><div class="marker"><p>08</p></div><div class="deco"></div></div>
+                      <div id="pin-05-009" class="pin sect05"><div class="marker"><p>09</p></div><div class="deco"></div></div>
+                      <div id="pin-05-010" class="pin sect05"><div class="marker"><p>10</p></div><div class="deco"></div></div>
+                      <div id="pin-05-011" class="pin sect05"><div class="marker"><p>11</p></div><div class="deco"></div></div>
+                      <div id="pin-05-012" class="pin sect05"><div class="marker"><p>12</p></div><div class="deco"></div></div>
+                      <div id="pin-05-013" class="pin sect05"><div class="marker"><p>13</p></div><div class="deco"></div></div>
+                      <div id="pin-05-014" class="pin sect05"><div class="marker"><p>14</p></div><div class="deco"></div></div>
+
+                      <!-- <div id="pin-06-001" class="pin"></div>
+                  <div id="pin-06-002" class="pin"></div>
+                  <div id="pin-06-003" class="pin"></div>
+                  <div id="pin-06-004" class="pin"></div> -->
+                      
+                      <img src="/campsite/images/pccamp/map_240704.svg" alt="" />
+                    </div>
+                  </div>
+                  <div class="option color-var">
+                    <div class="facilities">
+                      <p><img src="/campsite/images/pccamp/pin-toilet.svg" alt="" />화장실</p>
+                      <p><img src="/campsite/images/pccamp/pin-water.svg" alt="" />개수대</p>
+                      <p><img src="/campsite/images/pccamp/pin-shower.svg" alt="" />샤워장</p>
+                    </div>
+                    <div class="legend">
+                      <p class="sect01"><span></span>A사이트</p>
+                      <p class="sect02"><span></span>B사이트</p>
+                      <p class="sect03"><span></span>C사이트</p>
+                      <p class="sect04"><span></span>D사이트</p>
+                      <p class="sect05"><span></span>E사이트</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+	<!--
+              <div class="sect">
+                <h3>추가요금 안내</h3>
+                <ul class="demical">
+                  <li><strong>1일 사용시간 :</strong> 당일14:00∼ 익일 11:00 기준이며, 퇴실시간 초과 시 추가요금이 징수됩니다.</li>
+                  <li><strong>돔하우스, 모빌홈, 캐라반:</strong> 1시간 초과 2시간 까지 10,000원, 4시간 초과 시 20,000원, 4시간 이후 1일 사용료 추가</li>
+                  <li><strong>캐라반 사이트, 오토캠핑장:</strong> 1시간 초과 2시간 까지 10,000원, 4시간 초과 시 15,000원, 4시간 이후 1일 사용료 추가</li>
+                </ul>
+              </div>
+              <div class="sect">
+                <h3>예약안내</h3>
+                <ul class="demical">
+                  <li>당일 예약이 불가합니다.</li>
+                  <li>예약 당일 자정까지 결제가 완료되어야 예약이 확정됩니다.</li>              
+                  <li>10인 이상 단체 예약 시 20% 할인이 추가됩니다.</li>
+                </ul>
+              </div>
+-->
+              <div class="sect">
+                <h3>이용시간 안내</h3>
+                <ul class="overview small">
+                  <li>
+                    <h6>입실시간</h6>
+                    <p>14:00</p>
+                  </li>
+                  <li>
+                    <h6>퇴실시간</h6>
+                    <p>11:00</p>
+                  </li>
+                  <li>
+                    <h6>직원 휴게시간</h6>
+                    <p>12:00 ~ 13:00, 18:00~19:00</p>
+                  </li>
+                  <li>
+                    <h6>자동차 출입/야간오락 금지</h6>
+                    <p>23:00 ~ 07:00</p>
+                  </li>
+                </ul>
+              </div>
+              <div class="sect">
+                <h3>이용자 준수사항</h3>
+                <p>포천시 한탄강 비둘기낭 캠핑장에서의 편안한 휴가를 위하여 사용자 한분 한분의 협조를 당부 드립니다.</p>
+                <ul class="notification">
+                  <li>
+                    <div class="icon"><i class="xi-log-in"></i></div>
+                    <div class="noti-con">
+                      <h4>입장 및 퇴실</h4>
+                      <p>캠핑장 처음 입장 시 예약자 확인이 필요하기에 반드시 캠핑장 관리사무소를 경유하여, 관리자의 안내에 따라 주시기 바랍니다.</p>
+                      <p>예약자 본인확인을 위하여 신분증과 할인자는 관련 서류를 지참하여 주시기바랍니다.(할인 적용여부 판단)</p>
+                      <p>예약자와 방문객이 다를 경우 입실되지 않습니다.(친구, 지인, 친척 등 제3자는 절대 입실불가)</p>
+                      <p>단, 직계가족은 예약자 및 방문자 신분증을 지참하시고, 직계가족임을 확인 할 수 있는 서류를 제시하면 입장 가능합니다.</p>
+                      <p>입실은 당일 14:00, 퇴실은 다음날 11:00 입니다. 다음 예약자를 위하여 이용 시간을 준수하여 주시기 바랍니다.</p>
+                     
+                      <p style="color:red;">이용인원은 1사이트 4인으로 제한하오니 반드시 지켜주시기 바랍니다.</p>
+		      <p>C1 사이트는 현재 모터 소음으로 페쇄중 입니다.  C2 , C3 쪽 자리선택 하실때 소음이 들릴 수 있으니 이 점 참고 하시어 신중히 선택하시기 바랍니다.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="icon"><i class="xi-won"></i></div>
+                    <div class="noti-con">
+                      <h4>시설 사용료</h4>
+                      <p>시설사용료는 사용료 징수기준에 준하며, 요금은 선불입니다.</p>
+                      <p style="color: #036eb8;">당일예약은 인터넷 예약이 불가하고, 남은 자리는 현장에서 선착순 카드 결제만 가능합니다.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="icon"><i class="xi-expand-square"></i></div>
+                    <div class="noti-con">
+                      <h4>사이트</h4>
+                      <p>캠핑장 이용자는 반드시 예약하신 혹은 배정된 사이트를 사용하셔야 하며, 사용하신 사이트 다른 캠퍼를 위해 깨끗하게 정리 후 퇴실바랍니다.</p>
+                      <p style="color:red;">캠핑장 내에서는 흡연이 금지되어 있습니다.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="icon"><i class="xi-car"></i></div>
+                    <div class="noti-con">
+                      <h4>자동차</h4>
+                      <p>자동차의 출입은 가능한 23:00부터 07:00까지 삼가 주시기 바랍니다.</p>
+                      <p>캠핑장 내에서의 차량통행은 서행이며, 불필요한 자동차 사용을 삼가 주시기 바랍니다.</p>
+                      <p>잔디밭의 차량 진입을 금지해 주시기 바랍니다.</p>
+                      <p>캠핑장내에서 자동차를 세차할 수 없습니다.</p>
+                      <p style="color:red;">사이트내 주차는 1대가 원칙이며, 다른 이용객의 잦은 민원으로, 통행로(도로)에 주차를 금지합니다.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="icon"><i class="xi-volume-max"></i></div>
+                    <div class="noti-con">
+                      <h4>소음</h4>
+                      <p style="color:red;">오후11시 정숙시간 이후 민원 발생시, 퇴실 조치 될 수 있음을 알려드립니다.</p>
+                      <p>특별히 허가된 야간오락 장소에서도 23:00부터 07:00까지는 소음은 금지되어 있습니다.</p>
+                     
+                      <p>심한 소음으로 인한 민원 발생시 퇴실조치 될 수 있음을 알려드립니다. 각별한 주의 부탁드립니다.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="icon"><i class="xi-tint-o"></i></div>
+                    <div class="noti-con">
+                      <h4>위생</h4>
+                      <p>폐수는 반드시 지정된 곳에 버려 주시고 절대로 바닥에 버려서는 안 됩니다.</p>
+                      <p>쓰레기는 지정된 장소에 종류별로 분류하여 내놓으셔야 합니다.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="icon"><i class="xi-github"></i></div>
+                    <div class="noti-con">
+                      <h4>동물</h4>
+                      <p>모든 동물은 소형 (6kg 미만)</p>
+                      <p>모든 동물(강아지, 고양이 등)은 항상 사람의 감독하에 있어야 하며, 반드시 목줄을 착용하여야 합니다.</p>
+                      <p>동물(강아지, 고양이 등)의 대변 및 소변은 다른 캠퍼에게 불편함을 줄 수 있으니 반드시 처리하여야 합니다.</p>
+                      <p>기타 동물로 인한 사고 발생시 본 캠핑장은 책임지지 않습니다.</p>
+                      <p style="color: #036eb8;">반려견 동반입실은 가능하지만, 애견 전용 캠핑장이 아니므로, 비 애견인에 대한 배려를 부탁드립니다.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="icon"><i class="xi-info-o"></i></div>
+                    <div class="noti-con">
+                      <h4>화재와 사고</h4>
+                      <p>캠핑장 내 잔디와 수목의 보호를 위하여 함부로 불을 사용하는 것을 금지합니다.</p>
+                      <p>음식의 조리 및 불 사용은 지정된 곳에서만 할 수 있습니다.</p>
+                      <p>캠핑장내 불꽃놀이는 전면 금지되어 있습니다.</p>
+                    </div>
+                  </li>
+
+                  <li>
+                    <div class="icon"><i class="xi-plug"></i></div>
+                    <div class="noti-con">
+                      <h4>전기시설</h4>
+                      <p>과도한 전기사용은 정전의 우려가 있으니 600W미만의 전기제품 사용을 권장 드리며, 고용량의 전열기구 사용을 자제바랍니다.</p>
+                      <p>고용량 전열기구 사용금지(전기요, 전기장판, 전등, 전자렌지, 전기히터, 전기그릴, 전기난로, 전기밥솥 등등)</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="icon"><i class="xi-comment-o"></i></div>
+                    <div class="noti-con">
+                      <h4>홍보</h4>
+                      <p>캠핑장 내에서 정치적 또는 종교적인 홍보 등은 금지되어 있습니다.</p>
+                      <p>관리자의 사전 허가 없이는 상업적인 홍보 또는 물품의 판매를 할 수 없습니다.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="icon"><i class="xi-border-clear"></i></div>
+                    <div class="noti-con">
+                      <h4>유실 또는 피해</h4>
+                      <p>관리자는 사용자의 고의나 과실로 인한 사용자의 소유물에 대한 유실 또는 피해에 대하여 책임을 지지 않습니다.</p>
+                      <p>시설에 대한 피해에 대해서는 피해를 입힌 사람들에게 비용이 청구됩니다.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="icon"><i class="xi-warning"></i></div>
+                    <div class="noti-con">
+                      <h4>긴급사태</h4>
+                      <p>위급을 요하는 경우와 호우·강풍 등으로 피난이 필요한 경우 관리자의 지시에 따라 주시기 바랍니다.</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div class="sect">
+                <h3 class="with-btn">감면대상 할인안내</h3>
+                <div class="table">
+                  <tobdy>
+                      </tobdy><table class="span">
+                    <thead>
+                      <tr>
+                        <th>요금제</th>
+                        <th>대상</th>
+                        <th>증명서</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th rowspan="5">30% 할인</th>
+                        <td class="bk">30인 이상 단체</td>
+                        <td>단체예약 명단</td>
+                      </tr>
+                      <tr>
+                        <td class="bk">개인이 14일 이상 사용 시</td>
+                        <td>-</td>
+                      </tr>
+                      <tr>
+                        <td class="bk">장애인 및 국가유공자, 국민기초생활수급자</td>
+                        <td>장애인등록증, 국가유공자증서, 기초생활수급자 증명서</td>
+                      </tr>
+                      <tr>
+                        <td class="bk">포천시 교육장 또는 학교장의 추천을 받은 관내 초ㆍ중ㆍ고등학생</td>
+                        <td>-</td>
+                      </tr>
+                      <tr>
+                        <td class="bk">포천시민 중 다자녀 가정(둘째이상 자녀중 18세 이하 1명 이상)</td>
+                        <td>주민등록등본, 가족관계증명서 등 자녀확인 서류</td>
+                      </tr>
+                    </tbody>
+                    <tbody><tr>
+                        <th>20% 할인</th>
+                        <td class="bk">포천시민 및 시와 자매결연을 맺은 지역의 주민</td>
+                        <td>신분증, 주민등록 초본/등본</td>
+                      </tr>
+                    
+                  </tbody></table>
+                </div>
+				<div class="extra">
+            <p>할인대상자는 신분증 및 할인사유를 증명할 수 있는 서류를 제시하여야 하며, 할인항목이 중복되는 경우에는 그 중에서 유리한 하나만을 적용</p>
+            <p>이용자는 동시에 여러 시설을 사용할 경우 할인은 1개 시설에만 적용</p>
+          </div>
+              </div>
+
+              <div class="sect">
+                <h3>취소 및 환불 규정</h3>
+                <ul class="overview small">
+                  <li>
+                    <h6>천재지변</h6>
+                    <p>100%</p>
+                  </li>
+                  <li>
+                    <h6>캠핑장 귀책사유</h6>
+                    <p>100%</p>
+                  </li>
+                  <li>
+                    <h6>이용 5일전</h6>
+                    <p>100%</p>
+                  </li>
+                  <li>
+                    <h6>이용 2일전</h6>
+                    <p>90%</p>
+                  </li>
+                  <li>
+                    <h6>이용 1일전</h6>
+                    <p>80%</p>
+                  </li>
+                  <li>
+                    <h6>이용 당일</h6>
+                    <p>70%</p>
+                  </li>
+                </ul>
+                
+              </div>
+                        
+                        <div class="sect shop-info">
+                            <div class="map">
+                                <div id="daumRoughmapContainer1689734540585" class="root_daum_roughmap root_daum_roughmap_landing" style="width:100%"></div>
+                                <script charset="UTF-8" src="https://ssl.daumcdn.net/dmaps/map_js_init/roughmapLoader.js"></script>
+                                <script charset="UTF-8">
+                                    new daum.roughmap.Lander({
+                                        "timestamp" : "1689734540585",
+                                        "key" : "2fjrp",
+                                        //"mapWidth" : "400",
+                                        "mapHeight" : "300"
+                                    }).render();
+                                </script>
+                            </div>
+                            <h3>포천 비둘기낭 캠핑장 포천비둘기낭 캠핑</h3>
+                            <h4>경기도 포천시 영북면 대회산리 453번지 ( 비둘기낭길 116)</h4>
+                            
+                                
+                                    <h4>1666-9260</h4>
+                                
+                                
+                            
+                            <div class="introduction">
+                                <p></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div class="reserv-ui">
+
+                    
+                    
+                    
+
+                    <div class="choose">
+                        <div class="close" onclick="fn_mo_hide();"></div>
+                        <input type="hidden" name="token" id="token" value="" />
+                        <dl class="head">
+                            <dt>1박당 요금</dt>
+                            <dd class="price">28,000 ~ 33,000</dd>
+                        </dl>
+                        <dl class="input" onclick="fn_calendar();">
+                            
+                            
+                                <dt>입실일, 퇴실일 (필수)</dt>
+                                <dd>
+                                    <p id="selectDateText" readonly style="cursor: pointer;width: 100%;border: none;display: block;padding: 0;outline: 0;height: auto;padding: 0 20px 0 var(--padding);background-color: transparent;font-size: 1rem;height: 36px;padding-top:10px" class="datepicker-all" >입실일과 퇴실일을 선택하세요.</p>
+                                </dd>
+                            
+                        </dl>
+                        <dl class="input date-time-pick" readonly onclick="fn_map_show();">
+                            <dt>자리 선택(필수)</dt>
+                            <dd id="selectItemList">
+                                <p id="itemInit">자리를 선택하세요.</p>
+                            </dd>
+                        </dl>
+                        <dl class="total-payment">
+                            <dt>결제금액</dt>
+                            <dd>
+                                <ul class="total" id="totalTicketList">
+                                    <li>
+                                        <p class="name"></p>
+                                        <p class="price">0</p>
+                                    </li>
+                                </ul>
+                                <ul class="total pay">
+                                    <li>
+                                        <p>합계</p>
+                                        <p id="totalPrice">0</p>
+                                    </li>
+                                </ul>
+                            </dd>
+                        </dl>
+                    </div>
+                    <a href="javascript:fn_save();;" class="submit">예약하기</a>
+                </div>
+                
+            </div>
+        </form>
+    </div>
+    <!-- contents END -->
+    <!-- footer -->
+    
+        
+    
+
+
+<div class="footer">
+	<div class="in">
+		<div class="logo-service"></div>
+		
+		<div class="copyright">
+			<p><strong>Copyright © 포천 비둘기낭 캠핑장. All rights reserved.</strong> Powered by <a>SOURCEFARM.</a></p>
+			<p>
+				.
+				
+				Tel 031-535-5040.
+			</p>
+      </div>
+   </div>
+</div>
+<!-- <a href="#" class="gotop hide"></a> -->
+
+    <!-- footer END -->
+
+    <script>
+        //
+        function onSelectHandler(date, context) {
+            var $element = context.element;
+            var $calendar = context.calendar;
+            var $box = $('.range .cal-btns a.select-complete').addClass('ed');
+            var text = '';
+            if (date[0] !== null) {
+                text += date[0].format('YYYY-MM-DD');
+            }
+            if (date[0] !== null && date[1] !== null) {
+                text += ' ~ ';
+            } else if (date[0] === null && date[1] == null) {
+                text += '';
+                $('.range .cal-btns a.select-complete').removeClass('ed');
+            }
+            if (date[1] !== null) {
+                text += date[1].format('YYYY-MM-DD');
+            }
+            console.log(text);
+            $box.text(text + ' ');
+            $('.date-range-pick .datepicker-all').val(text + ' ');
+        }
+        // 캘린더 삽입
+        $('.calendar-in').pignoseCalendar({
+            format: 'YYYY.MM.DD',
+            lang: 'ko',
+            multiple: true,
+            minDate: moment().format('YYYY-MM-DD'),
+            maxDate: '2029-12-31',
+            initialize: false,
+            disabledDates: [
+                moment().format('YYYY-MM-DD'), //format 속성과 상관없이 반드시 년-월-일 이어야 한다.
+            ],
+            select: onSelectHandler,
+        });
+        var swiper = new Swiper('.images', {
+            autoplay: {
+                delay: 3500,
+                disableOnInteraction: false,
+                loop: true,
+            },
+            pagination: {
+                el: '.swiper-pagination',
+                type: 'progressbar',
+            },
+        });
+        var inNotice = new Swiper('.notice-area', {
+            autoHeight: true,
+            autoplay: {
+                delay: 4500,
+                disableOnInteraction: true,
+                loop: true,
+            },
+            navigation: {
+                nextEl: '.swiper-next',
+                prevEl: '.swiper-prev',
+            },
+            pagination: {
+                el: '.swiper-pagination',
+                type: 'fraction',
+            },
+        });
+        $('.swiper-container').hover(
+            function () {
+                this.swiper.autoplay.stop();
+            },
+            function () {
+                this.swiper.autoplay.start();
+            }
+        );
+
+        
+        //시설 슬라이더
+        var thumbSwiper = new Swiper('.thumb-swiper', {
+            autoHeight: true,
+            responsive: true,
+            autoplay: {
+                delay: 4000,
+                disableOnInteraction: true,
+                loop: true,
+            },
+            pagination: {
+                el: '.swiper-pagination',
+                type: 'progressbar',
+            },
+            observer: true,
+            observeParents: true,
+            navigation: {
+                nextEl: '.swiper-button-next',
+                prevEl: '.swiper-button-prev',
+            },
+            autoHeight: true,
+        });
+        $('.thumb-swiper .swiper-slide').click(function (e) {
+            e.preventDefault();
+            $('body').addClass('dimed');
+            $('body').addClass('zoomed');
+            $(this).parent().parent().parent().addClass('zoom');
+        });
+        $('.with-swiper .close').click(function (e) {
+            $('body').removeClass('dimed');
+            $('body').removeClass('zoomed');
+            $('.with-swiper').removeClass('zoom');
+        });
+        
+
+    </script>
+</div>
+
+<div class="huge-widget map-district">
+    <div class="head date">
+        <h3><i class="xi-calendar"></i><span id="selectStartDateText"></span> ~ <span id="selectEndDateText"></span></h3>
+    </div>
+    <div class="ui-widget max">
+        <div class="ui-body">
+            <div class="map-picker">
+                
+                    
+                    
+                        <div class="map-area" style="max-width:1024px">
+                            <div class="map">
+                                <img src='/campsite/images/pccamp/map_240704.svg' alt="캠핑장 지도" />
+                            </div>
+                        </div>
+                        <div class="option color-var">
+                            <div class="facilities">
+                                <p><img src='/campsite/images/pccamp/icon/pin-toilet.svg' alt="화장실">화장실</p>
+                                <p><img src='/campsite/images/pccamp/icon/pin-water.svg' alt="개수대">개수대</p>
+                                <p><img src='/campsite/images/pccamp/icon/pin-shower.svg' alt="샤워장">샤워장</p>
+                            </div>
+                            <div class="legend">
+                                <p class="sect01"><span></span>A사이트</p>
+                                <p class="sect02"><span></span>B사이트</p>
+                                <p class="sect03"><span></span>C사이트</p>
+                                <p class="sect04"><span></span>D사이트</p>
+                                <p class="sect05"><span></span>E사이트</p>
+                            </div>
+                        </div>
+                    
+                
+            </div>
+        </div>
+        <div class="btns">
+            <a href="javascript:fn_map_hide();" class="select-complete"></a>
+        </div>
+    </div>
+    <div class="mask"></div>
+</div>
+
+
+</body>
+</html>

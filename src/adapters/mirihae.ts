@@ -32,6 +32,8 @@ const GATE_HOST = "cdn.mirihae.com";
 const ENTERING_TOKEN_NAME = "X-Mirihae-Reservation-Token";
 const WAITING_TOKEN_NAME = "X-Mirihae-Waiting-Token";
 
+const tenants = [...new Set(facilities.flatMap((f) => (typeof f.ref === "object" && f.ref.tenant ? [f.ref.tenant] : [])))];
+
 const INFO: ProviderInfo = {
   id: "mirihae",
   facilities,
@@ -61,9 +63,9 @@ const INFO: ProviderInfo = {
     "/camping/selectTicketInfo.do",
     "/camping/totalTicketPrice.do",
     "/camping/paymentForm.do",
-    "/dytc/camping/reservation/",
+    // 예약확인/취소와 로그인은 카탈로그의 입점 기관(tenant)마다 넣는다.
+    ...tenants.flatMap((t) => [`/${t}/camping/reservation/`, `/${t}/login.do`]),
     "/login.do",
-    "/dytc/login.do",
     "/logout.do",
     "/mypage.do",
     "/api/camping/",

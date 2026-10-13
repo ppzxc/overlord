@@ -60,3 +60,33 @@ TLS 검증은 Node 기본 루트 그대로이고 끈 곳이 없다. 리다이렉
 `tokenCheck.do`, `initSelectReservation.do`, `nightCheck.do`, `selectItemList.do`, `selectItemForm.do`, `reservationForm.do`, `selectAjaxDatePinInfo.do`, `selectReservationCheck.do`, `selectTicketInfo.do`, `totalTicketPrice.do`,
 `deSelectTicket.do`, `updateSelctItemticketCntChange.do`(날짜·구역을 고른 뒤의 호출), `paymentForm.do`, `/dytc/camping/reservation/`(예약확인/취소), `/dytc/login.do`·`/login.do`·`/logout.do`·`/mypage.do`(로그인·회원), 결제.
 임의 UUID `gateToken`(`entering.js`가 실패 때 쓰는 값)은 쓰지 않았다.
+
+---
+
+# 카탈로그 채우기 기록 (#86, 2026-10-13 09:47 ~ 10:00 KST)
+
+UA `overlord-availability-poller/0.1.0`(실제 `catalog mirihae <시설> --live` 경로, 응답 원문은 같은 transport를 감싸 저장). `mirihae.com` 요청 사이 5초 + 0~3초, 시설마다 게이트를 새로 지나고 시설 사이는 10초 이상 쉬었다. 접근 금지 경로·날짜 선택 뒤 호출 없음. 로그인·captcha·봇 탐지 표지 없음(대소문자 무시 검색).
+토큰·쿠키는 가렸다(`gateToken`, 입장 토큰, 예약 화면의 `<input name="tocken">` 값).
+
+## 넣은 시설(같은 게이트·같은 화면 구조, 단양관광공사 `dytc`)
+
+모두 `mirihae.com/dytc/camping/<pageId>` -> 302 `cdn.mirihae.com:9443/entering.html?uri=…` -> 천동과 같은 게이트 -> 같은 달력(`div.td.pignose-calendar-unit-date`, `dl.schedule`의 `dt` 남은 수·`dd` 구역 이름).
+구역 이름은 달력 칸의 `dd`이고 `--live`로 `구역 일치`를 확인했다(카탈로그를 채우기 전에 먼저 "새로 생긴 구역"으로 나온 이름을 그대로 옮기고 다시 돌렸다).
+
+| 시설 | 경로 | 구역(`dd`) | 원문 |
+|---|---|---|---|
+| 다리안 | `/dytc/camping/G24526799` | `데크야영장C`, `데크야영장D`, `원두막` | `camping_G24526799_danyang-darian.html` |
+| 소선암 | `/dytc/camping/Q49993865` | `야영장A`, `야영장B`, `야영장C`, `산` | `camping_Q49993865_danyang-soseonam.html` |
+| 대강 | `/dytc/camping/Y88593737` | `파쇄석 사이트`, `데크 사이트` | `camping_Y88593737_danyang-daegang.html` |
+
+- 소선암 화면의 범례는 `야영장 A`(공백)지만 달력 칸 `dd`는 `야영장A`다. `산`은 범례에도 그대로 `산`이다(시설현황에 산1~산4).
+- 시설마다 게이트를 따로 지나야 하는지: 이 기록은 시설마다 새로 지났으므로 공유 여부를 시험하지 않았다. 여전히 모른다.
+- **구역별 남은 수 0의 표현**(#84는 보지 못했다): 다리안 10/24·10/31 `데크야영장C`, 소선암 10/31 `야영장A`·`야영장B`에서 칸은 `click`을 유지한 채 `dt`가 `0`이다. 어댑터는 `dt` 0을 빈자리 없음으로 읽는다. 구역 전부가 안 열린 날은 `click`·`dl`이 없다(다리안 10/17).
+- 기록 시점 열린 입실일은 10/14 ~ 10/31(이번 달 화면)이다. 최대 박수·오픈 규칙은 여전히 확인하지 못했다.
+
+## 넣지 않은 시설과 이유
+
+- **여주 대신 오토·웰빙(`epoc`), 금은모래(`gsmc`)**: 같은 게이트·화면이 아니다. `mirihae.com/epoc/camping/<id>`와 `/gsmc/camping/<id>`는 게이트로 보내지 않고 302로 **다른 도메인** `https://yeojuuc.or.kr/camping/epoc/camping/`(gsmc는 `/camping/gsmc/camping/`)으로 보낸다(`camping_epoc_*_302.txt`, `camping_gsmc_*_302.txt`). 그곳(`yeojuuc.or.kr/camping/<tenant>/camping/<pageId>`)은 301로 `https://cdn.mirihae.com/entering.html?uri=https://yeojuuc.or.kr/…`(포트 9443이 아닌 443, 예약 화면 호스트가 `yeojuuc.or.kr`)로 보낸다(`yeojuuc_*_301.txt`). 어댑터는 호스트를 `mirihae.com` 하나로 두고 `uri`가 그 호스트의 예약 화면일 때만 게이트를 지나므로 이 시설은 지원하지 못한다. 예약 화면·`calendar.do`가 `yeojuuc.or.kr`에서 나가므로 호스트별 허용·접근 금지 경로·화면 구조 확인이 새로 필요하다. 이 기록은 그 화면을 열지 않았다.
+- **포천 비둘기낭**: 운영 주체는 포천시시설관리공단(공공)이고 공식 안내(`camp.pcfac.or.kr`의 `header.html`)의 예약 링크는 `https://mirihae.com/pccamp/campsite`다. 같은 게이트(9443)를 지나 `/pccamp/campsite/C27562955`가 열린다(`campsite_pccamp_302.txt`). 그러나 화면이 다르다: 달력 칸 `div.td.pignose-calendar-unit-date`가 없다(`campsite_C27562955_pccamp.html`). 경로 접두어도 `/camping/`이 아니라 `/campsite/`이고(`/campsite/calendar.do`, `/campsite/cal.do`, `/campsite/preOpenCheck.do`, `/campsite/selectAjaxDatePinInfo.do`) 달력은 모달로 따로 불러온다. 같은 구조가 아니라 넣지 않았다.
+- **여주 강천섬**: 공식 안내(경기도 `gg.go.kr` 기사의 바로가기)가 `https://camp.yjcf.or.kr/`이고 예약 링크는 `https://camp.yjcf.or.kr/gangcheon/camping`이다. 미리해 경로지만 여주와 같은 **자체 도메인**(`camp.yjcf.or.kr`)이라 위 이유와 같다. 화면은 열지 않았다.
+- **충주 목계솔밭, 이천 농업테마공원, 성남 율동공원**: 시설 공식 안내에서 예약 링크를 확인하지 못했다(검색에서 공식 안내를 찾지 못했고 추정한 주소는 열리지 않았다). 성남 율동공원은 보도로는 추첨제다. 지어내지 않고 넣지 않았다.

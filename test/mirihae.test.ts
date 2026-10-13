@@ -39,7 +39,7 @@ describe("미리해 폴러", () => {
     await settle();
     expect(p.sent).toHaveLength(1);
     const text = p.sent[0]!.text;
-    expect(text).toContain("2026-10-14(수) 1박 · 야영장A · 남은 18");
+    expect(text).toContain("2026-10-14(수) 1박 · 단양 천동 오토캠핑장 · 야영장A · 남은 18");
     expect(text).not.toContain("야영장B"); // 감시 구역이 아니다
     expect(JSON.stringify(p.sent[0]!.reply_markup)).toContain(PAGE);
     expect(JSON.stringify(p.sent[0]!.reply_markup)).not.toContain("gateToken"); // 게이트는 사람이 거친다
@@ -77,7 +77,7 @@ describe("미리해 폴러", () => {
       await p.clock.advance(300_000);
       await settle();
       expect(p.sent).toHaveLength(2);
-      expect(p.sent[1]!.text).toContain("2026-10-14(수) 1박 · 야영장A · 남은 3");
+      expect(p.sent[1]!.text).toContain("2026-10-14(수) 1박 · 단양 천동 오토캠핑장 · 야영장A · 남은 3");
       await p.stop();
     });
 
@@ -404,7 +404,7 @@ describe("미리해 폴러", () => {
       await settle();
       expect(p.allRequests.filter((r) => r.url.includes("gateToken"))).toHaveLength(1); // 화면은 한 번만 받는다
       expect(failedKinds(p)).toEqual(["unrecognized"]);
-      expect(p.sent.map((m) => m.text).join("\n")).toContain("2026-10-14(수) 1박 · 야영장A · 남은 18");
+      expect(p.sent.map((m) => m.text).join("\n")).toContain("2026-10-14(수) 1박 · 단양 천동 오토캠핑장 · 야영장A · 남은 18");
       await p.stop();
     });
 
@@ -556,17 +556,27 @@ ${lines}
   });
 
   it("facility 없는 감시 조건은 시설이 하나뿐이어도 위치와 쓸 수 있는 시설 코드와 함께 거부된다", () => {
-    expect(problems(block("    zones: [야영장A]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: danyang-cheondong$/);
+    expect(problems(block("    zones: [야영장A]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 시설을 골라야 한다\. 쓸 수 있는 값: danyang-cheondong, danyang-darian, danyang-soseonam, danyang-daegang$/);
   });
 
   it("없는 시설은 쓸 수 있는 값과 함께 거부된다", () => {
-    expect(problems(block("    facility: danyang-darian\n    zones: [야영장A]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 없는 시설 "danyang-darian"다\. 쓸 수 있는 값: danyang-cheondong/);
+    expect(problems(block("    facility: danyang-nowhere\n    zones: [야영장A]"))).toMatch(/\d+번째 줄 watches\.0\.facility: 없는 시설 "danyang-nowhere"다\. 쓸 수 있는 값: danyang-cheondong/);
   });
 
   it("seats는 위치와 함께 거부된다(자리 목록이 없다)", () => {
     expect(problems(block("    facility: danyang-cheondong\n    zones: [야영장A]\n    seats: [A01]"))).toMatch(
       /\d+번째 줄 watches\.0\.seats: 야영장A은\(는\) 자리를 볼 수 없어 seats를 쓸 수 없다/,
     );
+  });
+
+  it("시설마다 확인한 구역 이름을 받는다(소선암의 산, 대강의 공백이 든 이름)", () => {
+    expect(problems(block("    facility: danyang-soseonam\n    zones: [산, 야영장A]"))).toBe("");
+    expect(problems(block("    facility: danyang-daegang\n    zones: [파쇄석 사이트, 데크 사이트]"))).toBe("");
+    expect(problems(block("    facility: danyang-darian\n    zones: [데크야영장C, 데크야영장D, 원두막]"))).toBe("");
+  });
+
+  it("다른 시설의 구역 이름은 그 시설에서 거부한다", () => {
+    expect(problems(block("    facility: danyang-darian\n    zones: [야영장A]"))).toMatch(/없는 구역 "야영장A"다\. 쓸 수 있는 값: 데크야영장C, 데크야영장D, 원두막/);
   });
 
   it("없는 구역은 쓸 수 있는 구역 이름과 함께 거부된다(구역 이름이 코드다)", () => {
@@ -607,6 +617,26 @@ describe("catalog mirihae", () => {
     const r = await catalog();
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/^danyang-cheondong\s+단양 천동 오토캠핑장\s+3곳$/m);
+    expect(r.requests).toEqual([]);
+  });
+
+  it("시설 목록에 확인한 단양 시설 넷이 구역 수와 함께 나온다(입점 기관이 다른 시설은 없다)", async () => {
+    const r = await catalog();
+    expect(r.out).toMatch(/^danyang-darian\s+단양 다리안 캠핑장\s+3곳$/m);
+    expect(r.out).toMatch(/^danyang-soseonam\s+단양 소선암 오토캠핑장\s+4곳$/m);
+    expect(r.out).toMatch(/^danyang-daegang\s+단양 대강 오토캠핑장\s+2곳$/m);
+    expect(r.out).not.toMatch(/yeoju|pocheon/);
+    expect(r.requests).toEqual([]);
+  });
+
+  it.each([
+    ["danyang-darian", ["데크야영장C", "데크야영장D", "원두막"]],
+    ["danyang-soseonam", ["야영장A", "야영장B", "야영장C", "산"]],
+    ["danyang-daegang", ["파쇄석 사이트", "데크 사이트"]],
+  ])("%s는 실제 달력에서 확인한 구역 이름을 요청 없이 보인다", async (facility, names) => {
+    const r = await catalog(facility);
+    expect(r.code).toBe(0);
+    for (const n of names) expect(r.out).toContain(n);
     expect(r.requests).toEqual([]);
   });
 
@@ -716,5 +746,133 @@ describe("catalog mirihae <시설> --live", () => {
     const s = setup(server());
     expect(await s.run("danyang-cheondong")).toBe(1);
     expect(s.out()).toContain(`조회 실패(${kind})`);
+  });
+});
+
+describe("미리해 시설마다 자기 경로로 지난다", () => {
+  it("소선암은 자기 예약 화면 경로로 게이트를 지나고 알림과 딥링크가 그 경로이며 구역 이름 산도 그대로 쓴다", async () => {
+    const path = "/dytc/camping/Q49993865";
+    // 기록한 화면의 구역 야영장C를 소선암의 산으로 바꾼 변형이다(소선암 화면의 구역 이름은 2026-10-13 실제 --live로 확인했다).
+    const page = mirihaePageWith({}, ($) => void $("dl.schedule dd").filter((_, el) => $(el).text().trim() === "야영장C").text("산"));
+    const p = startPoller(() => ({ status: 404, body: "" }), {
+      yaml: configWith(watch({ from: "2026-10-14" }, ["산"], "danyang-soseonam")),
+      server: mirihaeServer({ pagePath: path, page: () => ({ status: 200, body: page }) }),
+      now: NOW,
+    });
+    await settle();
+    const uri = encodeURIComponent(`https://mirihae.com${path}`);
+    expect(p.allRequests[0]!.url).toBe(`https://mirihae.com${path}`);
+    expect(p.allRequests[1]!.url).toBe(`https://cdn.mirihae.com/api/entering?uri=${uri}`);
+    expect(p.allRequests.some((r) => r.url.includes("V39628874"))).toBe(false);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("1박 · 단양 소선암 오토캠핑장 · 산 · 남은 29");
+    expect(JSON.stringify(p.sent[0]!.reply_markup)).toContain(`https://mirihae.com${path}`);
+    await p.stop();
+  });
+});
+
+describe("미리해 헬스 알림(신호 분류 표)", () => {
+  const status = (code: number, body = "") => ({ status: code, body });
+  const kinds = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "query failed").map((l) => l.fields?.kind);
+  const texts = (p: ReturnType<typeof run>) => p.sent.map((m) => m.text).join("\n");
+  /** 바퀴마다 서버 응답을 바꿀 수 있는 가짜 서버. */
+  const switching = (state: { broken: boolean }, broken: Parameters<typeof mirihaeServer>[0]) => {
+    const bad = mirihaeServer(broken);
+    const good = mirihaeServer();
+    return (req: TransportRequest) => (state.broken ? bad(req) : good(req));
+  };
+  const lap = async (p: ReturnType<typeof run>) => {
+    await p.clock.advance(300_000);
+    await settle();
+  };
+  const watchedZoneGone = mirihaePageWith({}, ($) => void $('div.td[id="2026-10-14"] dl.schedule').filter((_, el) => $(el).find("dd").text().trim() === "야영장A").remove());
+
+  it("구조 변경은 한 바퀴만으로는 멈추거나 알리지 않고 정상 바퀴가 끼면 두 바퀴 연속이 아니라서 멈추지 않는다", async () => {
+    const state = { broken: true };
+    const p = run({ from: "2026-10-14" }, { server: switching(state, { entering: () => status(404) }) as ReturnType<typeof mirihaeServer> });
+    await settle();
+    expect(kinds(p)).toEqual(["unrecognized"]);
+    expect(p.sent).toHaveLength(0);
+    state.broken = false;
+    await lap(p);
+    expect(p.sent).toHaveLength(1); // 정상 바퀴의 빈자리 알림뿐이다
+    expect(p.sent[0]!.text).toContain("야영장A · 남은 18");
+    state.broken = true;
+    await lap(p);
+    expect(kinds(p)).toEqual(["unrecognized", "unrecognized"]);
+    expect(p.sent).toHaveLength(1); // 연속이 끊겼으니 이 바퀴도 아직 알리지 않는다
+    await p.stop();
+  });
+
+  it.each([
+    { title: "게이트(/api/entering) 404", server: () => mirihaeServer({ entering: () => status(404) }) },
+    { title: "달력 칸이 없음", server: () => mirihaeServer({ page: () => ({ status: 200, body: "<html><body>점검 중</body></html>" }) }) },
+    { title: "남은 수(dt)가 숫자가 아님", server: () => mirihaeServer({ page: () => ({ status: 200, body: mirihaePageWith({ "2026-10-14": { 야영장A: "매진" } }) }) }) },
+    { title: "감시하는 구역이 달력에서 사라짐", server: () => mirihaeServer({ page: () => ({ status: 200, body: watchedZoneGone }) }) },
+  ])("$title 은 두 바퀴 연속이면 멈추고 구조가 바뀌었다고 알리며 그 뒤로 요청을 보내지 않는다", async ({ server }) => {
+    const p = run({ from: "2026-10-14" }, { server: server() });
+    await settle();
+    expect(p.sent).toHaveLength(0);
+    await lap(p);
+    expect(kinds(p)).toEqual(["unrecognized", "unrecognized"]);
+    expect(p.sent).toHaveLength(1);
+    expect(texts(p)).toMatch(/구조가 바뀌/);
+    expect(texts(p)).not.toMatch(/남은 \d/); // 빈자리 알림이 아니다
+    const before = p.allRequests.length;
+    await p.clock.advance(3 * 300_000);
+    await settle();
+    expect(p.allRequests).toHaveLength(before); // 멈췄다
+    await p.stop();
+  });
+
+  it.each([
+    { title: "예약 화면이 403", server: () => mirihaeServer({ page: () => status(403) }) },
+    { title: "예약 화면이 429", server: () => mirihaeServer({ page: () => status(429) }) },
+    { title: "예약 화면이 로그인으로 리다이렉트", server: () => mirihaeServer({ page: () => ({ status: 302, body: "", location: "https://mirihae.com/login.do" }) }) },
+    { title: "예약 화면에 captcha 표지", server: () => mirihaeServer({ page: () => ({ status: 200, body: mirihaePageWith({}, ($) => void $("body").append("<div class='g-recaptcha captcha'></div>")) }) }) },
+  ])("$title 은 첫 바퀴에 멈추고 차단을 알린다", async ({ server }) => {
+    const p = run({ from: "2026-10-14" }, { server: server() });
+    await settle();
+    expect(kinds(p)).toEqual(["blocked"]);
+    expect(p.sent).toHaveLength(1);
+    expect(texts(p)).toMatch(/차단/);
+    const before = p.allRequests.length;
+    await p.clock.advance(3 * 300_000);
+    await settle();
+    expect(p.allRequests).toHaveLength(before);
+    expect(p.allRequests.some((r) => r.url.includes("login"))).toBe(false);
+    await p.stop();
+  });
+
+  it.each([
+    { title: "게이트 500", opts: { entering: (n: number) => (n === 0 ? status(500) : undefined) } },
+    { title: "게이트(/api/entering)가 200·401·403·404 밖(502)", opts: { entering: (n: number) => (n === 0 ? status(502) : undefined) } },
+    { title: "대기 토큰 미수신", opts: { waitingPost: () => status(200, "") } },
+  ])("$title 은 일시 오류라 알림 없이 다음 바퀴에 다시 시도하고 정상 바퀴가 오면 이어간다", async ({ opts }) => {
+    const state = { broken: true };
+    const p = run({ from: "2026-10-14" }, { server: switching(state, opts) as ReturnType<typeof mirihaeServer> });
+    await settle();
+    expect(kinds(p)).toEqual(["transient"]);
+    expect(p.sent).toHaveLength(0);
+    state.broken = false;
+    await p.clock.advance(700_000); // 일시 오류는 간격을 늘려 다시 시도한다
+    await settle();
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("야영장A · 남은 18");
+    await p.stop();
+  });
+
+  it("게이트 403(사전 대기)은 점검 중으로 한 번 알리고 30분 간격으로 쉬며 풀리면 복구를 알린다", async () => {
+    const state = { broken: true };
+    const p = run({ from: "2026-10-14" }, { server: switching(state, { entering: () => status(403) }) as ReturnType<typeof mirihaeServer> });
+    await settle();
+    expect(kinds(p)).toEqual(["unavailable"]);
+    expect(texts(p)).toMatch(/점검 중/);
+    expect(p.sent).toHaveLength(1);
+    state.broken = false;
+    await p.clock.advance(31 * 60_000);
+    await settle();
+    expect(p.sent.map((m) => m.text).join("\n")).toMatch(/복구|정상/);
+    await p.stop();
   });
 });

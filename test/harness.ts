@@ -691,7 +691,6 @@ const mirihaeRaw = recordedRaw("mirihae");
 export const MIRIHAE_ENTERING_TOKEN = "TEST-ENTERING-TOKEN";
 export const MIRIHAE_WAITING_TOKEN = "TEST-WAITING-TOKEN";
 const MIRIHAE_PAGE_PATH = "/dytc/camping/V39628874";
-const MIRIHAE_PAGE_URL = `https://mirihae.com${MIRIHAE_PAGE_PATH}`;
 
 /**
  * 기록한 천동 예약 화면(2026-10-13 09:26 KST). 이번 달(2026-10)이고 10/14 ~ 10/31 칸이 `click`이며 구역 야영장A·B·C의 남은 수가 칸마다 있다.
@@ -736,8 +735,11 @@ export function mirihaeServer(
     page?: (req: TransportRequest) => TransportResponse | undefined;
     /** 모든 요청에 앞서 응답을 가로챈다. */
     intercept?: (req: TransportRequest) => TransportResponse | undefined;
+    /** 예약 화면 경로. 없으면 천동이다. */
+    pagePath?: string;
   } = {},
 ) {
+  const pagePath = opts.pagePath ?? MIRIHAE_PAGE_PATH;
   const nth = { entering: 0, waiting: 0 };
   const enteringBody = () => mirihaeRaw("api_entering_200.json").replace("<MASKED>", MIRIHAE_ENTERING_TOKEN);
   const respond = (req: TransportRequest): TransportResponse => {
@@ -768,9 +770,9 @@ export function mirihaeServer(
       return { status: 404, body: "" };
     }
     if (url.hostname !== "mirihae.com") return { status: 404, body: "" };
-    if (req.method === "GET" && url.pathname === MIRIHAE_PAGE_PATH) {
+    if (req.method === "GET" && url.pathname === pagePath) {
       if (url.searchParams.get("gateToken") !== MIRIHAE_ENTERING_TOKEN) {
-        return { status: 302, body: "", location: `https://cdn.mirihae.com:9443/entering.html?uri=${MIRIHAE_PAGE_URL}` };
+        return { status: 302, body: "", location: `https://cdn.mirihae.com:9443/entering.html?uri=https://mirihae.com${pagePath}` };
       }
       return opts.page?.(req) ?? { status: 200, body: mirihaePage(), setCookie: ["mirihae=sess1; Path=/; Secure; HttpOnly; SameSite=Lax"] };
     }

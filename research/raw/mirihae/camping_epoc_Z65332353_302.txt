@@ -1,0 +1,2 @@
+status 302
+location https://yeojuuc.or.kr/camping/epoc/camping/

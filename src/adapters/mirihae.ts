@@ -24,7 +24,7 @@ import {
 } from "../types.js";
 import { facilities } from "../catalogs/mirihae.js";
 import { resolveFacility } from "../facility.js";
-import { BOT_DETECTION, UnitStructureError, assertOk, redirectOf, send, unknownRedirect } from "../adapter-signals.js";
+import { BOT_DETECTION, ConnectionFailure, UnitStructureError, assertOk, redirectOf, send, unknownRedirect } from "../adapter-signals.js";
 import { warnDriftOnce } from "../netfunnel.js";
 import { addDays } from "../schedule.js";
 
@@ -393,13 +393,13 @@ const nightDates = (q: AvailabilityQuery): string[] => Array.from({ length: q.ni
 
 /**
  * 조회 단위 하나를 달력으로 판정한다. 밤마다 칸에 `click`이 있고 구역의 남은 수가 1 이상이어야 빈자리이며 남은 수는 밤마다의 최솟값이다(같은 자리가 이어진다는 보장은 없다).
- * 어느 밤이든 `click`이 없으면 빈자리 없음이다. 밤이 속한 달의 달력을 받지 못했으면 그 달을 읽다 난 오류(`missing`)가 이 단위의 결과다.
+ * 어느 밤이든 `click`이 없으면 빈자리 없음이다. 밤이 속한 달의 달력을 받지 못했으면 그 달을 읽다 난 오류(`monthFailure`)가 이 단위의 결과다.
  */
-function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, missing: AdapterError | undefined): AvailableSite[] | AdapterError {
+function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, monthFailure: AdapterError | undefined): AvailableSite[] | AdapterError {
   let remaining = Infinity;
   for (const night of nightDates(q)) {
     const calendar = calendars.get(monthOf(night));
-    if (!calendar) return missing ?? new UnitStructureError(`예약 화면: ${night}가 속한 달의 달력이 없다`);
+    if (!calendar) return monthFailure ?? new UnitStructureError(`예약 화면: ${night}가 속한 달의 달력이 없다`);
     const day = calendar.days.get(night);
     if (!day) return new UnitStructureError(`예약 화면: ${night} 날짜 칸이 달력에 없다`);
     if (!day.open) return [];
@@ -411,8 +411,19 @@ function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, missing: 
 }
 
 /**
+ * 예약처 전체의 문제인가. 그렇다면 다른 시설을 조회해도 같은 오류를 받을 것이라 남은 시설은 요청 없이 같은 오류로 처리한다.
+ * - `blocked`: 차단·로그인 요구·captcha. 예약처가 막은 것이고 ADR 0002에 따라 더 두드리지 않는다.
+ * - 연결 실패(`ConnectionFailure`): 게이트(`cdn.mirihae.com`)든 예약 화면(`mirihae.com`)이든 호스트에 닿지 못했다.
+ * - `unavailable`: 게이트 403(사전 대기)은 스펙이 "예약처가 일부러 막은 것"으로 보고 30분 뒤에 다시 보라는 신호다. 시설마다 따로인지 확인하지 못했고
+ *   헬스 상태(점검 중, 30분 휴식)는 예약처 단위라 보수적으로 사이트 전체로 본다. 사전 대기 중인 게이트를 다른 시설로 더 두드리지 않는다.
+ * 그 밖의 실패(`unrecognized`: 404·구조 변경·calendar.do 실패, `transient`: 게이트 5xx·대기 상한 초과·토큰 미수신)는 그 시설에 국한된 것으로 본다.
+ */
+const isSiteWide = (e: AdapterError): boolean => e.kind === "blocked" || e.kind === "unavailable" || e instanceof ConnectionFailure;
+
+/**
  * 한 바퀴. 시설마다 게이트를 지나 예약 화면(이번 달 달력)을 한 번 읽고, 조회 단위의 밤이 속한 다른 달은 달마다 `calendar.do`를 한 번씩 읽어 그 시설의 조회 단위를 모두 판정한다.
- * 게이트·화면 요청이 실패하면 그 시설과 남은 시설의 조회 단위가 그 실패를 받는다(요청을 더 보내지 않는다). 다른 달 요청이 실패하면 같은 시설 안에서는 그 달의 밤이 걸린 단위만 그 실패를 받고 화면의 달만 쓰는 단위는 판정한다. 남은 시설은 화면 실패와 같이 멈춘다(그 실패를 받는다).
+ * 게이트·화면·달력 요청이 실패하면 사이트 전체의 문제(`isSiteWide`)는 남은 시설의 조회 단위까지 그 실패를 받고(요청을 더 보내지 않는다), 그 밖의 실패는 그 시설의 조회 단위만 받고 다음 시설을 이어서 조회한다.
+ * 다른 달 요청이 실패하면 같은 시설 안에서는 그 달을 읽지 못해 판정할 수 없는 단위만 그 실패를 받고 화면의 달만 쓰는 단위는 판정한다. 그 시설의 남은 달은 더 요청하지 않는다.
  * 한 단위만의 구조 변경(감시 구역이 칸에서 사라짐)은 그 단위만 실패다.
  */
 async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Results> {
@@ -423,10 +434,10 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
     if (q.nights > max) throw new Error(`mirihae ${q.facility}는 최대 ${max}박만 읽는다(${q.nights}박)`);
     byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
   }
-  let stopped: AdapterError | undefined;
+  let siteWideFailure: AdapterError | undefined;
   for (const [facility, group] of byFacility) {
-    if (stopped) {
-      for (const q of group) results.set(q, stopped);
+    if (siteWideFailure) {
+      for (const q of group) results.set(q, siteWideFailure);
       continue;
     }
     try {
@@ -434,21 +445,22 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       const first = parseCalendar(page.html);
       warnZoneDrift(facility, first, ctx);
       const calendars = new Map([[first.month, first]]);
-      let missing: AdapterError | undefined;
+      let monthFailure: AdapterError | undefined;
       for (const month of new Set(group.flatMap((q) => nightDates(q).map(monthOf)))) {
         if (calendars.has(month)) continue;
         try {
           calendars.set(month, await readMonth(ctx, page, month));
         } catch (e) {
           if (!(e instanceof AdapterError)) throw e;
-          missing = stopped = e;
+          monthFailure = e;
+          if (isSiteWide(e)) siteWideFailure = e;
           break;
         }
       }
-      for (const q of group) results.set(q, judge(q, calendars, missing));
+      for (const q of group) results.set(q, judge(q, calendars, monthFailure));
     } catch (e) {
       if (!(e instanceof AdapterError)) throw e;
-      stopped = e;
+      if (isSiteWide(e)) siteWideFailure = e;
       for (const q of group) results.set(q, e);
     }
   }

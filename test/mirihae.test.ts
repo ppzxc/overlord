@@ -1063,6 +1063,150 @@ describe("미리해 시설마다 자기 경로로 지난다", () => {
   });
 });
 
+describe("미리해 시설이 둘 이상일 때 한 시설의 실패가 번지는 범위", () => {
+  const CHEONDONG = "/dytc/camping/V39628874";
+  const DARIAN = "/dytc/camping/G24526799";
+  const status = (code: number, body = "") => ({ status: code, body });
+  const failedKinds = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "query failed").map((l) => l.fields?.kind);
+  /** 다리안 화면은 기록한 천동 화면의 구역 야영장A를 다리안의 데크야영장C로 바꾼 변형이다(다리안 구역 이름은 2026-10-13 실제 --live로 확인했다). */
+  const darianPage = mirihaePageWith({}, ($) => void $("dl.schedule dd").filter((_, el) => $(el).text().trim() === "야영장A").text("데크야영장C"));
+  /** 천동(첫 시설)의 예약 화면만 `cheondong`이 정하고 다리안은 정상 화면이다. 나머지 요청은 `rest`가 가로챈다. */
+  const server = (cheondong: (req: TransportRequest) => ReturnType<typeof status> | undefined, rest: Parameters<typeof mirihaeServer>[0] = {}) =>
+    mirihaeServer({
+      pagePath: [CHEONDONG, DARIAN],
+      page: (req) => (new URL(req.url).pathname === CHEONDONG ? cheondong(req) : { status: 200, body: darianPage }),
+      ...rest,
+    });
+  const ok = () => undefined;
+  const both = (p1 = { from: "2026-10-14" }) =>
+    configWith(watch(p1, ["야영장A"], "danyang-cheondong"), watch({ from: "2026-10-14" }, ["데크야영장C"], "danyang-darian"));
+  const start = (srv: ReturnType<typeof mirihaeServer>, yaml = both()) => startPoller(() => ({ status: 404, body: "" }), { yaml, server: srv, now: NOW });
+  const touchedDarian = (p: ReturnType<typeof start>) => p.allRequests.some((r) => r.url.includes("G24526799"));
+  const darianAlert = "2026-10-14(수) 1박 · 단양 다리안 캠핑장 · 데크야영장C · 남은 18";
+
+  it("기준: 두 시설이 모두 정상이면 둘 다 알린다", async () => {
+    const p = start(server(ok));
+    await settle();
+    const text = p.sent.map((m) => m.text).join("\n");
+    expect(text).toContain("단양 천동 오토캠핑장 · 야영장A · 남은 18");
+    expect(text).toContain(darianAlert);
+    expect(failedKinds(p)).toEqual([]);
+    await p.stop();
+  });
+
+  it.each([
+    { title: "게이트(/api/entering) 404", srv: () => server(ok, { entering: (n) => (n === 0 ? status(404) : undefined) }), kind: "unrecognized" },
+    { title: "게이트(/api/entering) 500", srv: () => server(ok, { entering: (n) => (n === 0 ? status(500) : undefined) }), kind: "transient" },
+    {
+      title: "대기 토큰 미수신",
+      srv: () => {
+        let nth = 0; // 첫 시설의 대기 토큰 요청에만 적용한다.
+        return server(ok, { waitingPost: () => (nth++ === 0 ? status(200, "") : undefined) });
+      },
+      kind: "transient",
+    },
+    { title: "예약 화면 404", srv: () => server(() => status(404)), kind: "unrecognized" },
+    { title: "예약 화면 503", srv: () => server(() => status(503)), kind: "transient" },
+    { title: "달력 칸이 없는 예약 화면(구조 변경)", srv: () => server(() => status(200, "<html><body>점검 중</body></html>")), kind: "unrecognized" },
+    { title: "남은 수가 숫자가 아닌 예약 화면(구조 변경)", srv: () => server(() => status(200, mirihaePageWith({ "2026-10-14": { 야영장A: "매진" } }))), kind: "unrecognized" },
+  ])("첫 시설의 $title 은 그 시설만 $kind 로 실패하고 다음 시설은 요청을 보내 알린다", async ({ srv, kind }) => {
+    const p = start(srv());
+    await settle();
+    expect(failedKinds(p)).toEqual([kind]);
+    expect(touchedDarian(p)).toBe(true);
+    expect(p.sent.map((m) => m.text).join("\n")).toContain(darianAlert);
+    await p.stop();
+  });
+
+  it("첫 시설의 calendar.do가 실패해도(transient·unrecognized) 다음 시설은 요청을 보내 알리고 실패는 그 시설만이다", async () => {
+    for (const [code, kind] of [[503, "transient"], [404, "unrecognized"]] as const) {
+      const yaml = configWith(watch({ from: "2026-11-02" }, ["야영장A"], "danyang-cheondong"), watch({ from: "2026-10-14" }, ["데크야영장C"], "danyang-darian"));
+      const p = start(server(ok, { calendar: () => status(code) }), yaml);
+      await settle();
+      expect(failedKinds(p)).toEqual([kind]);
+      expect(touchedDarian(p)).toBe(true);
+      expect(p.sent.map((m) => m.text).join("\n")).toContain(darianAlert);
+      await p.stop();
+    }
+  });
+
+  it("첫 시설의 게이트 대기가 120초 상한을 넘겨 transient여도 다음 시설은 요청을 보내 알린다", async () => {
+    // 425는 첫 시설의 대기 확인 13번(0 ~ 120초째)에만 오고 그 뒤 다리안은 바로 입장한다.
+    const waiting425 = status(425, JSON.stringify({ status: 425, message: JSON.stringify({ order: 9, estimatedWaitSeconds: 25, throughput: 2 }) }));
+    const p = start(server(ok, { waiting: (n) => (n < 13 ? waiting425 : undefined) }));
+    await settle();
+    for (let i = 0; i < 13; i++) {
+      await p.clock.advance(10_000);
+      await settle();
+    }
+    expect(failedKinds(p)).toEqual(["transient"]);
+    expect(touchedDarian(p)).toBe(true);
+    expect(p.sent.map((m) => m.text).join("\n")).toContain(darianAlert);
+    await p.stop();
+  });
+
+  it.each([
+    { title: "예약 화면 403", srv: () => server(() => status(403)) },
+    { title: "예약 화면 429", srv: () => server(() => status(429)) },
+    { title: "예약 화면의 로그인 리다이렉트", srv: () => server(() => ({ status: 302, body: "", location: "https://mirihae.com/dytc/login.do" })) },
+    { title: "예약 화면의 captcha 표지", srv: () => server(() => status(200, mirihaePageWith({}, ($) => void $("body").append("<div class='captcha'></div>")))) },
+  ])("첫 시설의 $title 은 사이트 전체의 차단이라 다음 시설의 요청 없이 둘 다 blocked다", async ({ srv }) => {
+    const p = start(srv());
+    await settle();
+    expect(failedKinds(p)).toEqual(["blocked", "blocked"]);
+    expect(touchedDarian(p)).toBe(false);
+    expect(p.sent.map((m) => m.text).join("\n")).not.toContain(darianAlert);
+    await p.stop();
+  });
+
+  it("첫 시설의 calendar.do가 차단(403)이면 사이트 전체의 차단이라 다음 시설의 요청 없이 둘 다 blocked다", async () => {
+    const yaml = configWith(watch({ from: "2026-11-02" }, ["야영장A"], "danyang-cheondong"), watch({ from: "2026-10-14" }, ["데크야영장C"], "danyang-darian"));
+    const p = start(server(ok, { calendar: () => status(403) }), yaml);
+    await settle();
+    expect(failedKinds(p)).toEqual(["blocked", "blocked"]);
+    expect(touchedDarian(p)).toBe(false);
+    await p.stop();
+  });
+
+  it("게이트 연결 실패는 사이트 전체의 문제라 다음 시설의 요청 없이 둘 다 transient다", async () => {
+    const p = start(
+      server(ok, {
+        intercept: (req) => {
+          if (req.url.startsWith("https://cdn.mirihae.com/api/entering")) throw new TypeError("fetch failed");
+          return undefined;
+        },
+      }),
+    );
+    await settle();
+    expect(failedKinds(p)).toEqual(["transient", "transient"]);
+    expect(touchedDarian(p)).toBe(false);
+    await p.stop();
+  });
+
+  it("예약 화면 연결 실패도 사이트 전체의 문제라 다음 시설의 요청 없이 둘 다 transient다", async () => {
+    const p = start(
+      server(ok, {
+        intercept: (req) => {
+          if (req.url.startsWith(`https://mirihae.com${CHEONDONG}?gateToken`)) throw new TypeError("fetch failed");
+          return undefined;
+        },
+      }),
+    );
+    await settle();
+    expect(failedKinds(p)).toEqual(["transient", "transient"]);
+    expect(touchedDarian(p)).toBe(false);
+    await p.stop();
+  });
+
+  it("게이트 403(사전 대기)은 예약처가 일부러 막은 것이라 다음 시설의 요청 없이 둘 다 unavailable로 쉰다", async () => {
+    const p = start(server(ok, { entering: (n) => (n === 0 ? status(403) : undefined) }));
+    await settle();
+    expect(failedKinds(p)).toEqual(["unavailable", "unavailable"]);
+    expect(touchedDarian(p)).toBe(false);
+    await p.stop();
+  });
+});
+
 describe("미리해 헬스 알림(신호 분류 표)", () => {
   const status = (code: number, body = "") => ({ status: code, body });
   const kinds = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "query failed").map((l) => l.fields?.kind);

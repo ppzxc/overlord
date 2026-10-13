@@ -12,7 +12,14 @@ export function assertOk(res: TransportResponse, where: string): void {
   if (res.status !== 200) throw new AdapterError("unrecognized", `${where}: 예상 밖 HTTP ${res.status}`);
 }
 
-/** 요청 하나를 보낸다. 접근 금지 경로(로그인으로 리다이렉트 포함)는 차단, 연결 실패·시간 초과는 일시 오류다. */
+/** 요청이 나가거나 돌아오지 못한 연결 실패·시간 초과(일시 오류). 예약처 전체의 문제일 수 있어 어댑터가 다른 시설 조회를 이어갈지 가를 때 쓴다. */
+export class ConnectionFailure extends AdapterError {
+  constructor(message: string, options?: ErrorOptions) {
+    super("transient", message, options);
+  }
+}
+
+/** 요청 하나를 보낸다. 접근 금지 경로(로그인으로 리다이렉트 포함)는 차단, 연결 실패·시간 초과는 일시 오류(`ConnectionFailure`)다. */
 export async function send<T extends TransportResponse>(where: string, request: () => Promise<T>): Promise<T> {
   try {
     return await request();
@@ -20,7 +27,7 @@ export async function send<T extends TransportResponse>(where: string, request: 
     if (e instanceof BlockedPathError) throw new AdapterError("blocked", `${where}: 로그인·접근 금지 경로로 보내졌다(${e.message})`);
     if (e instanceof AdapterError) throw e;
     // 원인(예: TLS 검증 실패의 cause.code)을 `tlsStreakRound`가 읽을 수 있게 cause로 남긴다.
-    throw new AdapterError("transient", `${where}: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+    throw new ConnectionFailure(`${where}: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
   }
 }
 

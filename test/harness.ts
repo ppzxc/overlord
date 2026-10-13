@@ -744,13 +744,13 @@ export function mirihaeServer(
     page?: (req: TransportRequest) => TransportResponse | undefined;
     /** 모든 요청에 앞서 응답을 가로챈다. */
     intercept?: (req: TransportRequest) => TransportResponse | undefined;
-    /** 예약 화면 경로. 없으면 천동이다. */
-    pagePath?: string;
+    /** 예약 화면 경로(여럿이면 시설 여럿). 없으면 천동이다. 어느 경로든 같은 기록한 화면을 주므로 시설마다 다르게 주려면 `page`가 요청 경로를 본다. */
+    pagePath?: string | string[];
     /** `POST /camping/calendar.do`에 줄 응답. 없으면 `selectMonth`에 맞는 기록한 달력(2026-11, 2026-12)이다. */
     calendar?: (month: string, req: TransportRequest) => TransportResponse | undefined;
   } = {},
 ) {
-  const pagePath = opts.pagePath ?? MIRIHAE_PAGE_PATH;
+  const pagePaths = [opts.pagePath ?? MIRIHAE_PAGE_PATH].flat();
   const nth = { entering: 0, waiting: 0 };
   const enteringBody = () => mirihaeRaw("api_entering_200.json").replace("<MASKED>", MIRIHAE_ENTERING_TOKEN);
   const respond = (req: TransportRequest): TransportResponse => {
@@ -781,9 +781,9 @@ export function mirihaeServer(
       return { status: 404, body: "" };
     }
     if (url.hostname !== "mirihae.com") return { status: 404, body: "" };
-    if (req.method === "GET" && url.pathname === pagePath) {
+    if (req.method === "GET" && pagePaths.includes(url.pathname)) {
       if (url.searchParams.get("gateToken") !== MIRIHAE_ENTERING_TOKEN) {
-        return { status: 302, body: "", location: `https://cdn.mirihae.com:9443/entering.html?uri=https://mirihae.com${pagePath}` };
+        return { status: 302, body: "", location: `https://cdn.mirihae.com:9443/entering.html?uri=https://mirihae.com${url.pathname}` };
       }
       return opts.page?.(req) ?? { status: 200, body: mirihaePage(), setCookie: ["mirihae=sess1; Path=/; Secure; HttpOnly; SameSite=Lax"] };
     }

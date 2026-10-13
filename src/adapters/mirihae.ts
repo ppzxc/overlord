@@ -41,7 +41,7 @@ const tenants = [...new Set(facilities.flatMap((f) => (typeof f.ref === "object"
 const INFO: ProviderInfo = {
   id: "mirihae",
   facilities,
-  // 4박. 서버가 거절하는 값을 확인한 것이 아니다(research/raw/mirihae/README.md). 근거는 천동 화면 JS의 "최대예약일수는 4박5일입니다." 경고 문구뿐이다(주석 처리된 클라이언트 검사와 `nightCheck.do` 실패 알림). 입점 기관마다 다를 수 있다.
+  // 4박. 천동 화면이 퇴실일을 고를 때 부르는 `nightCheck.do`가 4박에 `resultCode: true`, 5박에 `false`를 줬다(2026-10-13, #100, research/raw/mirihae/README.md). 화면 JS의 "최대예약일수는 4박5일입니다." 문구와 같다. 다른 시설·입점 기관은 확인하지 않았다.
   maxNights: 4,
   // 오픈 규칙은 확인하지 못했다. 아래 세 값은 타입상 필수인 날짜 창이고 열리는 때를 주장하지 않는다. 확인 전에는 달력이 `click`을 주지 않는 날짜를 빈자리 없음으로 처리하므로 날짜를 미리 거르지 않는다.
   // - openDaysBefore 36500, openTime 00:00: 100년이라 어떤 입실일도 요청 없이 건너뛰지 않는다(걸러내지 않겠다는 뜻이고 열리는 때가 아니다).
@@ -50,7 +50,7 @@ const INFO: ProviderInfo = {
   // 오픈 경쟁 시간(`openingRush`)은 두지 않는다. 입점 기관마다 여는 시각을 모른다.
   // 게이트를 바퀴마다 지날 수 있고 시설이 늘 수 있어 150초보다 길게 잡는다. `gateToken` 재사용(#85)은 수명(300초) 안에 다음 바퀴가 돌아야 하므로 이 간격으로는 드물게만 일어난다(이슈 #85 의견).
   defaultPollIntervalSeconds: 300,
-  // 날짜·구역을 고른 뒤의 호출(자리를 잡는다), 결제, 예약확인/취소, 로그인·회원. 조회에 필요 없다. 경로 접두어는 호스트를 가리지 않는다.
+  // 날짜·구역을 고른 뒤의 호출(자리를 잡는 호출과, 자리를 잡지 않는 `nightCheck.do` 같은 검사), 결제, 예약확인/취소, 로그인·회원. 조회에 필요 없다. 경로 접두어는 호스트를 가리지 않는다.
   // `cdn.mirihae.com`에서는 `/api/entering`, `/api/waiting` 말고는 부르지 않는다(어댑터가 다른 경로를 만들지 않는다).
   // `/camping/calendar.do`(다른 달 달력)와 예약 화면(`/<tenant>/camping/<pageId>`)은 막지 않는다.
   blockedPaths: [

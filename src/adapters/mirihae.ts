@@ -24,7 +24,7 @@ import {
 } from "../types.js";
 import { facilities } from "../catalogs/mirihae.js";
 import { resolveFacility } from "../facility.js";
-import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
+import { BOT_DETECTION, UnitStructureError, assertOk, redirectOf, send, unknownRedirect } from "../adapter-signals.js";
 import { warnDriftOnce } from "../netfunnel.js";
 import { addDays } from "../schedule.js";
 
@@ -120,12 +120,11 @@ async function readGateUri(ctx: AdapterContext, pageUrl: string): Promise<string
 
 /** 게이트로 보내는 302 응답에서 `uri`를 읽는다. 게이트로 보내지 않으면 응답 상태로 신호를 가른다. */
 function gateUriOf(res: TransportResponse, pageUrl: string): string {
-  if (!(res.status >= 300 && res.status < 400 && res.location)) {
+  const to = redirectOf(res, pageUrl, "예약 화면");
+  if (!to) {
     assertOk(res, "예약 화면");
     throw new AdapterError("unrecognized", "예약 화면이 게이트로 보내지 않았다(HTTP 200)");
   }
-  const to = new URL(res.location, pageUrl);
-  if (/\/login/i.test(to.pathname)) throw new AdapterError("blocked", `예약 화면이 로그인(${to.pathname})으로 보냈다`);
   const uri = to.searchParams.get("uri");
   // 게이트가 보낸 주소는 요청한 예약 화면과 같아야 한다. 다른 곳으로 가는 요청은 만들지 않는다.
   if (uri === null || uri.split("?")[0] !== pageUrl) throw new AdapterError("unrecognized", `게이트 화면의 uri가 예약 화면과 다르다(${uri ?? "없음"})`);
@@ -286,17 +285,22 @@ const heldOf = (ctx: AdapterContext): Map<string, HeldToken> => {
   return held;
 };
 
+/** 열어 본 예약 화면. `html`은 이번 달 달력이 든 본문이고 `uri`는 그 화면 주소(게이트가 알려 준 것)다. */
+interface ReservationPage {
+  html: string;
+  uri: string;
+}
+
 /**
  * `?gateToken=`을 붙여 예약 화면을 연다. 리다이렉트는 따라가지 않는다. 로그인으로 가면 `blocked`다.
  * 서버가 토큰을 받지 않으면(게이트로 302하거나 401) 거절한 응답을 돌려준다. 그 밖의 3xx는 구조 변경이고 나머지 상태는 `assertOk`가 가른다.
  */
 async function fetchReservationPage(ctx: AdapterContext, uri: string, token: string): Promise<{ html: string } | { rejected: TransportResponse }> {
   const res = await send("예약 화면", () => ctx.http.get(`${uri}?gateToken=${encodeURIComponent(token)}`, { followRedirects: false, headers: { Referer: `${GATE_PAGES}/` } }));
-  if (res.status >= 300 && res.status < 400 && res.location) {
-    const to = new URL(res.location, uri);
-    if (/\/login/i.test(to.pathname)) throw new AdapterError("blocked", `예약 화면이 로그인(${to.pathname})으로 보냈다`);
+  const to = redirectOf(res, uri, "예약 화면");
+  if (to) {
     if (to.hostname === GATE_HOST) return { rejected: res };
-    throw new AdapterError("unrecognized", `예약 화면이 알 수 없는 곳(${to.host}${to.pathname})으로 보냈다`);
+    throw unknownRedirect(to, "예약 화면");
   }
   if (res.status === 401) return { rejected: res };
   assertOk(res, "예약 화면");
@@ -308,7 +312,7 @@ async function fetchReservationPage(ctx: AdapterContext, uri: string, token: str
  * 서버가 그 토큰을 받지 않으면 실패로 치지 않고 같은 바퀴에서 게이트를 새로 지난다. 새로 받은 토큰이 곧바로 거절되면 `unrecognized`다.
  * 쿠키는 바퀴마다 비운다. 지난 바퀴의 쿠키(세션, 게이트 토큰)를 들고 가지 않고 입장 토큰만 이어 쓴다.
  */
-async function openReservationPage(ctx: AdapterContext, facility: string): Promise<{ html: string; uri: string }> {
+async function openReservationPage(ctx: AdapterContext, facility: string): Promise<ReservationPage> {
   ctx.http.clearSession();
   const pageUrl = pageUrlOf(facility);
   const held = heldOf(ctx);
@@ -364,7 +368,7 @@ function searchFormBody(html: string, month: string): string {
  * 다른 달의 달력을 읽는다(`POST /camping/calendar.do`). 달력만 바꾸는 호출이고 날짜·구역을 고르는 호출이 아니다. 예약 화면과 같은 간격 큐 안에서 보내고 리다이렉트는 따라가지 않는다.
  * 응답은 `<div class="calendar-in">` 조각이고 이번 달 화면과 같은 파서로 읽는다. 다른 달이 오면 구조 변경이다.
  */
-async function readMonth(ctx: AdapterContext, page: { html: string; uri: string }, month: string): Promise<Calendar> {
+async function readMonth(ctx: AdapterContext, page: ReservationPage, month: string): Promise<Calendar> {
   const where = `달력 ${month}`;
   const res = await send(where, () =>
     ctx.http.post(`${ORIGIN}/camping/calendar.do`, searchFormBody(page.html, month), {
@@ -372,11 +376,8 @@ async function readMonth(ctx: AdapterContext, page: { html: string; uri: string 
       headers: { Referer: page.uri, Origin: ORIGIN, "X-Requested-With": "XMLHttpRequest", Accept: "text/html, */*; q=0.01" },
     }),
   );
-  if (res.status >= 300 && res.status < 400 && res.location) {
-    const to = new URL(res.location, ORIGIN);
-    if (/\/login/i.test(to.pathname)) throw new AdapterError("blocked", `${where}: 로그인(${to.pathname})으로 보냈다`);
-    throw new AdapterError("unrecognized", `${where}: 알 수 없는 곳(${to.host}${to.pathname})으로 보냈다`);
-  }
+  const to = redirectOf(res, ORIGIN, where);
+  if (to) throw unknownRedirect(to, where);
   assertOk(res, where);
   const calendar = parseCalendar(res.body, where);
   if (calendar.month !== month) throw new AdapterError("unrecognized", `${where}: ${calendar.month} 달력이 왔다`);

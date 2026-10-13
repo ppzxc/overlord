@@ -148,7 +148,13 @@ async function takeWaitingToken(ctx: AdapterContext, uri: string): Promise<strin
   return token;
 }
 
-/** 대기열에서 순서를 기다려 입장 토큰을 받는다. 425는 대기 중이라 10초 뒤 다시 묻고, 상한(120초)을 넘으면 포기한다. */
+/**
+ * 대기열에서 순서를 기다려 입장 토큰을 받는다. 425는 대기 중이라 10초 뒤 다시 묻고, 상한(120초)을 넘으면 포기한다.
+ * 알려진 한계: `waiting.js`는 425 응답이 응답 헤더 `X-Mirihae-Waiting-Token`으로 새 대기 토큰(만료된 토큰의 같은 순서 재발급)을 주면 바꿔 쓰지만,
+ * `TransportResponse`가 임의 응답 헤더를 싣지 않아 읽지 않는다. 대기 토큰 수명이 1시간(기록)이라 120초 상한 안에서는 만료되지 않아 문제가 되지 않는다.
+ * 또 `waiting.js`는 예상 대기 시간이 10초보다 짧으면 그 시간만큼만 쉬고 다시 묻지만 이 어댑터는 언제나 10초다(스펙).
+ * `POST /api/waiting`은 본문이 없는 요청인데 HTTP 층이 문자열 본문에 form `Content-Type`을 붙여 보낸다(기록과 페이지 JS는 `Content-Type` 없이 보냈다). 서버가 가리는지는 확인하지 못했다.
+ */
 async function waitForTurn(ctx: AdapterContext, uri: string, waitingToken: string): Promise<string> {
   const started = ctx.clock.now().getTime();
   for (;;) {

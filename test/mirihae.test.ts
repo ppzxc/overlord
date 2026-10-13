@@ -625,6 +625,29 @@ describe("미리해 폴러", () => {
       await p.stop();
     });
 
+    it("오픈 규칙을 모르므로 오늘(10-13)에서 62일보다 먼 입실일(12-20)도 요청 없이 건너뛰지 않고 달력이 click을 주면 알린다", async () => {
+      // 기록한 12월 달력은 모두 닫혀 있다. 12/20 칸만 열린 변형이다(합성 응답, 기록 아님).
+      const open = ($: Parameters<NonNullable<Parameters<typeof mirihaeCalendarWith>[2]>>[0]) =>
+        void $('div.td[id="2026-12-20"]').addClass("click").append('<div class="element"><div class="district"><dl class="schedule color1"><dt>7</dt><dd>야영장A</dd></dl></div></div>');
+      const server = mirihaeServer({ calendar: (m) => ({ status: 200, body: mirihaeCalendarWith(m, {}, m === "2026-12" ? open : undefined) }) });
+      const p = run({ from: "2026-12-20" }, { server });
+      await settle();
+      expect(calendarPosts(p).map((r) => new URLSearchParams(r.body).get("selectMonth"))).toEqual(["2026-12"]);
+      expect(p.sent).toHaveLength(1);
+      expect(p.sent[0]!.text).toContain("2026-12-20(일) 1박 · 단양 천동 오토캠핑장 · 야영장A · 남은 7");
+      expect(failed(p)).toEqual([]);
+      await p.stop();
+    });
+
+    it("달력이 click을 주지 않는 먼 날짜(12-20)는 빈자리 없음이다", async () => {
+      const p = run({ from: "2026-12-20" });
+      await settle();
+      expect(calendarPosts(p)).toHaveLength(1);
+      expect(p.sent).toHaveLength(0);
+      expect(failed(p)).toEqual([]);
+      await p.stop();
+    });
+
     describe("여러 박", () => {
       it("이어지는 밤마다 남은 수가 1 이상이면 최솟값과 같은 자리 연속 보장 없음을 알린다", async () => {
         const p = run({ from: "2026-11-06" }, { nights: 2 }); // 11/06 야영장A 16, 11/07 15

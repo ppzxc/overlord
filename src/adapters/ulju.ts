@@ -5,13 +5,11 @@ import {
   type AvailabilityQuery,
   type AvailableSite,
   type FacilityObservation,
-  type HttpClient,
   type ProviderAdapter,
   type ProviderInfo,
-  type TransportResponse,
 } from "../types.js";
 import { facilities } from "../catalogs/ulju.js";
-import { BlockedPathError } from "../http.js";
+import { assertOk, send, warnDriftOnce } from "../adapter-signals.js";
 
 const ORIGIN = "https://camping.ulju.ulsan.kr";
 const DAY_PATH = "/ujcamping/campsite/get_cal_day_data_list";
@@ -65,13 +63,6 @@ function isQueryable(date: string, now: Date): boolean {
   return now.getTime() >= Date.parse(`${month(today)}-${String(FCFS_DAY).padStart(2, "0")}T${FCFS_TIME}:00+09:00`);
 }
 
-const failure = (res: TransportResponse): AdapterError | undefined => {
-  if (res.status === 401 || res.status === 403 || res.status === 429) return new AdapterError("blocked", `${DAY_PATH}: HTTP ${res.status}`);
-  if (res.status >= 500) return new AdapterError("transient", `${DAY_PATH}: HTTP ${res.status}`);
-  if (res.status !== 200) return new AdapterError("unrecognized", `${DAY_PATH}: 예상 밖 HTTP ${res.status}`);
-  return undefined;
-};
-
 interface Row {
   CAMP_ID: string;
   NAME: string;
@@ -82,22 +73,16 @@ interface Row {
 
 /** 한 시설의 한 밤을 조회해 행을 돌려준다. booking_ended와 no_list는 행이 없다는 뜻의 null이다. */
 async function fetchNight(classes: string, date: string, ctx: AdapterContext): Promise<Row[] | null> {
-  let res: TransportResponse;
-  try {
-    res = await ctx.http.post(
+  // 연결 실패·시간 초과는 일시 오류라 다음 바퀴에 다시 시도한다.
+  const res = await send(DAY_PATH, () =>
+    ctx.http.post(
       `${ORIGIN}${DAY_PATH}`,
       JSON.stringify({ sql_state: "GetData", select_date: date, classes, facility: "", use_only: "N" }),
       // 페이지(mscommon.js getPostData)와 같은 헤더. X-CSRF-TOKEN은 페이지에 #csrf_token 요소가 없어 빈 값이다.
       { contentType: "application/json", headers: { "X-HTTP-Method-Override": "POST", "X-CSRF-TOKEN": "" } },
-    );
-  } catch (e) {
-    if (e instanceof BlockedPathError) throw new AdapterError("blocked", `${DAY_PATH}: 로그인·접근 금지 경로로 보내졌다(${e.message})`);
-    if (e instanceof AdapterError) throw e;
-    // 연결 실패·시간 초과는 다음 바퀴에 다시 시도한다.
-    throw new AdapterError("transient", `${DAY_PATH}: ${e instanceof Error ? e.message : String(e)}`);
-  }
-  const bad = failure(res);
-  if (bad) throw bad;
+    ),
+  );
+  assertOk(res, DAY_PATH);
   let body: unknown;
   try {
     body = JSON.parse(res.body);
@@ -120,9 +105,6 @@ async function fetchNight(classes: string, date: string, ctx: AdapterContext): P
   return list as Row[];
 }
 
-/** 세션마다 이미 경고한 구역 차이. 같은 차이는 한 번만 남긴다. */
-const warnedDrift = new WeakMap<HttpClient, Set<string>>();
-
 /**
  * 카탈로그와 다른 구역(응답에만 있거나 응답에서 빠진 구역)과, 자리 목록이 있는 구역의 자리 차이는 경고만 남긴다.
  * 감시 조건이 쓰는 구역이 빠진 것은 조회 단위 판정이 실패로 처리한다. 자리는 실패로 치지 않는다.
@@ -132,14 +114,8 @@ function warnDrift(facility: string, rows: Row[], ctx: AdapterContext): void {
   const zones = facilities.find((f) => f.code === facility)?.zones ?? [];
   const known = new Set(zones.map((z) => z.code));
   const seen = new Set(rows.map((r) => r.FACILITY_ID));
-  const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
-  warnedDrift.set(ctx.http, warned);
-  const once = (msg: string, fields: { change: string; zone: string; seat?: string }) => {
-    const key = `${msg}:${facility}:${fields.change}:${fields.zone}:${fields.seat ?? ""}`;
-    if (warned.has(key)) return;
-    warned.add(key);
-    ctx.log?.(msg, { facility, ...fields });
-  };
+  const once = (msg: string, fields: { change: string; zone: string; seat?: string }) =>
+    warnDriftOnce(ctx, `${msg}:${facility}:${fields.change}:${fields.zone}:${fields.seat ?? ""}`, msg, { facility, ...fields });
   for (const z of seen) if (!known.has(z)) once("ulju zone drift", { change: "new", zone: z });
   for (const z of known) if (!seen.has(z)) once("ulju zone drift", { change: "gone", zone: z });
   for (const zone of zones) {

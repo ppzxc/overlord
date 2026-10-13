@@ -1,5 +1,5 @@
 // 어댑터가 같이 쓰는 신호 분류의 공통부. 울산 중구(junggu)와 북구(bukgu)가 글자까지 같게 쓰던 것에 리다이렉트 판정(`redirectOf`)을 더했다.
-import { AdapterError, type TransportResponse } from "./types.js";
+import { AdapterError, type AdapterContext, type HttpClient, type TransportResponse } from "./types.js";
 import { BlockedPathError } from "./http.js";
 
 /** 봇 탐지 장치·captcha 표지. ADR 0002가 넘지 않는 선으로 꼽은 장치의 이름이다. 나타나면 새 신호로 보고 멈춘다(`blocked`). */
@@ -47,4 +47,16 @@ export class UnitStructureError extends AdapterError {
   constructor(message: string) {
     super("unrecognized", message);
   }
+}
+
+/** 세션(HttpClient)마다 이미 경고한 차이(키 문자열). */
+const warnedDrift = new WeakMap<HttpClient, Set<string>>();
+
+/** 같은 세션에서 같은 `key`의 차이는 한 번만 로그로 남긴다. 구역·자리 차이 경고용이다. */
+export function warnDriftOnce(ctx: AdapterContext, key: string, msg: string, fields: Record<string, unknown>): void {
+  const warned = warnedDrift.get(ctx.http) ?? new Set<string>();
+  warnedDrift.set(ctx.http, warned);
+  if (warned.has(key)) return;
+  warned.add(key);
+  ctx.log?.(msg, fields);
 }

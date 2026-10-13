@@ -10,8 +10,7 @@ import {
 } from "../types.js";
 import { facilities, rowClassZones } from "../catalogs/bukgu.js";
 import { resolveFacility, zoneName } from "../facility.js";
-import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
-import { warnDriftOnce } from "../netfunnel.js";
+import { BOT_DETECTION, UnitStructureError, assertOk, send, warnDriftOnce } from "../adapter-signals.js";
 import { addDays, kstDate, nextMonthOf, weekdayKey } from "../schedule.js";
 import { tlsStreakRound } from "../tls-streak.js";
 

@@ -13,7 +13,8 @@ import { resolveFacility } from "../facility.js";
 import { filterSeats } from "../seats.js";
 import { isLotteryHeld, parseLottery, type LotterySchedule } from "../knps-lottery.js";
 import { kstDate } from "../schedule.js";
-import { completeQueue, enterQueue, netfunnelScriptCheck, setNetFunnelCookie, warnDriftOnce, type NetFunnelQueue } from "../netfunnel.js";
+import { warnDriftOnce } from "../adapter-signals.js";
+import { completeQueue, enterQueue, netfunnelScriptCheck, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "reservation.knps.or.kr";
 const ORIGIN = `https://${HOST}`;

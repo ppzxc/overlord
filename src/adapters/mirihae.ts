@@ -24,8 +24,7 @@ import {
 } from "../types.js";
 import { facilities } from "../catalogs/mirihae.js";
 import { resolveFacility } from "../facility.js";
-import { BOT_DETECTION, ConnectionFailure, UnitStructureError, assertOk, redirectOf, send, unknownRedirect } from "../adapter-signals.js";
-import { warnDriftOnce } from "../netfunnel.js";
+import { BOT_DETECTION, ConnectionFailure, UnitStructureError, assertOk, redirectOf, send, unknownRedirect, warnDriftOnce } from "../adapter-signals.js";
 import { addDays } from "../schedule.js";
 
 const ORIGIN = "https://mirihae.com";

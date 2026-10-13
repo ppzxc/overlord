@@ -11,7 +11,8 @@ import {
 
 import { facilities } from "../catalogs/donghae.js";
 import { resolveFacility } from "../facility.js";
-import { acquireKey, forgetKey, netfunnelScriptCheck, releaseKey, warnDriftOnce, type NetFunnelQueue, type QueuePass } from "../netfunnel.js";
+import { warnDriftOnce } from "../adapter-signals.js";
+import { acquireKey, forgetKey, netfunnelScriptCheck, releaseKey, type NetFunnelQueue, type QueuePass } from "../netfunnel.js";
 
 const WWW = "https://www.campingkorea.or.kr";
 const RESERVATION = `${WWW}/user/reservation`;

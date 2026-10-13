@@ -10,10 +10,10 @@ import {
 } from "../types.js";
 import { facilities } from "../catalogs/junggu.js";
 import { resolveFacility } from "../facility.js";
-import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
+import { BOT_DETECTION, UnitStructureError, assertOk, send, warnDriftOnce } from "../adapter-signals.js";
 import { addDays, kstDate } from "../schedule.js";
 import { tlsStreakRound } from "../tls-streak.js";
-import { enterQueue, netfunnelScriptCheck, setNetFunnelCookie, warnDriftOnce, type NetFunnelQueue } from "../netfunnel.js";
+import { enterQueue, netfunnelScriptCheck, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
 
 const HOST = "camping.junggu.ulsan.kr";
 const ORIGIN = `https://${HOST}`;

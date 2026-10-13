@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { adapters } from "../src/adapters/index.js";
 import { runCatalog } from "../src/commands.js";
@@ -390,8 +391,27 @@ describe("ulju 신호 분류", () => {
     await p.stop();
   });
 
-  it("200 응답이 로그인 화면이면 blocked로 멈추고 알린다", async () => {
-    const p = run({ from: "2026-10-16" }, { server: uljuServer({ day: () => ({ status: 200, body: '<html><a href="/ujcamping/memberIntro/login">로그인</a></html>' }) }) });
+  it("메뉴의 로그인 링크와 captcha 낱말만 있는 예약처 틀 HTML은 첫 바퀴 unrecognized이고 2바퀴 연속이면 구조 변경으로 멈춘다", async () => {
+    // 기록한 예약 화면(research/raw/ulju/booking.html): 메뉴에 memberIntro/login 링크가 있다. captcha 낱말을 안내문에 더한다.
+    const frame = readFileSync(new URL("../research/raw/ulju/booking.html", import.meta.url), "utf8").replace("</body>", "<p>captcha 안내</p></body>");
+    expect(frame).toContain("memberIntro/login");
+    const p = run({ from: "2026-10-16" }, { server: uljuServer({ day: () => ({ status: 200, body: frame }) }) });
+    await settle();
+    expect(failedKinds(p)).toEqual(["unrecognized"]);
+    expect(p.sent).toHaveLength(0);
+    await p.clock.advance(150_000);
+    await settle();
+    expect(failedKinds(p)).toEqual(["unrecognized", "unrecognized"]);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toMatch(/구조가 바뀌/);
+    await p.stop();
+  });
+
+  it.each([
+    ["로그인 폼", '<html><form action="/ujcamping/memberIntro/login_proc"><input type="password" name="pw"></form></html>'],
+    ["차단 안내 문구", "<html>비정상적인 접근이 감지되어 접근이 차단되었습니다</html>"],
+  ])("200 응답이 실제 %s이면 곧바로 blocked로 멈추고 알린다", async (_name, body) => {
+    const p = run({ from: "2026-10-16" }, { server: uljuServer({ day: () => ({ status: 200, body }) }) });
     await settle();
     expect(failedKinds(p)).toEqual(["blocked"]);
     expect(p.sent).toHaveLength(1);

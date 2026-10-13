@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
+import * as cheerio from "cheerio";
 import { donghaeAdapter } from "../src/adapters/donghae.js";
 import { bukguAdapter } from "../src/adapters/bukgu.js";
 import { goraebulAdapter } from "../src/adapters/goraebul.js";
 import { jungguAdapter } from "../src/adapters/junggu.js";
 import { knpsAdapter } from "../src/adapters/knps.js";
+import { mirihaeAdapter } from "../src/adapters/mirihae.js";
 import { uljuAdapter } from "../src/adapters/ulju.js";
 import { xticketAdapter } from "../src/adapters/xticket.js";
 import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
@@ -148,7 +150,7 @@ export function startPoller(
   const done = runPoller(
     {
       config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV, opts.adapters),
-      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter, xticket: xticketAdapter, ulju: uljuAdapter, junggu: jungguAdapter, bukgu: bukguAdapter },
+      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter, xticket: xticketAdapter, ulju: uljuAdapter, junggu: jungguAdapter, bukgu: bukguAdapter, mirihae: mirihaeAdapter },
       transport,
       clock,
       sink,
@@ -681,3 +683,119 @@ export function bukguServer(
   };
   return Object.assign(respond, { forms });
 }
+
+/** 기록한 미리해 응답(research/raw/mirihae, 2026-10-13 09:24 ~ 09:31 KST)을 읽는다. */
+const mirihaeRaw = recordedRaw("mirihae");
+
+/** 가짜 서버가 입장 토큰·대기 토큰 자리(`<MASKED>`)에 채워 주는 시험용 값. 기록에서는 토큰을 가렸다. */
+export const MIRIHAE_ENTERING_TOKEN = "TEST-ENTERING-TOKEN";
+export const MIRIHAE_WAITING_TOKEN = "TEST-WAITING-TOKEN";
+const MIRIHAE_PAGE_PATH = "/dytc/camping/V39628874";
+
+/**
+ * 기록한 천동 예약 화면(2026-10-13 09:26 KST). 이번 달(2026-10)이고 10/14 ~ 10/31 칸이 `click`이며 구역 야영장A·B·C의 남은 수가 칸마다 있다.
+ * 10/14는 A 18, B 18, C 29다. 이 화면은 `<input name="tocken">`의 값만 가렸고 나머지는 원문 그대로다.
+ */
+export const mirihaePage = (): string => mirihaeRaw("camping_V39628874.html");
+
+/**
+ * 기록한 예약 화면을 고친 변형. 칸(`div.td#YYYY-MM-DD`)을 cheerio로 고쳐서 만든다. 기록은 10/14 ~ 10/31의 칸만 구역 남은 수를 갖는다.
+ * `counts`는 날짜 → 구역 이름 → 남은 수이고 그 칸의 `dt`만 바꾼다. 날짜 칸의 구조를 바꾸려면 `edit`을 쓴다.
+ */
+export function mirihaePageWith(counts: Record<string, Record<string, number | string>>, edit?: ($: cheerio.CheerioAPI) => void): string {
+  return withCounts(mirihaePage(), counts, edit);
+}
+
+/** 기록한 `calendar.do` 응답(2026-11 또는 2026-12)을 고친 변형. `counts`와 `edit`은 `mirihaePageWith`와 같다. 기록이 아니라 기록을 고쳐 만든 합성 응답이다. */
+export function mirihaeCalendarWith(month: string, counts: Record<string, Record<string, number | string>>, edit?: ($: cheerio.CheerioAPI) => void): string {
+  return withCounts(mirihaeRaw(`calendar.do_V39628874_${month}.html`), counts, edit);
+}
+
+function withCounts(html: string, counts: Record<string, Record<string, number | string>>, edit?: ($: cheerio.CheerioAPI) => void): string {
+  const $ = cheerio.load(html);
+  for (const [date, zones] of Object.entries(counts)) {
+    for (const [zone, n] of Object.entries(zones)) {
+      const dl = $(`div.td[id="${date}"] dl.schedule`).filter((_, el) => $(el).find("dd").text().trim() === zone);
+      dl.find("dt").text(String(n));
+    }
+  }
+  edit?.($);
+  return $.html();
+}
+
+/** 기록한 `/api/entering` 401 응답 본문. */
+const mirihaeEntering401 = () => mirihaeRaw("api_entering_401.json");
+
+/**
+ * 가짜 미리해 서버. 기록한 흐름을 흉내 낸다: 예약 화면은 `gateToken`이 없으면 302로 게이트 화면(`cdn.mirihae.com:9443/entering.html?uri=…`)에 보내고,
+ * `/api/entering`은 `X-Mirihae-Reservation-Token` 헤더가 없으면 401, 있으면 200 `{enteringToken, uri}`를 주며,
+ * `POST /api/waiting`은 대기 토큰을, `GET /api/waiting`은 대기 토큰 헤더를 보면 200 `{enteringToken, uri}`를 준다.
+ * 응답 본문은 기록한 원문이고 토큰 자리만 시험용 값으로 채운다. 425(대기 중)는 기록하지 못해 `waiting`으로 `waiting.js`가 읽는 모양으로 만들어 준다(기록 아님).
+ */
+export function mirihaeServer(
+  opts: {
+    /** `GET /api/waiting`의 몇 번째(0부터) 요청에 줄 응답. 없으면 기록한 대로 바로 200이다. */
+    waiting?: (nth: number) => TransportResponse | undefined;
+    /** `/api/entering`의 몇 번째(0부터) 요청에 줄 응답. 없으면 기록한 대로 토큰이 없으면 401, 있으면 200이다. */
+    entering?: (nth: number, req: TransportRequest) => TransportResponse | undefined;
+    /** `POST /api/waiting` 응답. 없으면 기록한 대로 200과 대기 토큰이다. */
+    waitingPost?: () => TransportResponse | undefined;
+    /** 입장 토큰을 단 예약 화면 요청에 줄 응답. 없으면 기록한 화면이다. */
+    page?: (req: TransportRequest) => TransportResponse | undefined;
+    /** 모든 요청에 앞서 응답을 가로챈다. */
+    intercept?: (req: TransportRequest) => TransportResponse | undefined;
+    /** 예약 화면 경로(여럿이면 시설 여럿). 없으면 천동이다. 어느 경로든 같은 기록한 화면을 주므로 시설마다 다르게 주려면 `page`가 요청 경로를 본다. */
+    pagePath?: string | string[];
+    /** `POST /camping/calendar.do`에 줄 응답. 없으면 `selectMonth`에 맞는 기록한 달력(2026-11, 2026-12)이다. */
+    calendar?: (month: string, req: TransportRequest) => TransportResponse | undefined;
+  } = {},
+) {
+  const pagePaths = [opts.pagePath ?? MIRIHAE_PAGE_PATH].flat();
+  const nth = { entering: 0, waiting: 0 };
+  const enteringBody = () => mirihaeRaw("api_entering_200.json").replace("<MASKED>", MIRIHAE_ENTERING_TOKEN);
+  const respond = (req: TransportRequest): TransportResponse => {
+    const hijacked = opts.intercept?.(req);
+    if (hijacked) return hijacked;
+    const url = new URL(req.url);
+    if (url.hostname === "cdn.mirihae.com" && url.port === "9443") return { status: 200, body: mirihaeRaw("entering.html") };
+    if (url.hostname === "cdn.mirihae.com") {
+      if (url.pathname === "/api/entering" && req.method === "GET") {
+        const n = nth.entering++;
+        const custom = opts.entering?.(n, req);
+        if (custom) return custom;
+        return req.headers["X-Mirihae-Reservation-Token"] === MIRIHAE_ENTERING_TOKEN
+          ? { status: 200, body: enteringBody() }
+          : { status: 401, body: mirihaeEntering401() };
+      }
+      if (url.pathname === "/api/waiting" && req.method === "POST") {
+        return opts.waitingPost?.() ?? { status: 200, body: MIRIHAE_WAITING_TOKEN };
+      }
+      if (url.pathname === "/api/waiting" && req.method === "GET") {
+        const n = nth.waiting++;
+        const custom = opts.waiting?.(n);
+        if (custom) return custom;
+        return req.headers["X-Mirihae-Waiting-Token"] === MIRIHAE_WAITING_TOKEN
+          ? { status: 200, body: mirihaeRaw("api_waiting_GET_1_200.json").replace("<MASKED>", MIRIHAE_ENTERING_TOKEN) }
+          : { status: 401, body: "" };
+      }
+      return { status: 404, body: "" };
+    }
+    if (url.hostname !== "mirihae.com") return { status: 404, body: "" };
+    if (req.method === "GET" && pagePaths.includes(url.pathname)) {
+      if (url.searchParams.get("gateToken") !== MIRIHAE_ENTERING_TOKEN) {
+        return { status: 302, body: "", location: `https://cdn.mirihae.com:9443/entering.html?uri=https://mirihae.com${url.pathname}` };
+      }
+      return opts.page?.(req) ?? { status: 200, body: mirihaePage(), setCookie: ["mirihae=sess1; Path=/; Secure; HttpOnly; SameSite=Lax"] };
+    }
+    if (req.method === "POST" && url.pathname === "/camping/calendar.do") {
+      const month = new URLSearchParams(req.body ?? "").get("selectMonth") ?? "";
+      return opts.calendar?.(month, req) ?? mirihaeRecordedCalendar(month) ?? { status: 404, body: "" };
+    }
+    return { status: 404, body: "" };
+  };
+  return respond;
+}
+
+/** 기록한 `POST /camping/calendar.do` 응답(2026-10-13 09:28 KST, research/raw/mirihae). 11월은 11/01 ~ 11/14가 `click`이고 12월은 모두 닫혀 있다. 그 밖의 달은 기록이 없다. */
+export const mirihaeRecordedCalendar = (month: string): TransportResponse | undefined =>
+  ["2026-11", "2026-12"].includes(month) ? { status: 200, body: mirihaeRaw(`calendar.do_V39628874_${month}.html`) } : undefined;

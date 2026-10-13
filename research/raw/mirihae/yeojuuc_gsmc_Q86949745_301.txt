@@ -1,0 +1,3 @@
+# yeojuuc.or.kr/camping/gsmc/camping/Q86949745
+status 301
+location https://cdn.mirihae.com/entering.html?uri=https://yeojuuc.or.kr/camping/gsmc/camping/Q86949745

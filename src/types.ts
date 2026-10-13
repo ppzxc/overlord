@@ -34,6 +34,8 @@ export interface RequestOptions {
   contentType?: string;
   /** 중단 신호가 서 있어도 보낸다. 종료 때 대기열에 마무리를 알리는 요청용이다. */
   ignoreAbort?: boolean;
+  /** false면 리다이렉트를 따라가지 않고 3xx 응답(`location` 포함)을 그대로 돌려준다. 접근 금지 경로 검사는 요청 주소에만 적용된다. 미리해 게이트처럼 `Location`의 값만 읽을 때 쓴다. */
+  followRedirects?: false;
   /** 이 요청에만 더하는 헤더. Referer·Origin처럼 예약처가 브라우저 요청인지 보는 값에 쓴다. */
   headers?: Record<string, string>;
 }
@@ -138,6 +140,8 @@ export interface AvailableSite {
 
 /** 예약처 응답에서 실제로 본 구역 이름과, 어댑터가 모르는 값을 준 구역. */
 export interface ZoneObservation {
+  /** 비교할 구역을 응답에서 볼 수 없던 이유(예: 달력에 구역이 하나도 없다). 있으면 `zones`는 비어 있고 catalog --live는 비교 없이 이 이유를 알리며 실패로 치지 않는다. */
+  nothingToCompare?: string;
   zones: string[];
   unknown: { zone: string; value: string }[];
 }

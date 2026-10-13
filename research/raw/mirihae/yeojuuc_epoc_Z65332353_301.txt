@@ -1,0 +1,3 @@
+# yeojuuc.or.kr/camping/epoc/camping/Z65332353 (mirihae.com이 보낸 곳). 리다이렉트를 따라가지 않았다.
+status 301
+location https://cdn.mirihae.com/entering.html?uri=https://yeojuuc.or.kr/camping/epoc/camping/Z65332353

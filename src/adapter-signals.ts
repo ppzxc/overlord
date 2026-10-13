@@ -1,4 +1,4 @@
-// 울산 중구(junggu)와 북구(bukgu) 어댑터가 같이 쓰는 신호 분류의 공통부. 두 어댑터에서 글자까지 같던 것만 모았다.
+// 어댑터가 같이 쓰는 신호 분류의 공통부. 울산 중구(junggu)와 북구(bukgu)가 글자까지 같게 쓰던 것에 리다이렉트 판정(`redirectOf`)을 더했다.
 import { AdapterError, type TransportResponse } from "./types.js";
 import { BlockedPathError } from "./http.js";
 
@@ -12,7 +12,14 @@ export function assertOk(res: TransportResponse, where: string): void {
   if (res.status !== 200) throw new AdapterError("unrecognized", `${where}: 예상 밖 HTTP ${res.status}`);
 }
 
-/** 요청 하나를 보낸다. 접근 금지 경로(로그인으로 리다이렉트 포함)는 차단, 연결 실패·시간 초과는 일시 오류다. */
+/** 요청이 나가거나 돌아오지 못한 연결 실패·시간 초과(일시 오류). 예약처 전체의 문제일 수 있어 어댑터가 다른 시설 조회를 이어갈지 가를 때 쓴다. */
+export class ConnectionFailure extends AdapterError {
+  constructor(message: string, options?: ErrorOptions) {
+    super("transient", message, options);
+  }
+}
+
+/** 요청 하나를 보낸다. 접근 금지 경로(로그인으로 리다이렉트 포함)는 차단, 연결 실패·시간 초과는 일시 오류(`ConnectionFailure`)다. */
 export async function send<T extends TransportResponse>(where: string, request: () => Promise<T>): Promise<T> {
   try {
     return await request();
@@ -20,9 +27,20 @@ export async function send<T extends TransportResponse>(where: string, request: 
     if (e instanceof BlockedPathError) throw new AdapterError("blocked", `${where}: 로그인·접근 금지 경로로 보내졌다(${e.message})`);
     if (e instanceof AdapterError) throw e;
     // 원인(예: TLS 검증 실패의 cause.code)을 `tlsStreakRound`가 읽을 수 있게 cause로 남긴다.
-    throw new AdapterError("transient", `${where}: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+    throw new ConnectionFailure(`${where}: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
   }
 }
+
+/** 3xx 응답의 이동 주소(`base` 기준 절대 주소). 3xx가 아니거나 `Location`이 없으면 undefined다. 로그인 화면으로 보내면 차단이다. */
+export function redirectOf(res: TransportResponse, base: string, where: string): URL | undefined {
+  if (!(res.status >= 300 && res.status < 400 && res.location)) return undefined;
+  const to = new URL(res.location, base);
+  if (/\/login/i.test(to.pathname)) throw new AdapterError("blocked", `${where}: 로그인(${to.pathname})으로 보냈다`);
+  return to;
+}
+
+/** 어댑터가 알지 못하는 곳으로 가는 3xx는 구조 변경이다. */
+export const unknownRedirect = (to: URL, where: string): AdapterError => new AdapterError("unrecognized", `${where}: 알 수 없는 곳(${to.host}${to.pathname})으로 보냈다`);
 
 /** 요청 없이 한 조회 단위만 보고 나온 구조 변경 판정. 그 단위만 실패로 치고 다른 단위의 조회는 막지 않는다. */
 export class UnitStructureError extends AdapterError {

@@ -155,6 +155,7 @@ async function renderZoneDiff(
     if (!(e instanceof AdapterError)) throw e;
     return { text: `조회 실패(${e.kind}): ${e.message}\n`, failed: true };
   }
+  if (seen.nothingToCompare) return { text: `${seen.nothingToCompare}\n`, failed: false };
   const fixed = facility.zones.map((z) => z.name);
   const missing = fixed.filter((n) => !seen.zones.includes(n));
   const added = seen.zones.filter((n) => !fixed.includes(n));

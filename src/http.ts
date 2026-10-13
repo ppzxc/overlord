@@ -85,11 +85,11 @@ export function createHttpClient(opts: {
   };
 
   // 리다이렉트를 직접 따라간다. 홉마다 접근 금지 경로를 검사하고 쿠키를 담고 싣는다. 간격은 한 칸만 쓴다.
-  const send = async (method: TransportRequest["method"], url: string, body?: string, contentType?: string, extra?: Record<string, string>) => {
+  const send = async (method: TransportRequest["method"], url: string, body?: string, contentType?: string, extra?: Record<string, string>, follow = true) => {
     for (let hop = 0; ; hop++) {
       assertAllowed(url);
       const res = await sendOnce(method, url, body, contentType, extra);
-      if (!REDIRECT_STATUSES.has(res.status) || !res.location) return res;
+      if (!follow || !REDIRECT_STATUSES.has(res.status) || !res.location) return res;
       if (hop === MAX_REDIRECTS) throw new RedirectLimitError(url);
       url = new URL(res.location, url).toString();
       // fetch처럼 303과, POST에 대한 301·302는 본문 없는 GET으로 바꾼다. 307·308은 그대로 다시 보낸다.
@@ -112,7 +112,7 @@ export function createHttpClient(opts: {
       return Promise.reject(e);
     }
     if (pacing?.signal.aborted && !reqOpts.ignoreAbort) return Promise.reject(new Error("중단되었다"));
-    if (!pacing || reqOpts.unpaced) return send(method, url, body, reqOpts.contentType, reqOpts.headers);
+    if (!pacing || reqOpts.unpaced) return send(method, url, body, reqOpts.contentType, reqOpts.headers, reqOpts.followRedirects);
     const run = queue.then(async () => {
       if (lastAt !== undefined) {
         const wait = lastAt + REQUEST_GAP_MS + pacing.random() * REQUEST_JITTER_MS - pacing.clock.now().getTime();
@@ -120,7 +120,7 @@ export function createHttpClient(opts: {
       }
       if (pacing.signal.aborted) throw new Error("중단되었다");
       try {
-        return await send(method, url, body, reqOpts.contentType, reqOpts.headers);
+        return await send(method, url, body, reqOpts.contentType, reqOpts.headers, reqOpts.followRedirects);
       } finally {
         lastAt = pacing.clock.now().getTime();
       }

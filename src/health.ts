@@ -33,7 +33,7 @@ export function worstFailure(failures: Failure[]): Failure | undefined {
   return [...failures].sort((a, b) => SEVERITY.indexOf(a.kind) - SEVERITY.indexOf(b.kind))[0];
 }
 
-/** 예약처 하나의 헬스 상태 머신. 바퀴 결과를 먹이면 다음 간격과 보낼 알림을 알려 준다. */
+/** 예약처 하나의 상태 머신. 바퀴 결과를 먹이면 다음 간격과 보낼 알림을 알려 준다. */
 export class ProviderHealth {
   status: HealthStatus = "ok";
   /** 지금 상태가 시작된 시각(ms). 상태가 한 번도 바뀌지 않았으면 undefined. */

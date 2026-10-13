@@ -245,7 +245,7 @@ describe("북구 폴러", () => {
         await p.clock.advance(300_000); // 일시 오류 뒤 간격은 두 배다.
         await settle();
         expect(failedKinds(p)).toEqual(["transient", "unrecognized"]);
-        expect(alerts(p)).toHaveLength(0); // unrecognized도 첫 바퀴는 아직 장애로 치지 않는다(헬스 상태 머신 그대로).
+        expect(alerts(p)).toHaveLength(0); // unrecognized도 첫 바퀴는 아직 장애로 치지 않는다(예약처 상태 머신 그대로).
         await p.clock.advance(150_000);
         await settle();
         expect(failedKinds(p)).toEqual(["transient", "unrecognized", "unrecognized"]);
@@ -301,7 +301,7 @@ describe("북구 폴러", () => {
       await p.stop();
     });
 
-    it("표 자리에 로그인 링크만 걸린 사이트 화면이 오면(로그인 요구가 아니다) blocked가 아니라 unrecognized다", async () => {
+    it("표 자리에 로그인 링크만 걸린 예약처 화면이 오면(로그인 요구가 아니다) blocked가 아니라 unrecognized다", async () => {
       // 기록한 모든 전체 화면은 머리말에 `<a href="/login.do" class="login_btn">`을 단다. 오류 화면도 같은 틀을 쓰면 이 링크가 실린다.
       const article = readFileSync(new URL("../research/raw/bukgu/BBS_000Article_3301.html", import.meta.url), "utf8");
       const p = run({ from: "2026-10-14" }, { server: respond(article) });

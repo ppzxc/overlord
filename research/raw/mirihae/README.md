@@ -18,7 +18,7 @@ TLS 검증은 Node 기본 루트 그대로이고 끈 곳이 없다. 리다이렉
 9. GET `mirihae.com/dytc/camping/V39628874?gateToken=<enteringToken>` -> **200**, 114,695자, `text/html;charset=UTF-8`, `Set-Cookie: mirihae=…; Path=/; Secure; HttpOnly; SameSite=Lax` 두 개(이름이 같다) (09:26:28) -> `camping_V39628874.html`.
 10. 같은 `gateToken`으로 9번을 한 번 더 -> 200, 같은 114,695자 (09:27:59, 토큰을 받은 지 약 100초 뒤). 저장하지 않았다.
 11. POST `mirihae.com/camping/calendar.do` (페이지 `searchForm`을 직렬화한 form 본문, `selectMonth=2026-11`과 `2026-12`, 쿠키·`Referer`·`X-Requested-With`·`Origin` 실음) -> 200 (09:28:05, 09:28:13) -> `calendar.do_V39628874_2026-11.html`, `calendar.do_V39628874_2026-12.html`.
-    다음 조각(#85)이 쓸 응답이다. 달력만 바꾸는 호출이고 날짜·구역을 고르는 호출이 아니다. 새 쿠키를 주지 않았다.
+    다음 조각(#85)이 이 응답을 fixture로 쓴다(#85는 미리해로 새 요청을 보내지 않았다). 달력만 바꾸는 호출이고 날짜·구역을 고르는 호출이 아니다. 새 쿠키를 주지 않았다.
 12. GET `mirihae.com/camping/js/v2/reservation.js?v=2`, `common.js?v=250806`, `sub.js?v=240313`, `mirihae.com/global/js/common/notice-layers.js?v=20260707-1` -> 200 (09:28:42 ~ 09:29:00) -> 같은 이름의 파일. 페이지가 싣는 스크립트다. 봇 탐지·captcha 표지를 찾으려고 읽었다.
 13. GET `mirihae.com/common/getImage.do?atchFileId=…` 두 건 -> 200 (09:29:19, 09:29:26). 천동 화면의 안내 팝업 이미지(운영 안내)다. 저장하지 않았다. 내용은 아래 "오픈 규칙".
 14. 9번과 같은 `gateToken`을 만료 20초 뒤에 한 번 더 -> **302** `Location: https://cdn.mirihae.com:9443/entering.html?uri=https://mirihae.com/dytc/camping/V39628874` (09:31:33) -> `camping_V39628874_expired_gateToken_302.txt`. 토큰을 바꾸거나 만들지 않았다.

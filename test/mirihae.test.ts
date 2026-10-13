@@ -4,7 +4,7 @@ import { runCatalog } from "../src/commands.js";
 import { ConfigError, loadConfig } from "../src/config.js";
 import { createHttpClient } from "../src/http.js";
 import type { TransportRequest } from "../src/types.js";
-import { ENV, MIRIHAE_ENTERING_TOKEN, MIRIHAE_WAITING_TOKEN, configWith, mirihaePageWith, mirihaeServer, settle, startPoller } from "./harness.js";
+import { ENV, MIRIHAE_ENTERING_TOKEN, MIRIHAE_WAITING_TOKEN, configWith, mirihaeCalendarWith, mirihaePage, mirihaePageWith, mirihaeServer, settle, startPoller } from "./harness.js";
 
 // 천동 오토캠핑장(danyang-cheondong, /dytc/camping/V39628874)의 기록한 응답(2026-10-13 09:24 ~ 09:31 KST, research/raw/mirihae)을 fixture로 쓴다.
 // 기록한 이번 달(2026-10) 화면은 10/14 ~ 10/31 칸이 모두 click이고 10/14는 야영장A 18, 야영장B 18, 야영장C 29다. 10/13(오늘)과 그 앞 칸에는 click이 없다.
@@ -13,21 +13,23 @@ import { ENV, MIRIHAE_ENTERING_TOKEN, MIRIHAE_WAITING_TOKEN, configWith, mirihae
 const NOW = "2026-10-13T09:30:00+09:00";
 const PAGE = "https://mirihae.com/dytc/camping/V39628874";
 
-const watch = (checkIn: { from: string; to?: string }, zones: string[] = ["야영장A"], facility = "danyang-cheondong") => `
+const watch = (checkIn: { from: string; to?: string }, zones: string[] = ["야영장A"], facility = "danyang-cheondong", nights = 1) => `
   - name: 천동 ${checkIn.from}
     provider: mirihae
     facility: ${facility}
     zones: [${zones.join(", ")}]
     checkIn: { from: ${checkIn.from}, to: ${checkIn.to ?? checkIn.from} }
-    nights: 1
+    nights: ${nights}
     notify: [default]`;
+
+const withInterval = (yaml: string, seconds?: number) => (seconds === undefined ? yaml : yaml.replace("providers:\n", `providers:\n  mirihae: { pollIntervalSeconds: ${seconds} }\n`));
 
 const run = (
   checkIn: { from: string; to?: string },
-  opts: { server?: ReturnType<typeof mirihaeServer>; zones?: string[]; random?: () => number; now?: string } = {},
+  opts: { server?: ReturnType<typeof mirihaeServer>; zones?: string[]; random?: () => number; now?: string; nights?: number; pollIntervalSeconds?: number } = {},
 ) =>
   startPoller(() => ({ status: 404, body: "" }), {
-    yaml: configWith(watch(checkIn, opts.zones)),
+    yaml: withInterval(configWith(watch(checkIn, opts.zones, "danyang-cheondong", opts.nights)), opts.pollIntervalSeconds),
     server: opts.server ?? mirihaeServer(),
     random: opts.random,
     now: opts.now ?? NOW,
@@ -160,7 +162,7 @@ describe("미리해 폴러", () => {
       await p.stop();
     });
 
-    it("바퀴마다 게이트를 새로 지난다", async () => {
+    it("입장 토큰 수명(300초)이 지난 뒤의 바퀴는 게이트를 새로 지난다", async () => {
       const p = run({ from: "2026-10-14" });
       await settle();
       expect(p.allRequests).toHaveLength(6);
@@ -170,6 +172,105 @@ describe("미리해 폴러", () => {
       // 둘째 바퀴 첫 입장 요청에 지난 바퀴의 토큰이 실리지 않는다.
       expect(p.allRequests[7]!.headers["X-Mirihae-Reservation-Token"]).toBeUndefined();
       expect(p.allRequests[7]!.headers.Cookie ?? "").not.toContain("X-Mirihae-Reservation-Token");
+      await p.stop();
+    });
+  });
+
+  describe("gateToken 재사용", () => {
+    const line = (r: { method: string; url: string }) => {
+      const u = new URL(r.url);
+      return `${r.method} ${u.host}${u.pathname}${u.search.includes("gateToken") ? "?gateToken" : ""}`;
+    };
+    const failedKinds = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "query failed").map((l) => l.fields?.kind);
+    const GATE_302 = { status: 302, body: "", location: `https://cdn.mirihae.com:9443/entering.html?uri=${PAGE}` };
+    /** 간격 120초(±20%)라 다음 바퀴는 입장 토큰을 받은 뒤 300초 안에 시작한다. */
+    const short = { pollIntervalSeconds: 120 };
+    const lap = async (p: ReturnType<typeof run>) => {
+      await p.clock.advance(144_000);
+      await settle();
+    };
+    const FRESH = ["GET mirihae.com/dytc/camping/V39628874", "GET cdn.mirihae.com/api/entering", "POST cdn.mirihae.com/api/waiting", "GET cdn.mirihae.com/api/waiting", "GET cdn.mirihae.com/api/entering", "GET mirihae.com/dytc/camping/V39628874?gateToken"];
+
+    it("수명 안의 두 번째 바퀴는 게이트 요청 없이 같은 gateToken을 붙인 예약 화면부터 시작하고 calendar.do도 보낸다", async () => {
+      const p = run({ from: "2026-11-02" }, { ...short });
+      await settle();
+      await p.clock.advance(10_000); // 첫 바퀴의 calendar.do
+      await settle();
+      expect(p.allRequests.map(line)).toEqual([...FRESH, "POST mirihae.com/camping/calendar.do"]);
+      await lap(p);
+      await p.clock.advance(10_000);
+      await settle();
+      expect(p.allRequests.slice(7).map(line)).toEqual(["GET mirihae.com/dytc/camping/V39628874?gateToken", "POST mirihae.com/camping/calendar.do"]);
+      expect(p.allRequests[7]!.url).toBe(`${PAGE}?gateToken=${MIRIHAE_ENTERING_TOKEN}`); // 토큰 값을 바꾸지 않는다
+      expect(p.allRequests[8]!.headers.Cookie).toContain("mirihae=sess1"); // 이 바퀴의 화면이 준 세션
+      expect(failedKinds(p)).toEqual([]);
+      const reused = p.logs.filter((l) => l.msg === "mirihae gateToken reused");
+      expect(reused).toHaveLength(1);
+      expect(JSON.stringify(reused)).not.toContain(MIRIHAE_ENTERING_TOKEN); // 토큰 값은 로그에 남기지 않는다
+      await p.stop();
+    });
+
+    it("재사용한 토큰을 서버가 게이트로 되돌려 보내면 실패로 치지 않고 같은 바퀴에서 게이트를 새로 지나며 헬스 알림이 없다", async () => {
+      let pageHits = 0;
+      const server = mirihaeServer({ page: () => (++pageHits === 2 ? GATE_302 : undefined) }); // 둘째 바퀴의 재사용 요청만 거절한다
+      const p = run({ from: "2026-10-14" }, { ...short, server });
+      await settle();
+      expect(p.sent).toHaveLength(1);
+      await lap(p);
+      // 거절한 302의 uri로 바로 게이트를 지난다(예약 화면을 따로 한 번 더 부르지 않는다).
+      expect(p.allRequests.slice(6).map(line)).toEqual([
+        "GET mirihae.com/dytc/camping/V39628874?gateToken",
+        "GET cdn.mirihae.com/api/entering",
+        "POST cdn.mirihae.com/api/waiting",
+        "GET cdn.mirihae.com/api/waiting",
+        "GET cdn.mirihae.com/api/entering",
+        "GET mirihae.com/dytc/camping/V39628874?gateToken",
+      ]);
+      expect(p.allRequests[7]!.headers["X-Mirihae-Reservation-Token"]).toBeUndefined(); // 거절한 토큰을 게이트에 들고 가지 않는다
+      expect(failedKinds(p)).toEqual([]);
+      expect(p.sent).toHaveLength(1); // 헬스 알림도, 같은 빈자리의 재알림도 없다
+      expect(p.logs.filter((l) => l.msg === "mirihae gateToken rejected")).toHaveLength(1);
+      await p.stop();
+    });
+
+    it("재사용한 토큰에 401이 와도 같은 바퀴에서 게이트를 새로 지난다", async () => {
+      let pageHits = 0;
+      const server = mirihaeServer({ page: () => (++pageHits === 2 ? { status: 401, body: "" } : undefined) });
+      const p = run({ from: "2026-10-14" }, { ...short, server });
+      await settle();
+      await lap(p);
+      await p.clock.advance(10_000);
+      await settle();
+      // 401은 게이트 주소를 알려 주지 않으므로 예약 화면의 302로 uri를 읽고 지난다.
+      expect(p.allRequests.slice(6).map(line)).toEqual([
+        "GET mirihae.com/dytc/camping/V39628874?gateToken",
+        "GET mirihae.com/dytc/camping/V39628874",
+        ...FRESH.slice(1),
+      ]);
+      expect(failedKinds(p)).toEqual([]);
+      await p.stop();
+    });
+
+    it("새로 받은 토큰도 곧바로 거절되면 unrecognized이고 거절한 토큰은 다음 바퀴에 다시 쓰지 않는다", async () => {
+      const p = run({ from: "2026-10-14" }, { ...short, server: mirihaeServer({ page: () => GATE_302 }) });
+      await settle();
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
+      await lap(p);
+      await p.clock.advance(10_000);
+      await settle();
+      expect(p.allRequests.slice(6, 8).map(line)).toEqual(["GET mirihae.com/dytc/camping/V39628874", "GET cdn.mirihae.com/api/entering"]); // 재사용 없이 게이트부터
+      expect(p.logs.filter((l) => l.msg === "mirihae gateToken reused")).toEqual([]);
+      await p.stop();
+    });
+
+    it("게이트가 실패한 바퀴는 토큰을 남기지 않아 다음 바퀴는 게이트부터 시작한다", async () => {
+      const server = mirihaeServer({ entering: (n) => (n === 0 ? { status: 500, body: "" } : undefined) });
+      const p = run({ from: "2026-10-14" }, { ...short, server });
+      await settle();
+      expect(failedKinds(p)).toEqual(["transient"]);
+      for (let i = 0; i < 20 && p.allRequests.length === 2; i++) await lap(p); // 실패한 바퀴 뒤에는 헬스가 간격을 늘린다
+      expect(p.allRequests.slice(2).map(line).slice(0, 2)).toEqual(["GET mirihae.com/dytc/camping/V39628874", "GET cdn.mirihae.com/api/entering"]);
+      expect(p.logs.filter((l) => l.msg === "mirihae gateToken reused")).toEqual([]);
       await p.stop();
     });
   });
@@ -337,10 +438,10 @@ describe("미리해 폴러", () => {
       await p.stop();
     });
 
-    it("받은 입장 토큰을 서버가 게이트로 되돌려 보내면(거절) 그 화면을 따라가지 않고 transient다", async () => {
+    it("새로 받은 입장 토큰을 서버가 곧바로 게이트로 되돌려 보내면(거절) 그 화면을 따라가지 않고 unrecognized다", async () => {
       const p = run({ from: "2026-10-14" }, { server: pageServer(() => ({ status: 302, body: "", location: `https://cdn.mirihae.com:9443/entering.html?uri=${PAGE}` })) });
       await settle();
-      expect(failedKinds(p)).toEqual(["transient"]);
+      expect(failedKinds(p)).toEqual(["unrecognized"]);
       expect(p.allRequests.some((r) => r.url.includes(":9443"))).toBe(false);
       await p.stop();
     });
@@ -428,25 +529,166 @@ describe("미리해 폴러", () => {
     });
   });
 
-  describe("이번 달만 읽는다", () => {
-    it("이번 달 밖의 입실일은 빈자리 없음이고 이번 달 날짜와 함께 걸려도 예약 화면은 한 번만 받으며 calendar.do를 부르지 않는다", async () => {
-      const p = run({ from: "2026-10-30", to: "2026-11-02" });
+  describe("다른 달(calendar.do)", () => {
+    const calendarPosts = (p: ReturnType<typeof run>) => p.allRequests.filter((r) => r.method === "POST" && r.url.includes("calendar.do"));
+    const failed = (p: ReturnType<typeof run>) => p.logs.filter((l) => l.msg === "query failed").map((l) => ({ kind: l.fields?.kind, message: String(l.fields?.message) }));
+
+    it("다음 달 입실일은 예약 화면 뒤 calendar.do 한 번으로 판정해 알린다", async () => {
+      const p = run({ from: "2026-11-02" }, { zones: ["야영장B"] });
       await settle();
-      expect(p.allRequests.filter((r) => r.url.includes("gateToken"))).toHaveLength(1);
-      expect(p.allRequests.some((r) => r.url.includes("calendar.do"))).toBe(false);
+      expect(calendarPosts(p)).toHaveLength(1);
       expect(p.sent).toHaveLength(1);
-      expect(p.sent[0]!.text).toContain("2026-10-30(금)");
-      expect(p.sent[0]!.text).not.toContain("2026-11-0");
-      expect(p.logs.filter((l) => l.msg === "query failed")).toEqual([]);
+      expect(p.sent[0]!.text).toContain("2026-11-02(월) 1박 · 단양 천동 오토캠핑장 · 야영장B · 남은 17"); // 기록한 11월 화면의 11/02 야영장B
+      expect(failed(p)).toEqual([]);
       await p.stop();
     });
 
-    it("이번 달 밖의 날짜만 걸린 감시 조건은 게이트도 예약 화면도 요청하지 않는다", async () => {
-      const p = run({ from: "2026-11-02", to: "2026-11-03" });
+    it("calendar.do는 예약 화면의 searchForm을 직렬화하고 selectMonth만 바꾼 본문을 쿠키와 브라우저 헤더로 간격 큐 안에서 보낸다", async () => {
+      const p = run({ from: "2026-11-02" }); // random 0.5: 6.5초
       await settle();
-      expect(p.allRequests).toHaveLength(0);
-      expect(p.sent).toHaveLength(0);
+      const [post] = calendarPosts(p);
+      expect(p.allRequests.map((r) => `${r.method} ${new URL(r.url).pathname}`).slice(-2)).toEqual(["GET /dytc/camping/V39628874", "POST /camping/calendar.do"]);
+      expect(post!.url).toBe("https://mirihae.com/camping/calendar.do");
+      // 이름 있는 입력란이 문서 순서대로 오고(`reloadFlag`·`realPrice` 같은 이름 없는 것은 없다) 비어 있는 값도 싣는다. `tocken`은 이 바퀴의 화면에서 읽은 값이다.
+      const tocken = encodeURIComponent(/name="tocken"[^>]*value="([^"]*)"/.exec(mirihaePage())![1]!);
+      expect(post!.body).toBe(
+        `checkType=&device=pc&tocken=${tocken}&pageId=V39628874&groupCode=dytc&selectStartDate=&selectEndDate=&selectMonth=2026-11&selectItemId=&selectTicketId=&cnt=&infoType=&approvalId=&txId=`,
+      );
+      expect(post!.headers["Content-Type"]).toBe("application/x-www-form-urlencoded; charset=UTF-8");
+      expect(post!.headers["X-Requested-With"]).toBe("XMLHttpRequest");
+      expect(post!.headers.Origin).toBe("https://mirihae.com");
+      expect(post!.headers.Referer).toBe(PAGE);
+      expect(post!.headers.Cookie).toContain("mirihae=sess1"); // 예약 화면이 준 세션 쿠키
+      expect(post!.headers["User-Agent"]).toBe("overlord-availability-poller/0.1.0 (ops)");
+      const t = p.requestTimes;
+      expect(t[t.length - 1]! - t[t.length - 2]!).toBe(6_500); // 예약 화면과 같은 큐 안이다
       await p.stop();
+    });
+
+    it("같은 달을 쓰는 감시 조건이 여럿이어도 calendar.do는 달마다 한 번만 나간다", async () => {
+      const p = startPoller(() => ({ status: 404, body: "" }), {
+        yaml: configWith(watch({ from: "2026-11-02", to: "2026-11-05" }, ["야영장A", "야영장B"]), watch({ from: "2026-11-06", to: "2026-11-07" }, ["야영장C"]), watch({ from: "2026-12-01" })),
+        server: mirihaeServer(),
+        now: NOW,
+      });
+      await settle();
+      for (let i = 0; i < 3; i++) {
+        await p.clock.advance(10_000);
+        await settle();
+      }
+      expect(calendarPosts(p).map((r) => new URLSearchParams(r.body).get("selectMonth"))).toEqual(["2026-11", "2026-12"]);
+      expect(p.allRequests.filter((r) => r.url.includes("gateToken"))).toHaveLength(1);
+      expect(p.sent.map((m) => m.text).join("\n")).toContain("2026-11-06(금) 1박 · 단양 천동 오토캠핑장 · 야영장C · 남은 28");
+      await p.stop();
+    });
+
+    it("이번 달 날짜와 다음 달 날짜가 함께 걸려도 예약 화면은 한 번이고 이번 달 칸만 화면으로 읽는다", async () => {
+      const p = run({ from: "2026-10-30", to: "2026-11-01" });
+      await settle();
+      expect(p.allRequests.filter((r) => r.url.includes("gateToken"))).toHaveLength(1);
+      expect(calendarPosts(p)).toHaveLength(1);
+      const text = p.sent.map((m) => m.text).join("\n");
+      expect(text).toContain("2026-10-30(금) 1박 · 단양 천동 오토캠핑장 · 야영장A · 남은 14");
+      expect(text).toContain("2026-10-31(토) 1박 · 단양 천동 오토캠핑장 · 야영장A · 남은 12");
+      expect(text).toContain("2026-11-01(일) 1박 · 단양 천동 오토캠핑장 · 야영장A · 남은 18");
+      await p.stop();
+    });
+
+    it("기록한 12월 달력처럼 click이 하나도 없는 달은 빈자리 없음이고 실패가 아니다", async () => {
+      const p = run({ from: "2026-12-05" }, { now: "2026-10-13T09:30:00+09:00" });
+      await settle();
+      expect(calendarPosts(p)).toHaveLength(1);
+      expect(p.sent).toHaveLength(0);
+      expect(failed(p)).toEqual([]);
+      await p.stop();
+    });
+
+    describe("여러 박", () => {
+      it("이어지는 밤마다 남은 수가 1 이상이면 최솟값과 같은 자리 연속 보장 없음을 알린다", async () => {
+        const p = run({ from: "2026-11-06" }, { nights: 2 }); // 11/06 야영장A 16, 11/07 15
+        await settle();
+        expect(p.sent).toHaveLength(1);
+        expect(p.sent[0]!.text).toContain("2026-11-06(금) 2박 · 단양 천동 오토캠핑장 · 야영장A · 밤마다 남은 최소 15 (같은 자리 연속 보장 없음)");
+        expect(calendarPosts(p)).toHaveLength(1);
+        await p.stop();
+      });
+
+      it("둘째 밤 남은 수가 0이면 빈자리가 아니고 둘째 밤 칸에 click이 없어도 아니다", async () => {
+        const zeroSecond = mirihaeServer({ calendar: (m) => ({ status: 200, body: mirihaeCalendarWith(m, { "2026-11-07": { 야영장A: 0 } }) }) });
+        const a = run({ from: "2026-11-06" }, { nights: 2, server: zeroSecond });
+        await settle();
+        expect(a.sent).toHaveLength(0);
+        expect(failed(a)).toEqual([]);
+        await a.stop();
+        const closedSecond = mirihaeServer({ calendar: (m) => ({ status: 200, body: mirihaeCalendarWith(m, {}, ($) => void $('div.td[id="2026-11-07"]').removeClass("click")) }) });
+        const b = run({ from: "2026-11-06" }, { nights: 2, server: closedSecond });
+        await settle();
+        expect(b.sent).toHaveLength(0);
+        expect(failed(b)).toEqual([]);
+        await b.stop();
+      });
+
+      it("달을 넘는 2박(10/31 입실)은 이번 달 화면과 11월 calendar.do 한 번으로 판정하고 밤마다 최솟값을 쓴다", async () => {
+        const p = run({ from: "2026-10-31" }, { nights: 2 }); // 10/31 야영장A 12, 11/01 18
+        await settle();
+        expect(calendarPosts(p).map((r) => new URLSearchParams(r.body).get("selectMonth"))).toEqual(["2026-11"]);
+        expect(p.sent[0]!.text).toContain("2026-10-31(토) 2박 · 단양 천동 오토캠핑장 · 야영장A · 밤마다 남은 최소 12 (같은 자리 연속 보장 없음)");
+        await p.stop();
+      });
+
+      it("4박도 읽는다", async () => {
+        const p = run({ from: "2026-11-02" }, { nights: 4, zones: ["야영장B"] }); // 11/02 B 17, 11/03 18, 11/04 18, 11/05 18
+        await settle();
+        expect(p.sent[0]!.text).toContain("2026-11-02(월) 4박 · 단양 천동 오토캠핑장 · 야영장B · 밤마다 남은 최소 17 (같은 자리 연속 보장 없음)");
+        await p.stop();
+      });
+    });
+
+    describe("calendar.do 신호 분류", () => {
+      const calendarServer = (res: () => { status: number; body: string; location?: string }) => mirihaeServer({ calendar: () => res() });
+      const next = { from: "2026-11-02" };
+
+      it.each([
+        { title: "HTTP 403", res: () => ({ status: 403, body: "" }), kind: "blocked" },
+        { title: "HTTP 429", res: () => ({ status: 429, body: "" }), kind: "blocked" },
+        { title: "HTTP 503", res: () => ({ status: 503, body: "" }), kind: "transient" },
+        { title: "예상 밖 HTTP 404", res: () => ({ status: 404, body: "" }), kind: "unrecognized" },
+        { title: "로그인 경로로 리다이렉트", res: () => ({ status: 302, body: "", location: "https://mirihae.com/dytc/login.do" }), kind: "blocked" },
+        { title: "달력이 없는 본문", res: () => ({ status: 200, body: "<div>점검 중</div>" }), kind: "unrecognized" },
+        { title: "요청한 달이 아닌 달력(12월)", res: () => ({ status: 200, body: mirihaeCalendarWith("2026-12", {}) }), kind: "unrecognized" },
+        { title: "남은 수가 숫자가 아닌 칸", res: () => ({ status: 200, body: mirihaeCalendarWith("2026-11", { "2026-11-02": { 야영장A: "매진" } }) }), kind: "unrecognized" },
+        { title: "봇 탐지 표지", res: () => ({ status: 200, body: mirihaeCalendarWith("2026-11", {}, ($) => void $("body").append("<script>crawlingCheck()</script>")) }), kind: "blocked" },
+      ])("calendar.do가 $title 이면 $kind 이고 알리지 않는다", async ({ res, kind }) => {
+        const p = run(next, { server: calendarServer(res) });
+        await settle();
+        expect(failed(p).map((f) => f.kind)).toEqual([kind]);
+        expect(p.sent.filter((m) => m.text.includes("빈자리"))).toHaveLength(0);
+        expect(p.allRequests.some((r) => r.url.includes("login"))).toBe(false);
+        await p.stop();
+      });
+
+      it("calendar.do가 실패해도 이번 달 화면만 쓰는 조회 단위는 판정하고 그 달을 쓰는 단위만 실패다", async () => {
+        const p = startPoller(() => ({ status: 404, body: "" }), {
+          yaml: configWith(watch({ from: "2026-10-14" }), watch({ from: "2026-11-02" })),
+          server: calendarServer(() => ({ status: 503, body: "" })),
+          now: NOW,
+        });
+        await settle();
+        await p.clock.advance(10_000);
+        await settle();
+        expect(p.sent.map((m) => m.text).join("\n")).toContain("2026-10-14(수) 1박 · 단양 천동 오토캠핑장 · 야영장A · 남은 18");
+        expect(failed(p).map((f) => f.kind)).toEqual(["transient"]);
+        await p.stop();
+      });
+
+      it("searchForm이 사라진 예약 화면은 calendar.do를 보내지 않고 unrecognized다", async () => {
+        const server = mirihaeServer({ page: () => ({ status: 200, body: mirihaePageWith({}, ($) => void $("form[name=searchForm]").attr("name", "other")) }) });
+        const p = run(next, { server });
+        await settle();
+        expect(failed(p).map((f) => f.kind)).toEqual(["unrecognized"]);
+        expect(calendarPosts(p)).toHaveLength(0);
+        await p.stop();
+      });
     });
   });
 
@@ -585,9 +827,14 @@ ${lines}
     );
   });
 
-  it("2박은 최대 박수와 함께 위치를 짚어 거부한다", () => {
-    expect(problems(block("    facility: danyang-cheondong\n    zones: [야영장A]\n    nights: 2"))).toMatch(
-      /\d+번째 줄 watches\.0\.nights: mirihae는 최대 1박까지 예약할 수 있다\(설정값 2\)/,
+  it("최대 4박(천동 화면의 최대예약일수 문구)까지 받는다", () => {
+    expect(problems(block("    facility: danyang-cheondong\n    zones: [야영장A]\n    nights: 2"))).toBe("");
+    expect(problems(block("    facility: danyang-cheondong\n    zones: [야영장A]\n    nights: 4"))).toBe("");
+  });
+
+  it("최대 박수를 넘는 5박은 최대 박수와 함께 위치를 짚어 거부한다", () => {
+    expect(problems(block("    facility: danyang-cheondong\n    zones: [야영장A]\n    nights: 5"))).toMatch(
+      /\d+번째 줄 watches\.0\.nights: mirihae는 최대 4박까지 예약할 수 있다\(설정값 5\)/,
     );
   });
 });
@@ -640,10 +887,10 @@ describe("catalog mirihae", () => {
     expect(r.requests).toEqual([]);
   });
 
-  it("천동은 최대 1박과 구역 셋(이름이 코드)을 요청 없이 보인다", async () => {
+  it("천동은 최대 4박과 구역 셋(이름이 코드)을 요청 없이 보인다", async () => {
     const r = await catalog("danyang-cheondong");
     expect(r.code).toBe(0);
-    expect(r.out).toMatch(/^mirihae \(최대 1박\)$/m);
+    expect(r.out).toMatch(/^mirihae \(최대 4박\)$/m);
     for (const z of ["야영장A 야영장A", "야영장B 야영장B", "야영장C 야영장C"]) expect(r.out.replace(/ +/g, " ")).toContain(z);
     expect(r.out).toContain("(고정 목록 없음)");
     expect(r.requests).toEqual([]);

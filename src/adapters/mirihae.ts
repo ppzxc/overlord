@@ -7,7 +7,9 @@
 // - `entering.js`가 `/api/entering`이 200·401·403·404 밖의 응답일 때 쓰는 임의 UUID `gateToken`(실패 시 열림)은 키 위조라서 어떤 경우에도 쓰지 않는다. 그런 경로를 두지 않는다.
 // - 달력은 서버가 그린다. 날짜 칸 `div.td.pignose-calendar-unit-date`에 `click` 클래스가 있으면 예약할 수 있는 날이고 `dl.schedule`의 `dt`가 구역(`dd`)별 남은 수다.
 //   감시 단위는 구역이다. 자리 번호는 보지 않는다. 날짜를 고르는 순간부터는 자리를 잡는 호출(`tokenCheck.do`, `initSelectReservation.do` 등)이 나가므로 첫 화면에서 멈춘다.
-// - 바퀴마다 게이트를 새로 지난다. 이번 달만 읽고 다른 달 입실일은 빈자리 없음으로 둔다(`calendar.do`는 다음 조각 #85).
+// - 예약 화면은 이번 달 달력을 싣는다. 다른 달 입실일(여러 박이 달을 넘는 밤 포함)은 그 화면의 `searchForm`을 직렬화한 `POST /camping/calendar.do`(`selectMonth=YYYY-MM`)로 읽고, 필요한 달마다 한 번만 보낸다(#85).
+//   여러 박은 밤마다 칸을 읽어 남은 수의 최솟값을 쓴다. 같은 자리가 이어진다는 보장은 없다.
+// - 입장 토큰(`gateToken`)은 받은 뒤 수명(300초, 기록 #84) 안이면 다음 바퀴가 게이트를 지나지 않고 그대로 쓴다. 서버가 받지 않으면 같은 바퀴에서 게이트를 새로 지난다. 토큰 값을 바꾸거나 만들지 않는다.
 import * as cheerio from "cheerio";
 import {
   AdapterError,
@@ -15,13 +17,15 @@ import {
   type AvailabilityQuery,
   type AvailableSite,
   type ProviderAdapter,
+  type HttpClient,
   type ProviderInfo,
+  type TransportResponse,
 } from "../types.js";
 import { facilities } from "../catalogs/mirihae.js";
 import { resolveFacility } from "../facility.js";
 import { BOT_DETECTION, UnitStructureError, assertOk, send } from "../adapter-signals.js";
 import { warnDriftOnce } from "../netfunnel.js";
-import { kstDate } from "../schedule.js";
+import { addDays } from "../schedule.js";
 
 const ORIGIN = "https://mirihae.com";
 /** 게이트의 정적 화면(`entering.html`, `waiting.html`)이 있는 곳. API는 이 화면의 JS가 `https://cdn.mirihae.com`으로 보낸다. */
@@ -34,14 +38,14 @@ const WAITING_TOKEN_NAME = "X-Mirihae-Waiting-Token";
 const INFO: ProviderInfo = {
   id: "mirihae",
   facilities,
-  // 입점 기관마다 다를 수 있고 확인하지 못했다(카탈로그 머리 주석). 이 조각은 1박만 읽는다.
-  maxNights: 1,
+  // 4박. 서버가 거절하는 값을 확인한 것이 아니다(카탈로그 머리 주석). 근거는 천동 화면 JS의 "최대예약일수는 4박5일입니다." 경고 문구뿐이다(주석 처리된 클라이언트 검사와 `nightCheck.do` 실패 알림). 입점 기관마다 다를 수 있다.
+  maxNights: 4,
   // 오픈 규칙은 확인하지 못했다. 아래 세 값은 타입상 필수인 날짜 창이고 열리는 때를 주장하지 않는다.
-  // - openDaysBefore 62, openTime 00:00: 이번 달만 읽으므로 넉넉히 건 걸러내기다. 이보다 먼 날짜는 요청 없이 건너뛴다.
+  // - openDaysBefore 62, openTime 00:00: 넉넉히 건 걸러내기다(많아야 이번 달 포함 석 달). 이보다 먼 날짜는 요청 없이 건너뛴다.
   // - sameDayCutoff 00:00: 화면이 오늘 칸에 "당일예약 불가"를 달고 `click`을 주지 않는다(2026-10-13 09:28 기록). 당일 입실 마감 시각은 모른다.
   openingRule: { openDaysBefore: 62, openTime: "00:00", sameDayCutoff: "00:00" },
   // 오픈 경쟁 시간(`openingRush`)은 두지 않는다. 입점 기관마다 여는 시각을 모른다.
-  // 게이트를 바퀴마다 지나고 시설이 늘 수 있어 150초보다 길게 잡는다. `gateToken` 재사용(#85)이 되면 줄이는 것을 검토한다.
+  // 게이트를 바퀴마다 지날 수 있고 시설이 늘 수 있어 150초보다 길게 잡는다. `gateToken` 재사용(#85)은 수명(300초) 안에 다음 바퀴가 돌아야 하므로 이 간격으로는 드물게만 일어난다(이슈 #85 의견).
   defaultPollIntervalSeconds: 300,
   // 날짜·구역을 고른 뒤의 호출(자리를 잡는다), 결제, 예약확인/취소, 로그인·회원. 조회에 필요 없다. 경로 접두어는 호스트를 가리지 않는다.
   // `cdn.mirihae.com`에서는 `/api/entering`, `/api/waiting` 말고는 부르지 않는다(어댑터가 다른 경로를 만들지 않는다).
@@ -67,7 +71,7 @@ const INFO: ProviderInfo = {
     "/mypage.do",
     "/api/camping/",
   ],
-  // 예약 화면이 `mirihae` 쿠키를 주고(다음 조각의 `calendar.do`가 쓴다), 입장 토큰을 쿠키 단지에도 심는다.
+  // 예약 화면이 `mirihae` 쿠키를 주고(`calendar.do`가 쓴다), 입장 토큰을 쿠키 단지에도 심는다.
   cookieSession: true,
   // 시설이 여럿이라(입점 기관마다) 시설을 꼭 골라야 한다.
   facilityRequired: true,
@@ -108,7 +112,11 @@ function gateStatusError(status: number, where: string): AdapterError {
 
 /** 예약 화면 주소에서 게이트가 되돌려 주는 `uri`를 읽는다. 리다이렉트는 따라가지 않고 `Location`의 `uri`만 읽는다. */
 async function readGateUri(ctx: AdapterContext, pageUrl: string): Promise<string> {
-  const res = await send("예약 화면", () => ctx.http.get(pageUrl, { followRedirects: false }));
+  return gateUriOf(await send("예약 화면", () => ctx.http.get(pageUrl, { followRedirects: false })), pageUrl);
+}
+
+/** 게이트로 보내는 302 응답에서 `uri`를 읽는다. 게이트로 보내지 않으면 응답 상태로 신호를 가른다. */
+function gateUriOf(res: TransportResponse, pageUrl: string): string {
   if (!(res.status >= 300 && res.status < 400 && res.location)) {
     assertOk(res, "예약 화면");
     throw new AdapterError("unrecognized", "예약 화면이 게이트로 보내지 않았다(HTTP 200)");
@@ -205,8 +213,7 @@ const LOGIN_SCREEN = /type\s*=\s*["']?password|(?:location(?:\.href)?\s*=|locati
  * 안의 `dl.schedule`마다 `dd`가 구역 이름, `dt`가 남은 수다. 격자는 앞 달의 칸도 그리지만 그 칸은 `click`도 `dl`도 없어서 달에 속한 칸만 읽는다.
  * 칸이 없거나 달 표시·구역 이름·남은 수가 읽히지 않으면 구조 변경이다.
  */
-function parseCalendar(html: string): Calendar {
-  const where = "예약 화면";
+function parseCalendar(html: string, where = "예약 화면"): Calendar {
   if (BOT_DETECTION.test(html)) throw new AdapterError("blocked", `${where}: 봇 탐지·captcha 표지가 왔다`);
   const $ = cheerio.load(html);
   const cells = $("div.td.pignose-calendar-unit-date");
@@ -248,59 +255,162 @@ function warnZoneDrift(facility: string, calendar: Calendar, ctx: AdapterContext
   for (const name of known) if (!seen.has(name)) warnDriftOnce(ctx, `${facility}:gone:${name}`, "mirihae zone drift", { facility, change: "gone", zone: name });
 }
 
+/** 입장 토큰(`gateToken`)의 수명. 받은 시각에서 300초다(기록 #84: 토큰 `exp`와 받은 시각의 차이, 만료 20초 뒤 요청은 302로 게이트에 되돌려 보냈다). */
+const GATE_TOKEN_LIFETIME_MS = 300_000;
+/** 수명이 끝나기 이만큼 전부터는 쓰지 않는다. 예약 화면 요청이 간격 큐에서 기다리는 시간과 시계 차이를 덮는다. 거절은 어차피 새로 지나므로 이 값은 헛된 요청을 줄일 뿐이다. */
+const GATE_TOKEN_MARGIN_MS = 20_000;
+
+interface HeldToken {
+  token: string;
+  uri: string;
+  receivedAt: number;
+}
+
 /**
- * 게이트를 지나 시설 예약 화면을 연다. 게이트는 항상 새로 지난다(`gateToken` 재사용은 다음 조각).
- * 요청 주소는 `?gateToken=…`뿐이고 리다이렉트는 따라가지 않는다. 로그인으로 가면 `blocked`, 게이트로 되돌려 보내면(토큰 거절) `transient`다.
+ * 받은 입장 토큰을 시설마다 들고 있는다(게이트를 시설마다 따로 지나야 하는지 확인하지 못했다. 다른 시설의 토큰을 쓰지 않는다).
+ * 폴러 하나가 쓰는 HTTP 클라이언트마다 따로 둔다. 어댑터 모듈에 전역으로 두면 폴러 사이에 샌다.
  */
-async function openReservationPage(ctx: AdapterContext, facility: string): Promise<string> {
-  // 바퀴마다 새 방문자로 게이트를 지난다. 지난 바퀴의 입장 토큰 쿠키를 들고 가지 않는다.
-  ctx.http.clearSession();
-  const uri = await readGateUri(ctx, pageUrlOf(facility));
-  const gateToken = await passGate(ctx, uri);
-  const res = await send("예약 화면", () =>
-    ctx.http.get(`${uri}?gateToken=${encodeURIComponent(gateToken)}`, { followRedirects: false, headers: { Referer: `${GATE_PAGES}/` } }),
-  );
+const heldTokens = new WeakMap<HttpClient, Map<string, HeldToken>>();
+const heldOf = (ctx: AdapterContext): Map<string, HeldToken> => {
+  let held = heldTokens.get(ctx.http);
+  if (!held) heldTokens.set(ctx.http, (held = new Map()));
+  return held;
+};
+
+/**
+ * `?gateToken=`을 붙여 예약 화면을 연다. 리다이렉트는 따라가지 않는다. 로그인으로 가면 `blocked`다.
+ * 서버가 토큰을 받지 않으면(게이트로 302하거나 401) 거절한 응답을 돌려준다. 그 밖의 3xx는 구조 변경이고 나머지 상태는 `assertOk`가 가른다.
+ */
+async function fetchReservationPage(ctx: AdapterContext, uri: string, token: string): Promise<{ html: string } | { rejected: TransportResponse }> {
+  const res = await send("예약 화면", () => ctx.http.get(`${uri}?gateToken=${encodeURIComponent(token)}`, { followRedirects: false, headers: { Referer: `${GATE_PAGES}/` } }));
   if (res.status >= 300 && res.status < 400 && res.location) {
     const to = new URL(res.location, uri);
     if (/\/login/i.test(to.pathname)) throw new AdapterError("blocked", `예약 화면이 로그인(${to.pathname})으로 보냈다`);
-    if (to.hostname === GATE_HOST) throw new AdapterError("transient", "게이트가 입장 토큰을 거절하고 게이트 화면으로 되돌려 보냈다");
+    if (to.hostname === GATE_HOST) return { rejected: res };
     throw new AdapterError("unrecognized", `예약 화면이 알 수 없는 곳(${to.host}${to.pathname})으로 보냈다`);
   }
+  if (res.status === 401) return { rejected: res };
   assertOk(res, "예약 화면");
-  return res.body;
+  return { html: res.body };
+}
+
+/**
+ * 시설 예약 화면을 연다. 수명 안의 입장 토큰을 들고 있으면 게이트를 지나지 않고 그 토큰으로 바로 연다(토큰 값은 바꾸지 않는다).
+ * 서버가 그 토큰을 받지 않으면 실패로 치지 않고 같은 바퀴에서 게이트를 새로 지난다. 새로 받은 토큰이 곧바로 거절되면 `unrecognized`다.
+ * 쿠키는 바퀴마다 비운다. 지난 바퀴의 쿠키(세션, 게이트 토큰)를 들고 가지 않고 입장 토큰만 이어 쓴다.
+ */
+async function openReservationPage(ctx: AdapterContext, facility: string): Promise<{ html: string; uri: string }> {
+  ctx.http.clearSession();
+  const pageUrl = pageUrlOf(facility);
+  const held = heldOf(ctx);
+  const now = () => ctx.clock.now().getTime();
+  let uri: string | undefined;
+  const kept = held.get(facility);
+  if (kept && now() - kept.receivedAt < GATE_TOKEN_LIFETIME_MS - GATE_TOKEN_MARGIN_MS) {
+    ctx.log?.("mirihae gateToken reused", { facility, ageSeconds: Math.round((now() - kept.receivedAt) / 1000) });
+    const reused = await fetchReservationPage(ctx, kept.uri, kept.token);
+    if ("html" in reused) return { html: reused.html, uri: kept.uri };
+    held.delete(facility);
+    ctx.log?.("mirihae gateToken rejected", { facility, status: reused.rejected.status });
+    // 302는 게이트 주소(`uri`)를 알려 준다. 401은 알려 주지 않으므로 아래에서 예약 화면의 302로 읽는다.
+    if (reused.rejected.status !== 401) uri = gateUriOf(reused.rejected, pageUrl);
+  } else {
+    held.delete(facility);
+  }
+  uri ??= await readGateUri(ctx, pageUrl);
+  const token = await passGate(ctx, uri);
+  held.set(facility, { token, uri, receivedAt: now() });
+  const fresh = await fetchReservationPage(ctx, uri, token);
+  if ("rejected" in fresh) {
+    held.delete(facility);
+    throw new AdapterError("unrecognized", "게이트가 새로 받은 입장 토큰을 곧바로 거절하고 게이트 화면으로 되돌려 보냈다");
+  }
+  return { html: fresh.html, uri };
+}
+
+/** `jQuery.serialize()`처럼 form 본문을 인코딩한다(`encodeURIComponent`, 공백은 `+`). */
+const formEncode = (fields: [string, string][]): string => fields.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`.replace(/%20/g, "+")).join("&");
+
+/**
+ * 예약 화면의 `searchForm`을 페이지 JS(`fn_select_month`)처럼 직렬화하고 `selectMonth`만 바꾼다. 이름 있는 입력란을 문서 순서대로 싣는다(비어 있는 값도 싣는다).
+ * `tocken`은 화면을 열 때마다 바뀌는 값이라 이 바퀴에서 받은 화면에서 읽는다. 기록한 `searchForm`은 `input`뿐이라 `select`·`textarea`는 읽지 않는다.
+ */
+function searchFormBody(html: string, month: string): string {
+  const form = cheerio.load(html)("form[name=searchForm]").first();
+  if (form.length === 0) throw new AdapterError("unrecognized", "예약 화면: searchForm이 없다");
+  const fields: [string, string][] = [];
+  form.find("input[name]").each((_, el) => {
+    const type = (el.attribs.type ?? "text").toLowerCase();
+    if (["submit", "button", "image", "reset", "file"].includes(type) || "disabled" in el.attribs) return;
+    if ((type === "checkbox" || type === "radio") && !("checked" in el.attribs)) return;
+    fields.push([el.attribs.name!, el.attribs.value ?? ""]);
+  });
+  const at = fields.findIndex(([k]) => k === "selectMonth");
+  if (at === -1) throw new AdapterError("unrecognized", "예약 화면: searchForm에 selectMonth가 없다");
+  fields[at] = ["selectMonth", month];
+  return formEncode(fields);
+}
+
+/**
+ * 다른 달의 달력을 읽는다(`POST /camping/calendar.do`). 달력만 바꾸는 호출이고 날짜·구역을 고르는 호출이 아니다. 예약 화면과 같은 간격 큐 안에서 보내고 리다이렉트는 따라가지 않는다.
+ * 응답은 `<div class="calendar-in">` 조각이고 이번 달 화면과 같은 파서로 읽는다. 다른 달이 오면 구조 변경이다.
+ */
+async function readMonth(ctx: AdapterContext, page: { html: string; uri: string }, month: string): Promise<Calendar> {
+  const where = `달력 ${month}`;
+  const res = await send(where, () =>
+    ctx.http.post(`${ORIGIN}/camping/calendar.do`, searchFormBody(page.html, month), {
+      followRedirects: false,
+      headers: { Referer: page.uri, Origin: ORIGIN, "X-Requested-With": "XMLHttpRequest", Accept: "text/html, */*; q=0.01" },
+    }),
+  );
+  if (res.status >= 300 && res.status < 400 && res.location) {
+    const to = new URL(res.location, ORIGIN);
+    if (/\/login/i.test(to.pathname)) throw new AdapterError("blocked", `${where}: 로그인(${to.pathname})으로 보냈다`);
+    throw new AdapterError("unrecognized", `${where}: 알 수 없는 곳(${to.host}${to.pathname})으로 보냈다`);
+  }
+  assertOk(res, where);
+  const calendar = parseCalendar(res.body, where);
+  if (calendar.month !== month) throw new AdapterError("unrecognized", `${where}: ${calendar.month} 달력이 왔다`);
+  return calendar;
 }
 
 type Results = Map<AvailabilityQuery, AvailableSite[] | AdapterError>;
 
 const monthOf = (date: string) => date.slice(0, 7);
 
-/** 조회 단위 하나를 달력으로 판정한다. 화면의 달 밖이거나 `click`이 없는 날짜는 빈자리 없음이다. */
-function judge(q: AvailabilityQuery, calendar: Calendar): AvailableSite[] | UnitStructureError {
-  if (monthOf(q.checkIn) !== calendar.month) return [];
-  const day = calendar.days.get(q.checkIn);
-  if (!day) return new UnitStructureError(`예약 화면: ${q.checkIn} 날짜 칸이 달력에 없다`);
-  if (!day.open) return [];
-  const remaining = day.zones.get(q.zone);
-  if (remaining === undefined) return new UnitStructureError(`예약 화면: ${q.checkIn} 칸에 감시하는 구역 ${q.zone}이(가) 없다`);
+/** 입실일부터 밤마다의 날짜(입실일 포함, 퇴실일 제외). */
+const nightDates = (q: AvailabilityQuery): string[] => Array.from({ length: q.nights }, (_, i) => addDays(q.checkIn, i));
+
+/**
+ * 조회 단위 하나를 달력으로 판정한다. 밤마다 칸에 `click`이 있고 구역의 남은 수가 1 이상이어야 빈자리이며 남은 수는 밤마다의 최솟값이다(같은 자리가 이어진다는 보장은 없다).
+ * 어느 밤이든 `click`이 없으면 빈자리 없음이다. 밤이 속한 달의 달력을 받지 못했으면 그 달을 읽다 난 오류(`missing`)가 이 단위의 결과다.
+ */
+function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, missing: AdapterError | undefined): AvailableSite[] | AdapterError {
+  let remaining = Infinity;
+  for (const night of nightDates(q)) {
+    const calendar = calendars.get(monthOf(night));
+    if (!calendar) return missing ?? new UnitStructureError(`예약 화면: ${night}가 속한 달의 달력이 없다`);
+    const day = calendar.days.get(night);
+    if (!day) return new UnitStructureError(`예약 화면: ${night} 날짜 칸이 달력에 없다`);
+    if (!day.open) return [];
+    const count = day.zones.get(q.zone);
+    if (count === undefined) return new UnitStructureError(`예약 화면: ${night} 칸에 감시하는 구역 ${q.zone}이(가) 없다`);
+    remaining = Math.min(remaining, count);
+  }
   return remaining >= 1 ? [{ id: q.zone, name: q.zone, remaining }] : [];
 }
 
 /**
- * 한 바퀴. 시설마다 게이트를 지나 예약 화면의 이번 달 달력을 한 번 읽고, 그 시설의 조회 단위를 모두 그 화면으로 판정한다.
- * 이번 달 밖의 입실일은 빈자리 없음이다(다른 달은 다음 조각이 연다). 이번 달 날짜가 없는 시설은 게이트도 지나지 않는다.
- * 게이트·화면 요청이 실패하면 그 시설과 남은 시설의 조회 단위가 그 실패를 받는다(요청을 더 보내지 않는다). 한 단위만의 구조 변경(감시 구역이 칸에서 사라짐)은 그 단위만 실패다.
+ * 한 바퀴. 시설마다 게이트를 지나 예약 화면(이번 달 달력)을 한 번 읽고, 조회 단위의 밤이 속한 다른 달은 달마다 `calendar.do`를 한 번씩 읽어 그 시설의 조회 단위를 모두 판정한다.
+ * 게이트·화면 요청이 실패하면 그 시설과 남은 시설의 조회 단위가 그 실패를 받는다(요청을 더 보내지 않는다). 다른 달 요청이 실패하면 그 달의 밤이 걸린 단위만 그 실패를 받고 화면의 달만 쓰는 단위는 판정한다.
+ * 한 단위만의 구조 변경(감시 구역이 칸에서 사라짐)은 그 단위만 실패다.
  */
 async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Results> {
   const results: Results = new Map();
-  const thisMonth = monthOf(kstDate(ctx.clock.now()));
   const byFacility = new Map<string, AvailabilityQuery[]>();
   for (const q of units) {
     const max = resolveFacility(INFO, q.facility).maxNights ?? INFO.maxNights;
     if (q.nights > max) throw new Error(`mirihae ${q.facility}는 최대 ${max}박만 읽는다(${q.nights}박)`);
-    if (monthOf(q.checkIn) !== thisMonth) {
-      results.set(q, []);
-      continue;
-    }
     byFacility.set(q.facility, [...(byFacility.get(q.facility) ?? []), q]);
   }
   let stopped: AdapterError | undefined;
@@ -310,9 +420,22 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       continue;
     }
     try {
-      const calendar = parseCalendar(await openReservationPage(ctx, facility));
-      warnZoneDrift(facility, calendar, ctx);
-      for (const q of group) results.set(q, judge(q, calendar));
+      const page = await openReservationPage(ctx, facility);
+      const first = parseCalendar(page.html);
+      warnZoneDrift(facility, first, ctx);
+      const calendars = new Map([[first.month, first]]);
+      let missing: AdapterError | undefined;
+      for (const month of new Set(group.flatMap((q) => nightDates(q).map(monthOf)))) {
+        if (calendars.has(month)) continue;
+        try {
+          calendars.set(month, await readMonth(ctx, page, month));
+        } catch (e) {
+          if (!(e instanceof AdapterError)) throw e;
+          missing = stopped = e;
+          break;
+        }
+      }
+      for (const q of group) results.set(q, judge(q, calendars, missing));
     } catch (e) {
       if (!(e instanceof AdapterError)) throw e;
       stopped = e;

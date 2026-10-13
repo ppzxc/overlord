@@ -704,7 +704,16 @@ export const mirihaePage = (): string => mirihaeRaw("camping_V39628874.html");
  * `counts`는 날짜 → 구역 이름 → 남은 수이고 그 칸의 `dt`만 바꾼다. 날짜 칸의 구조를 바꾸려면 `edit`을 쓴다.
  */
 export function mirihaePageWith(counts: Record<string, Record<string, number | string>>, edit?: ($: cheerio.CheerioAPI) => void): string {
-  const $ = cheerio.load(mirihaePage());
+  return withCounts(mirihaePage(), counts, edit);
+}
+
+/** 기록한 `calendar.do` 응답(2026-11 또는 2026-12)을 고친 변형. `counts`와 `edit`은 `mirihaePageWith`와 같다. 기록이 아니라 기록을 고쳐 만든 합성 응답이다. */
+export function mirihaeCalendarWith(month: string, counts: Record<string, Record<string, number | string>>, edit?: ($: cheerio.CheerioAPI) => void): string {
+  return withCounts(mirihaeRaw(`calendar.do_V39628874_${month}.html`), counts, edit);
+}
+
+function withCounts(html: string, counts: Record<string, Record<string, number | string>>, edit?: ($: cheerio.CheerioAPI) => void): string {
+  const $ = cheerio.load(html);
   for (const [date, zones] of Object.entries(counts)) {
     for (const [zone, n] of Object.entries(zones)) {
       const dl = $(`div.td[id="${date}"] dl.schedule`).filter((_, el) => $(el).find("dd").text().trim() === zone);
@@ -736,6 +745,8 @@ export function mirihaeServer(
     page?: (req: TransportRequest) => TransportResponse | undefined;
     /** 모든 요청에 앞서 응답을 가로챈다. */
     intercept?: (req: TransportRequest) => TransportResponse | undefined;
+    /** `POST /camping/calendar.do`에 줄 응답. 없으면 `selectMonth`에 맞는 기록한 달력(2026-11, 2026-12)이다. */
+    calendar?: (month: string, req: TransportRequest) => TransportResponse | undefined;
   } = {},
 ) {
   const nth = { entering: 0, waiting: 0 };
@@ -774,7 +785,15 @@ export function mirihaeServer(
       }
       return opts.page?.(req) ?? { status: 200, body: mirihaePage(), setCookie: ["mirihae=sess1; Path=/; Secure; HttpOnly; SameSite=Lax"] };
     }
+    if (req.method === "POST" && url.pathname === "/camping/calendar.do") {
+      const month = new URLSearchParams(req.body ?? "").get("selectMonth") ?? "";
+      return opts.calendar?.(month, req) ?? mirihaeRecordedCalendar(month) ?? { status: 404, body: "" };
+    }
     return { status: 404, body: "" };
   };
   return respond;
 }
+
+/** 기록한 `POST /camping/calendar.do` 응답(2026-10-13 09:28 KST, research/raw/mirihae). 11월은 11/01 ~ 11/14가 `click`이고 12월은 모두 닫혀 있다. 그 밖의 달은 기록이 없다. */
+export const mirihaeRecordedCalendar = (month: string): TransportResponse | undefined =>
+  ["2026-11", "2026-12"].includes(month) ? { status: 200, body: mirihaeRaw(`calendar.do_V39628874_${month}.html`) } : undefined;

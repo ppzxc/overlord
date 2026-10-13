@@ -1,0 +1,14 @@
+access-control-allow-methods: GET, POST
+access-control-allow-origin: *
+cache-control: no-store
+connection: keep-alive
+content-encoding: gzip
+content-language: ko
+content-type: text/html;charset=UTF-8
+date: Tue, 13 Oct 2026 04:11:15 GMT
+expires: Thu, 01 Jan 1970 00:00:00 GMT
+pragma: no-cache
+server: nginx
+transfer-encoding: chunked
+vary: accept-encoding
+set-cookie names: mirihae (Path=/camping/; Secure; HttpOnly; SameSite=Lax) | mirihae (Path=/camping/; Secure; HttpOnly; SameSite=Lax) | SRV (path=/)

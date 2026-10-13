@@ -1,0 +1,3 @@
+# https://camp.yjcf.or.kr/gangcheon/camping (2026-10-13 13:09 KST). 리다이렉트를 따라가지 않았다.
+status 302
+location https://cdn.mirihae.com:9443/entering.html?uri=https://camp.yjcf.or.kr/gangcheon/camping/Y35294962

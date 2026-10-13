@@ -112,3 +112,67 @@ UA `overlord-availability-poller/0.1.0`(실제 `catalog mirihae <시설> --live`
 | 2026-10-19 → 10-24 | 5박 | `{"resultCode":false}` | `nightCheck.do_V39628874_2026-10-19_5n.json` |
 
 서버는 천동에서 4박까지 받고 5박을 거절한다. 어댑터의 최대 4박과 같다. 다리안·소선암·대강과 다른 입점 기관은 확인하지 않았다.
+
+---
+
+# 여주 자체 도메인 점검 기록 (#99 / #109, 2026-10-13 13:09 ~ 13:15 KST)
+
+ADR 0002 점검을 어댑터 구현 전에 했다. UA `overlord-availability-poller/0.1.0`, 요청 사이 5초 + 0~3초, Node `fetch`(기본 루트 CA, 검증을 끄지 않았다), `redirect: manual`(리다이렉트는 따라가지 않고 `Location`만 읽었다).
+접근 금지 경로(예약 다음 단계·결제·예약확인·로그인·회원)와 날짜를 고른 뒤의 호출은 보내지 않았다. 임의 UUID `gateToken`은 쓰지 않았다. 토큰·쿠키·화면의 `tocken` UUID 부분은 가렸다(`<MASKED>`).
+
+## robots.txt
+
+- `https://yeojuuc.or.kr/robots.txt` 200: `disallow: /board/`, `/sub2/`, 파일 내려받기 경로 몇 개(`/user/…FileDown.do`, `/cmm/fms/`). 예약 화면 경로 `/camping/`은 막지 않는다. -> `robots_yeojuuc.or.kr.txt`
+- `https://camp.yjcf.or.kr/robots.txt`는 파일이 없다. 302로 `/login.do`(`mirihae.com`과 같다). 금지가 없다고 본다(ADR 0002). -> `robots_camp.yjcf.or.kr.txt`
+
+## 리다이렉트 사슬과 게이트
+
+| 시작 | 응답 |
+| --- | --- |
+| `yeojuuc.or.kr/camping/<tenant>/camping/<pageId>` | 301 -> `https://cdn.mirihae.com/entering.html?uri=https://yeojuuc.or.kr/camping/<tenant>/camping/<pageId>` (포트 없음 = 443) |
+| `camp.yjcf.or.kr/gangcheon/camping` | 302 -> `https://cdn.mirihae.com:9443/entering.html?uri=https://camp.yjcf.or.kr/gangcheon/camping/Y35294962` (9443) |
+| `camp.yjcf.or.kr/gangcheon/camping/Y35294962` | 301 -> 같은 9443 주소 |
+
+게이트 API 호스트는 두 자체 도메인 모두 `cdn.mirihae.com`이고 포트는 **게이트 화면이 있던 포트를 따른다**(여주 443, 강천섬 9443). `/api/entering`(401) -> `POST /api/waiting`(200 text/plain) -> `GET /api/waiting`(200, 425 없음) -> `/api/entering`(200)이 단양과 같고, `entering.html`·`constants.js`·`entering.js`·`waiting.js`는 단양 기록과 줄바꿈만 다르고 같다(`entering.html`은 바이트까지 같다).
+입장 토큰으로 `?gateToken=<enteringToken>`을 붙인 자체 도메인 화면이 200이다. 요청 순서는 자체 도메인 화면(리다이렉트) -> 게이트 -> 자체 도메인 화면이다.
+원문: `yeojuuc_epoc_Z65332353_301.txt`(#86), `camping_yjcf_gangcheon_302.txt`, `api_entering_401_yeojuuc.json`, `api_waiting_GET_200_yeojuuc.json`, `api_entering_200_yeojuuc.json`, `api_entering_200_yjcf.json`.
+
+## 화면 구조 비교(대신 오토 `yeojuuc.or.kr/camping/epoc/camping/Z65332353`, 200, 166,029자 -> `yeoju_epoc_Z65332353_screen.html`)
+
+같은 것: 서버가 그리는 달력, 날짜 칸 `div.td[id=YYYY-MM-DD]`에 `click` 클래스(예약 가능한 날), 안의 `dl.schedule`마다 `dd` 구역 이름·`dt` 남은 수. 격자에 앞 달 칸을 그리고 그 칸에는 `click`·`dl`이 없다. 오늘 칸은 "당일예약 불가", 정기 휴장일 칸은 "정기 휴장일"이고 둘 다 `click`·`dl`이 없다. 다른 달은 `searchForm`을 직렬화한 `POST …/calendar.do`(`selectMonth`)로 읽는다. 시설 하나가 화면 하나(대신 오토와 웰빙은 탭으로 나뉜 다른 화면)다.
+다른 것(어댑터가 읽는 방식에 영향):
+- 날짜 칸 클래스가 `td td<N> week-<N> click`이다. 단양의 `pignose-calendar-unit-date`·`pignose-calendar-unit` 클래스가 없다. 월 표시는 `.calendar-top-year`("2026")·`.calendar-top-month`("10", "월" 없음)이다(단양은 `.pignose-calendar-top-year`·`-month`("10월")).
+- `dt` 안에 숨은 `<span style="font-size:0px;display:none">0</span>`이 먼저 있고 그 뒤에 남은 수가 온다. 텍스트로 읽으면 `0 73`이 된다. 보이는 값이 남은 수다(토요일 10/17·10/24·10/31은 0, 평일은 20 ~ 81).
+- 모든 `dl`에 `soldout` 클래스가 있다. 남은 수 0이든 73이든 같다(화면 JS도 `$(item).addClass("soldout")`을 무조건 단다). 품절 표지로 읽을 수 없다.
+- 다른 달 호출 경로는 `/camping/camping/calendar.do`다(단양은 `/camping/calendar.do`). 예약 화면 주소 접두어는 `/camping/<tenant>/camping/<pageId>`다(단양은 `/<tenant>/camping/<pageId>`).
+- 쿠키 `mirihae`가 `Path=/camping/`이고 두 번 온다.
+- 구역 이름: 대신 오토 `파쇄석` 하나. 대신 웰빙(`B24626523`) `파쇄석`·`데크`. 금은모래(`gsmc/Q86949745`) `가구역`·`나구역`·`다구역`·`금모래구역`·`은모래구역`. 강천섬(`camp.yjcf.or.kr/gangcheon/camping/Y35294962`) `세종대왕`·`원경왕후`·`효종대왕`·`인현왕후`·`명성황후`.
+- 강천섬은 다른 호스트(`camp.yjcf.or.kr`)이고 단양과 같은 `pignose-calendar-unit-date` 달력이다. 경로 접두어가 `/gangcheon/camping/<pageId>`이고 접근 금지 후보는 `/gangcheon/camping/reservation/list.do`, `/gangcheon/login.do`, `/logout.do`, `/mypage.do`다. 일부 날짜 칸에 행사 문구와 `50,000원` 같은 `dd`가 섞여 있어 후속 조각에서 구역으로 읽는 방법을 정해야 한다.
+원문: `yeoju_epoc_Z65332353_screen.html`, `yeoju_epoc_B24626523_screen.html`, `yeoju_gsmc_Q86949745_screen.html`, `yjcf_gangcheon_Y35294962_screen.html`, 응답 머리 `yeoju_epoc_Z65332353_screen_headers.txt`·`yjcf_gangcheon_Y35294962_screen_headers.txt`(쿠키 값은 저장하지 않았다), `yeoju_reservation.js`.
+
+## 로그인·캡차·봇 탐지
+
+네 화면과 `reservation.js` 어디에도 `captcha`·`botmanager`·`crawlingCheck`·`dynapath`·`recaptcha`가 없다(대소문자 무시 검색, 0건). 조회 흐름(게이트 -> 예약 화면)에 로그인이 없다.
+화면 머리말에 로그인·로그아웃·마이페이지 링크와 `logoutForm`이 있고, "우선예약 일정이 보이지 않을 경우 온라인 인증하기" 버튼이 있다. 우선예약 일정은 온라인 인증(회원)을 거친 방문자에게만 보일 수 있고, 로그아웃한 방문자 화면에는 일반 일정만 보인다. 이 어댑터는 로그아웃한 화면만 읽는다.
+챗봇 위젯(`yeojuuc.or.kr/chatbot/…`)은 봇 탐지가 아니다.
+
+## 접근 금지 경로(자체 도메인 화면 JS에서 확인, 보내지 않았다)
+
+`yeojuuc.or.kr`: `/camping/camping/tokenCheck.do`, `initSelectReservation.do`, `selectItemForm.do`, `reservationForm.do`, `selectAjaxDatePinInfo.do`, `selectReservationCheck.do`, `selectTicketInfo.do`, `selectDiscount.do`, `selectDiscountItem.do`, `submitCheck.do`, `/camping/camping/pay/`(`orderReqForm.do`, `virtualAccount/vacntRequest.do`), `/camping/cert/`(온라인 인증 팝업), `/camping/<tenant>/camping/reservation/`(예약확인/취소 `list.do`), `/camping/logout.do`, `/camping/mypage.do`, `/<tenant>/login.do`, `/camping/api/camping/dytc/logout`.
+조회에 쓰는 경로는 예약 화면 `/camping/<tenant>/camping/<pageId>`와 `/camping/camping/calendar.do`(다른 달)다. `infoView.do`·`certBanner.do`는 부르지 않는다.
+
+## TLS
+
+Node 기본 루트 CA로 `yeojuuc.or.kr`, `camp.yjcf.or.kr`, `cdn.mirihae.com`(443·9443) 모두 검증이 통과했다(`fetch` 오류 없음). 중간 인증서 문제가 없어 #77의 CA 번들에 더할 것이 없다.
+
+## 최대 박수·추첨
+
+- 최대 박수: 확인하지 못했다. 대신 오토 화면의 `fn_endDateCheck`에는 박수 검사나 "최대예약일수" 문구가 없고(단양 화면에 있던 `nightCheck.do` 호출도 없다) `reservation.js`에도 없다. 날짜를 고른 뒤의 서버 호출만 한도를 알 수 있으므로 부르지 않았다. 이 조각은 1박으로 시작한다.
+- 추첨: 화면 어디에도 추첨 문구가 없다("추첨" 0건). 해당 없음/미확인으로 두고 날짜 가림 규칙을 넣지 않는다. 우선예약(온라인 인증)이 따로 있다.
+
+## 강천섬 후속 확인 (2026-10-13, #111)
+
+- 다른 달 달력 경로: 화면이 싣는 `/camping/js/v2/reservation-page.js`(`yjcf_reservation-page.js`로 저장, 정적 파일 한 번 요청)의 `fn_select_month`가 `$.post("/camping/calendar.do", $("#searchForm").serialize(), …)`다. 같은 호스트(`camp.yjcf.or.kr`)의 절대 경로이고 단양과 같다. 화면 경로 접두어(`/gangcheon/camping/`)가 붙지 않는다. 날짜를 고른 뒤의 호출(`tokenCheck.do`, `initSelectReservation.do`, `selectItemList.do`, `nightCheck.do` 등)도 `/camping/…` 절대 경로이고 접근 금지 목록의 단양 경로와 같다. 부르지 않았다.
+- `dd` 섞임: `50,000원`은 날짜 칸 밖의 이용료 목록(`div.price > dl > dd`), 행사 문구는 `span.event-nm-label`(title)이고 둘 다 `dl.schedule` 밖이다. 날짜 칸 안 `dl.schedule`의 `dd`만 읽으면 구역 5개(`세종대왕`·`원경왕후`·`효종대왕`·`인현왕후`·`명성황후`)만 나온다.
+- 남은 수가 없는 구역은 그 날짜 칸에서 `dl`이 빠진다(10/17은 세종대왕 1·효종대왕 0·명성황후 1만 나온다). 카탈로그 `ref.soldOutOmitted`로 0으로 읽는다. 여주 대신·금은모래 화면은 모든 구역이 항상 나온다.
+- 추첨: 강천섬 화면에도 추첨 문구가 없다(해당 없음/미확인). 최대 박수는 확인하지 못해 1박이다.

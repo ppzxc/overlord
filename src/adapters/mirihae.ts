@@ -9,6 +9,8 @@
 //   감시 단위는 구역이다. 자리 번호는 보지 않는다. 날짜를 고르는 순간부터는 자리를 잡는 호출(`tokenCheck.do`, `initSelectReservation.do` 등)이 나가므로 첫 화면에서 멈춘다.
 // - 예약 화면은 이번 달 달력을 싣는다. 다른 달 입실일(여러 박이 달을 넘는 밤 포함)은 그 화면의 `searchForm`을 직렬화한 `POST /camping/calendar.do`(`selectMonth=YYYY-MM`)로 읽고, 필요한 달마다 한 번만 보낸다(#85).
 //   여러 박은 밤마다 칸을 읽어 남은 수의 최솟값을 쓴다. 같은 자리가 이어진다는 보장은 없다.
+// - 입점 기관의 자체 도메인 시설(여주 `yeojuuc.or.kr`, #99)은 `ref`의 `host`·`pathPrefix`로 예약 화면·달력 주소를 정한다. 게이트 화면의 호스트·포트는 예약 화면의 리다이렉트가 알려 주는 대로 따른다(단양 9443, 여주 443).
+//   입장 토큰 쿠키는 게이트 호스트(`cdn.mirihae.com`)에만 심고, 자체 도메인 세션 쿠키는 그 도메인에만 간다. 달력 서식이 둘이라 파서가 둘 다 읽는다(`parseCalendar`).
 // - 입장 토큰(`gateToken`)은 받은 뒤 수명(300초, 기록 #84) 안이면 다음 바퀴가 게이트를 지나지 않고 그대로 쓴다. 서버가 받지 않으면 같은 바퀴에서 게이트를 새로 지난다. 토큰 값을 바꾸거나 만들지 않는다.
 import * as cheerio from "cheerio";
 import {
@@ -29,8 +31,7 @@ import { eachDrift, warnDriftOnce } from "../drift.js";
 import { nightsOf } from "../schedule.js";
 
 const ORIGIN = "https://mirihae.com";
-/** 게이트의 정적 화면(`entering.html`, `waiting.html`)이 있는 곳. API는 이 화면의 JS가 `https://cdn.mirihae.com`으로 보낸다. */
-const GATE_PAGES = "https://cdn.mirihae.com:9443";
+/** 게이트의 정적 화면(`entering.html`, `waiting.html`)이 있는 호스트. 포트는 예약 화면이 리다이렉트로 알려 준다(단양은 9443, 여주는 443). API는 이 화면의 JS가 `https://cdn.mirihae.com`(443)으로 보낸다. */
 const GATE_API = "https://cdn.mirihae.com/api";
 const GATE_HOST = "cdn.mirihae.com";
 const ENTERING_TOKEN_NAME = "X-Mirihae-Reservation-Token";
@@ -51,6 +52,8 @@ const INFO: ProviderInfo = {
   // 게이트를 바퀴마다 지날 수 있고 시설이 늘 수 있어 150초보다 길게 잡는다. `gateToken` 재사용(#85)은 수명(300초) 안에 다음 바퀴가 돌아야 하므로 이 간격으로는 드물게만 일어난다(이슈 #85 의견).
   defaultPollIntervalSeconds: 300,
   // 날짜·구역을 고른 뒤의 호출(자리를 잡는 호출과, 자리를 잡지 않는 `nightCheck.do` 같은 검사), 결제, 예약확인/취소, 로그인·회원. 조회에 필요 없다. 경로 접두어는 호스트를 가리지 않는다.
+  // 여주 자체 도메인(`yeojuuc.or.kr`)은 경로가 `/camping/camping/…`, `/camping/<tenant>/camping/…`이다(research/raw/mirihae/README.md, 2026-10-13). 아래 `/camping/camping/…`·`/camping/cert/`·`/camping/<tenant>/…`는 그 호스트의 금지 경로다.
+  // 단양(`mirihae.com`)의 경로는 `/<tenant>/camping/…`·`/camping/<파일>.do`라서 이 접두어에 걸리지 않는다. 단, 단양 `/camping/calendar.do`는 `/camping/` 아래라 `/camping/`만 통째로 막지 않는다.
   // `cdn.mirihae.com`에서는 `/api/entering`, `/api/waiting` 말고는 부르지 않는다(어댑터가 다른 경로를 만들지 않는다).
   // `/camping/calendar.do`(다른 달 달력)와 예약 화면(`/<tenant>/camping/<pageId>`)은 막지 않는다.
   blockedPaths: [
@@ -67,8 +70,22 @@ const INFO: ProviderInfo = {
     "/camping/selectTicketInfo.do",
     "/camping/totalTicketPrice.do",
     "/camping/paymentForm.do",
+    // 여주 자체 도메인: 날짜·구역을 고른 뒤의 호출, 결제, 온라인 인증, 로그인·회원. 조회는 `/camping/camping/calendar.do`뿐이다.
+    "/camping/camping/tokenCheck.do",
+    "/camping/camping/initSelectReservation.do",
+    "/camping/camping/selectItemForm.do",
+    "/camping/camping/reservationForm.do",
+    "/camping/camping/selectAjaxDatePinInfo.do",
+    "/camping/camping/selectReservationCheck.do",
+    "/camping/camping/selectTicketInfo.do",
+    "/camping/camping/selectDiscount",
+    "/camping/camping/submitCheck.do",
+    "/camping/camping/pay/",
+    "/camping/cert/",
+    "/camping/logout.do",
+    "/camping/mypage.do",
     // 예약확인/취소와 로그인은 카탈로그의 입점 기관(tenant)마다 넣는다.
-    ...tenants.flatMap((t) => [`/${t}/camping/reservation/`, `/${t}/login.do`]),
+    ...tenants.flatMap((t) => [`/${t}/camping/reservation/`, `/${t}/login.do`, `/camping/${t}/camping/reservation/`, `/camping/${t}/login.do`]),
     "/login.do",
     "/logout.do",
     "/mypage.do",
@@ -80,10 +97,26 @@ const INFO: ProviderInfo = {
   facilityRequired: true,
 };
 
-const pageUrlOf = (facility: string): string => {
+/**
+ * 시설 예약 화면의 호스트와 경로 접두어. `ref`에 `host`·`pathPrefix`가 없으면 `mirihae.com`이고 접두어도 없다(단양).
+ * 입점 기관의 자체 도메인 시설은 둘 다 준다(여주 `host: yeojuuc.or.kr`, `pathPrefix: /camping`). 다른 달 달력 주소(`calendar.do`)도 이 호스트·접두어에서 만든다.
+ */
+function screenOf(facility: string): { origin: string; pageUrl: string; calendarUrl: string } {
   const ref = fieldsRef(INFO, facility, ["tenant", "pageId"]);
-  return `${ORIGIN}/${ref.tenant}/camping/${ref.pageId}`;
+  const origin = ref.host ? `https://${ref.host}` : ORIGIN;
+  const prefix = ref.pathPrefix ?? "";
+  return { origin, pageUrl: `${origin}${prefix}/${ref.tenant}/camping/${ref.pageId}`, calendarUrl: `${origin}${prefix}/camping/calendar.do` };
+}
+const pageUrlOf = (facility: string): string => screenOf(facility).pageUrl;
+
+/** 리다이렉트 대상이 이 예약처의 접근 금지 경로인가. 경로 접두어는 호스트를 가리지 않는다(`http.ts`와 같은 규칙). */
+const isBlockedTarget = (to: URL): boolean => {
+  const lower = (to.pathname + to.search).toLowerCase();
+  return INFO.blockedPaths.some((p) => lower.startsWith(p.toLowerCase()));
 };
+/** 알 수 없는 곳으로 가는 3xx. 접근 금지 경로로 가면 요청을 보내지 않고 차단이다. */
+const unexpectedRedirect = (to: URL, where: string): AdapterError =>
+  isBlockedTarget(to) ? new AdapterError("blocked", `${where}: 접근 금지 경로로 보냈다(${to.host}${to.pathname})`) : unknownRedirect(to, where);
 
 /** 게이트 대기 폴링 간격. `waiting.js`의 `setInterval(…, 10000)`과 같다. */
 const POLL_MS = 10_000;
@@ -113,44 +146,52 @@ function gateStatusError(status: number, where: string): AdapterError {
 }
 
 /** 예약 화면 주소에서 게이트가 되돌려 주는 `uri`를 읽는다. 리다이렉트는 따라가지 않고 `Location`의 `uri`만 읽는다. */
-async function readGateUri(ctx: AdapterContext, pageUrl: string): Promise<string> {
-  return gateUriOf(await send("예약 화면", () => ctx.http.get(pageUrl, { followRedirects: false })), pageUrl);
+async function readGate(ctx: AdapterContext, pageUrl: string): Promise<Gate> {
+  return gateOf(await send("예약 화면", () => ctx.http.get(pageUrl, { followRedirects: false })), pageUrl);
 }
 
-/** 게이트로 보내는 302 응답에서 `uri`를 읽는다. 게이트로 보내지 않으면 응답 상태로 신호를 가른다. */
-function gateUriOf(res: TransportResponse, pageUrl: string): string {
+/** 예약 화면이 알려 준 게이트. `uri`는 게이트가 되돌려 주는 예약 화면 주소이고 `pages`는 게이트 화면의 origin(호스트·포트)이다. */
+interface Gate {
+  uri: string;
+  pages: string;
+}
+
+/** 게이트로 보내는 3xx 응답에서 게이트 화면 주소와 `uri`를 읽는다. 게이트로 보내지 않으면 응답 상태로 신호를 가른다. */
+function gateOf(res: TransportResponse, pageUrl: string): Gate {
   const to = redirectOf(res, pageUrl, "예약 화면");
   if (!to) {
     assertOk(res, "예약 화면");
     throw new AdapterError("unrecognized", "예약 화면이 게이트로 보내지 않았다(HTTP 200)");
   }
+  // 게이트 화면은 `cdn.mirihae.com`의 https만 따른다(포트는 알려 주는 대로). 다른 곳이면 접근 금지 경로인지 보고 가른다.
+  if (to.hostname !== GATE_HOST || to.protocol !== "https:") throw unexpectedRedirect(to, "예약 화면");
   const uri = to.searchParams.get("uri");
   // 게이트가 보낸 주소는 요청한 예약 화면과 같아야 한다. 다른 곳으로 가는 요청은 만들지 않는다.
   if (uri === null || uri.split("?")[0] !== pageUrl) throw new AdapterError("unrecognized", `게이트 화면의 uri가 예약 화면과 다르다(${uri ?? "없음"})`);
-  return uri;
+  return { uri, pages: to.origin };
 }
 
-const gateHeaders = (uri: string, extra: Record<string, string> = {}) => ({
-  Origin: GATE_PAGES,
-  Referer: `${GATE_PAGES}/entering.html?uri=${uri}`,
+const gateHeaders = (gate: Gate, extra: Record<string, string> = {}) => ({
+  Origin: gate.pages,
+  Referer: `${gate.pages}/entering.html?uri=${gate.uri}`,
   ...extra,
 });
 
-const gateUrl = (path: string, uri: string) => `${GATE_API}/${path}?uri=${encodeURIComponent(uri)}`;
+const gateUrl = (path: string, gate: Gate) => `${GATE_API}/${path}?uri=${encodeURIComponent(gate.uri)}`;
 
 /** `GET /api/entering`. 입장 토큰이 있으면 페이지 JS처럼 같은 이름의 헤더로 싣는다. 게이트 요청은 간격 큐 밖에서 보내고 리다이렉트는 따라가지 않는다(게이트 API는 3xx를 주지 않는다). */
-const entering = (ctx: AdapterContext, uri: string, token?: string) =>
+const entering = (ctx: AdapterContext, gate: Gate, token?: string) =>
   send("게이트 입장", () =>
-    ctx.http.get(gateUrl("entering", uri), {
+    ctx.http.get(gateUrl("entering", gate), {
       unpaced: true,
       followRedirects: false,
-      headers: gateHeaders(uri, { "Content-Type": "application/json", ...(token ? { [ENTERING_TOKEN_NAME]: token } : {}) }),
+      headers: gateHeaders(gate, { "Content-Type": "application/json", ...(token ? { [ENTERING_TOKEN_NAME]: token } : {}) }),
     }),
   );
 
 /** 대기 토큰을 받는다(`POST /api/waiting`). */
-async function takeWaitingToken(ctx: AdapterContext, uri: string): Promise<string> {
-  const res = await send("대기 토큰", () => ctx.http.post(gateUrl("waiting", uri), "", { unpaced: true, followRedirects: false, headers: gateHeaders(uri) }));
+async function takeWaitingToken(ctx: AdapterContext, gate: Gate): Promise<string> {
+  const res = await send("대기 토큰", () => ctx.http.post(gateUrl("waiting", gate), "", { unpaced: true, followRedirects: false, headers: gateHeaders(gate) }));
   if (res.status !== 200) throw gateStatusError(res.status, "대기 토큰");
   const token = res.body.trim();
   if (token === "") throw new AdapterError("transient", "대기 토큰을 받지 못했다");
@@ -164,11 +205,11 @@ async function takeWaitingToken(ctx: AdapterContext, uri: string): Promise<strin
  * 또 `waiting.js`는 예상 대기 시간이 10초보다 짧으면 그 시간만큼만 쉬고 다시 묻지만 이 어댑터는 언제나 10초다(스펙).
  * `POST /api/waiting`은 본문이 없는 요청인데 HTTP 층이 문자열 본문에 form `Content-Type`을 붙여 보낸다(기록과 페이지 JS는 `Content-Type` 없이 보냈다). 서버가 가리는지는 확인하지 못했다.
  */
-async function waitForTurn(ctx: AdapterContext, uri: string, waitingToken: string): Promise<string> {
+async function waitForTurn(ctx: AdapterContext, gate: Gate, waitingToken: string): Promise<string> {
   const started = ctx.clock.now().getTime();
   for (;;) {
     const res = await send("대기 확인", () =>
-      ctx.http.get(gateUrl("waiting", uri), { unpaced: true, followRedirects: false, headers: gateHeaders(uri, { [WAITING_TOKEN_NAME]: waitingToken }) }),
+      ctx.http.get(gateUrl("waiting", gate), { unpaced: true, followRedirects: false, headers: gateHeaders(gate, { [WAITING_TOKEN_NAME]: waitingToken }) }),
     );
     if (res.status === 200) return enteringTokenOf(res.body, "대기 확인");
     if (res.status !== 425) throw gateStatusError(res.status, "대기 확인");
@@ -178,13 +219,13 @@ async function waitForTurn(ctx: AdapterContext, uri: string, waitingToken: strin
 }
 
 /** 게이트를 지나 입장 토큰(`gateToken`)을 받는다. 새 방문자는 401 → 대기 토큰 → 대기 → 입장 순서를 지난다. */
-async function passGate(ctx: AdapterContext, uri: string): Promise<string> {
-  let res = await entering(ctx, uri);
+async function passGate(ctx: AdapterContext, gate: Gate): Promise<string> {
+  let res = await entering(ctx, gate);
   if (res.status === 401) {
-    const token = await waitForTurn(ctx, uri, await takeWaitingToken(ctx, uri));
-    // 쿠키 단지에도 심는다(페이지 JS가 쿠키에 두고 헤더로 싣는 것과 같다).
-    ctx.http.setCookie(GATE_HOST, ENTERING_TOKEN_NAME, token);
-    res = await entering(ctx, uri, token);
+    const token = await waitForTurn(ctx, gate, await takeWaitingToken(ctx, gate));
+    // 쿠키 단지에도 심는다(페이지 JS가 쿠키에 두고 헤더로 싣는 것과 같다). 페이지 JS는 게이트 화면의 호스트에 심으므로 리다이렉트가 알려 준 게이트 호스트에만 간다(예약 화면 호스트로는 가지 않는다).
+    ctx.http.setCookie(new URL(gate.pages).hostname, ENTERING_TOKEN_NAME, token);
+    res = await entering(ctx, gate, token);
   }
   if (res.status !== 200) throw gateStatusError(res.status, "게이트 입장");
   return enteringTokenOf(res.body, "게이트 입장");
@@ -217,14 +258,22 @@ const LOGIN_SCREEN = /type\s*=\s*["']?password|(?:location(?:\.href)?\s*=|locati
 function parseCalendar(html: string, where = "예약 화면", unknownValues?: { zone: string; value: string }[]): Calendar {
   if (BOT_DETECTION.test(html)) throw new AdapterError("blocked", `${where}: 봇 탐지·captcha 표지가 왔다`);
   const $ = cheerio.load(html);
-  const cells = $("div.td.pignose-calendar-unit-date");
+  // 서식이 둘이다. 단양(`mirihae.com`)은 `pignose-calendar-unit-date` 칸과 `.pignose-calendar-top-month`("10월"), 여주 자체 도메인은 `div.td`(id가 날짜)와 `.calendar-top-month`("10")다.
+  let cells = $("div.td.pignose-calendar-unit-date");
+  let monthLabel = ".pignose-calendar-top-month";
+  let yearLabel = ".pignose-calendar-top-year";
+  if (cells.length === 0) {
+    cells = $("div.calendar-in div.td").filter((_, el) => /^\d{4}-\d{2}-\d{2}$/.test($(el).attr("id") ?? ""));
+    monthLabel = ".calendar-top-month";
+    yearLabel = ".calendar-top-year";
+  }
   if (cells.length === 0) {
     if (LOGIN_SCREEN.test(html)) throw new AdapterError("blocked", `${where}: 달력 대신 로그인 요구가 왔다`);
-    throw new AdapterError("unrecognized", `${where}: 달력 칸(div.td.pignose-calendar-unit-date)이 없다`);
+    throw new AdapterError("unrecognized", `${where}: 달력 칸(div.td.pignose-calendar-unit-date, div.calendar-in div.td)이 없다`);
   }
-  const monthNumber = /^(\d{1,2})월$/.exec($(".pignose-calendar-top-month").first().text().trim())?.[1];
-  const year = /^\d{4}$/.exec($(".pignose-calendar-top-year").first().text().trim())?.[0];
-  if (!monthNumber || !year) throw new AdapterError("unrecognized", `${where}: 달력의 달 표시(.pignose-calendar-top-month·year)를 읽지 못했다`);
+  const monthNumber = /^(\d{1,2})월?$/.exec($(monthLabel).first().text().trim())?.[1];
+  const year = /^\d{4}$/.exec($(yearLabel).first().text().trim())?.[0];
+  if (!monthNumber || !year) throw new AdapterError("unrecognized", `${where}: 달력의 달 표시(${monthLabel}·${yearLabel})를 읽지 못했다`);
   const month = `${year}-${monthNumber.padStart(2, "0")}`;
   const days = new Map<string, CalendarDay>();
   cells.each((_, el) => {
@@ -235,7 +284,10 @@ function parseCalendar(html: string, where = "예약 화면", unknownValues?: { 
     const zones = new Map<string, number>();
     cell.find("dl.schedule").each((_, dl) => {
       const name = $(dl).find("dd").first().text().trim();
-      const count = $(dl).find("dt").first().text().trim();
+      // 여주 서식은 `dt` 안에 숨은 `<span style="display:none">0</span>`이 먼저 오고 보이는 값이 남은 수다. 숨은 칸은 뺀다.
+      const dt = $(dl).find("dt").first().clone();
+      dt.find("[style*='display:none'], [style*='display: none']").remove();
+      const count = dt.text().trim();
       if (name === "") throw new AdapterError("unrecognized", `${where}: ${id} 칸의 구역 이름(dd)이 없다`);
       if (!/^\d+$/.test(count) && unknownValues) {
         // catalog --live는 모르는 값을 실패로 치지 않고 구역 이름과 함께 보고한다. 바퀴는 이 인자를 주지 않아 구조 변경으로 던진다.
@@ -268,7 +320,7 @@ const GATE_TOKEN_MARGIN_MS = 20_000;
 
 interface HeldToken {
   token: string;
-  uri: string;
+  gate: Gate;
   receivedAt: number;
 }
 
@@ -293,12 +345,12 @@ interface ReservationPage {
  * `?gateToken=`을 붙여 예약 화면을 연다. 리다이렉트는 따라가지 않는다. 로그인으로 가면 `blocked`다.
  * 서버가 토큰을 받지 않으면(게이트로 302하거나 401) 거절한 응답을 돌려준다. 그 밖의 3xx는 구조 변경이고 나머지 상태는 `assertOk`가 가른다.
  */
-async function fetchReservationPage(ctx: AdapterContext, uri: string, token: string): Promise<{ html: string } | { rejected: TransportResponse }> {
-  const res = await send("예약 화면", () => ctx.http.get(`${uri}?gateToken=${encodeURIComponent(token)}`, { followRedirects: false, headers: { Referer: `${GATE_PAGES}/` } }));
-  const to = redirectOf(res, uri, "예약 화면");
+async function fetchReservationPage(ctx: AdapterContext, gate: Gate, token: string): Promise<{ html: string } | { rejected: TransportResponse }> {
+  const res = await send("예약 화면", () => ctx.http.get(`${gate.uri}?gateToken=${encodeURIComponent(token)}`, { followRedirects: false, headers: { Referer: `${gate.pages}/` } }));
+  const to = redirectOf(res, gate.uri, "예약 화면");
   if (to) {
     if (to.hostname === GATE_HOST) return { rejected: res };
-    throw unknownRedirect(to, "예약 화면");
+    throw unexpectedRedirect(to, "예약 화면");
   }
   if (res.status === 401) return { rejected: res };
   assertOk(res, "예약 화면");
@@ -315,28 +367,28 @@ async function openReservationPage(ctx: AdapterContext, facility: string): Promi
   const pageUrl = pageUrlOf(facility);
   const held = heldOf(ctx);
   const now = () => ctx.clock.now().getTime();
-  let uri: string | undefined;
+  let gate: Gate | undefined;
   const kept = held.get(facility);
   if (kept && now() - kept.receivedAt < GATE_TOKEN_LIFETIME_MS - GATE_TOKEN_MARGIN_MS) {
     ctx.log?.("mirihae gateToken reused", { facility, ageSeconds: Math.round((now() - kept.receivedAt) / 1000) });
-    const reused = await fetchReservationPage(ctx, kept.uri, kept.token);
-    if ("html" in reused) return { html: reused.html, uri: kept.uri };
+    const reused = await fetchReservationPage(ctx, kept.gate, kept.token);
+    if ("html" in reused) return { html: reused.html, uri: kept.gate.uri };
     held.delete(facility);
     ctx.log?.("mirihae gateToken rejected", { facility, status: reused.rejected.status });
     // 302는 게이트 주소(`uri`)를 알려 준다. 401은 알려 주지 않으므로 아래에서 예약 화면의 302로 읽는다.
-    if (reused.rejected.status !== 401) uri = gateUriOf(reused.rejected, pageUrl);
+    if (reused.rejected.status !== 401) gate = gateOf(reused.rejected, pageUrl);
   } else {
     held.delete(facility);
   }
-  uri ??= await readGateUri(ctx, pageUrl);
-  const token = await passGate(ctx, uri);
-  held.set(facility, { token, uri, receivedAt: now() });
-  const fresh = await fetchReservationPage(ctx, uri, token);
+  gate ??= await readGate(ctx, pageUrl);
+  const token = await passGate(ctx, gate);
+  held.set(facility, { token, gate, receivedAt: now() });
+  const fresh = await fetchReservationPage(ctx, gate, token);
   if ("rejected" in fresh) {
     held.delete(facility);
     throw new AdapterError("unrecognized", "게이트가 새로 받은 입장 토큰을 곧바로 거절하고 게이트 화면으로 되돌려 보냈다");
   }
-  return { html: fresh.html, uri };
+  return { html: fresh.html, uri: gate.uri };
 }
 
 /** `jQuery.serialize()`처럼 form 본문을 인코딩한다(`encodeURIComponent`, 공백은 `+`). */
@@ -366,16 +418,17 @@ function searchFormBody(html: string, month: string): string {
  * 다른 달의 달력을 읽는다(`POST /camping/calendar.do`). 달력만 바꾸는 호출이고 날짜·구역을 고르는 호출이 아니다. 예약 화면과 같은 간격 큐 안에서 보내고 리다이렉트는 따라가지 않는다.
  * 응답은 `<div class="calendar-in">` 조각이고 이번 달 화면과 같은 파서로 읽는다. 다른 달이 오면 구조 변경이다.
  */
-async function readMonth(ctx: AdapterContext, page: ReservationPage, month: string): Promise<Calendar> {
+async function readMonth(ctx: AdapterContext, facility: string, page: ReservationPage, month: string): Promise<Calendar> {
   const where = `달력 ${month}`;
+  const { origin, calendarUrl } = screenOf(facility);
   const res = await send(where, () =>
-    ctx.http.post(`${ORIGIN}/camping/calendar.do`, searchFormBody(page.html, month), {
+    ctx.http.post(calendarUrl, searchFormBody(page.html, month), {
       followRedirects: false,
-      headers: { Referer: page.uri, Origin: ORIGIN, "X-Requested-With": "XMLHttpRequest", Accept: "text/html, */*; q=0.01" },
+      headers: { Referer: page.uri, Origin: origin, "X-Requested-With": "XMLHttpRequest", Accept: "text/html, */*; q=0.01" },
     }),
   );
-  const to = redirectOf(res, ORIGIN, where);
-  if (to) throw unknownRedirect(to, where);
+  const to = redirectOf(res, origin, where);
+  if (to) throw unexpectedRedirect(to, where);
   assertOk(res, where);
   const calendar = parseCalendar(res.body, where);
   if (calendar.month !== month) throw new AdapterError("unrecognized", `${where}: ${calendar.month} 달력이 왔다`);
@@ -386,7 +439,11 @@ type Results = Map<AvailabilityQuery, AvailableSite[] | AdapterError>;
 
 const monthOf = (date: string) => date.slice(0, 7);
 
-/** 입실일부터 밤마다의 날짜(입실일 포함, 퇴실일 제외). */
+/**
+ * 강천섬은 남은 수가 없는 구역의 `dl`을 그 날짜 칸에서 뺀다(2026-10-13 기록 10/17: 5구역 중 3구역만 나온다). 카탈로그 `ref.soldOutOmitted`가 있는 시설은 `click` 칸에서 안 보이는 구역을 남은 수 0으로 읽는다.
+ * 다른 시설은 모든 구역을 보여 주므로 구역이 안 보이면 구조 변경이다. 구역 이름이 바뀐 경우는 `warnZoneDrift`의 경고로 드러난다.
+ */
+const omitsSoldOut = (facility: string): boolean => fieldsRef(INFO, facility, ["tenant", "pageId"]).soldOutOmitted === "true";
 
 /**
  * 조회 단위 하나를 달력으로 판정한다. 밤마다 칸에 `click`이 있고 구역의 남은 수가 1 이상이어야 빈자리이며 남은 수는 밤마다의 최솟값이다(같은 자리가 이어진다는 보장은 없다).
@@ -400,7 +457,7 @@ function judge(q: AvailabilityQuery, calendars: Map<string, Calendar>, monthFail
     const day = calendar.days.get(night);
     if (!day) return new UnitStructureError(`예약 화면: ${night} 날짜 칸이 달력에 없다`);
     if (!day.open) return [];
-    const count = day.zones.get(q.zone);
+    const count = day.zones.get(q.zone) ?? (omitsSoldOut(q.facility) ? 0 : undefined);
     if (count === undefined) return new UnitStructureError(`예약 화면: ${night} 칸에 감시하는 구역 ${q.zone}이(가) 없다`);
     remaining = Math.min(remaining, count);
   }
@@ -446,7 +503,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       for (const month of new Set(group.flatMap((q) => nightsOf(q).map(monthOf)))) {
         if (calendars.has(month)) continue;
         try {
-          calendars.set(month, await readMonth(ctx, page, month));
+          calendars.set(month, await readMonth(ctx, facility, page, month));
         } catch (e) {
           if (!(e instanceof AdapterError)) throw e;
           monthFailure = e;

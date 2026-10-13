@@ -30,3 +30,24 @@ watches:
   #   checkIn: { from: 2026-10-20, to: 2026-10-30 }
   #   nights: 2
   #   notify: [default]
+  # 울산 북구(강동오토캠핑장 gangdong, 당사현대차오션캠프 dangsa): 시설은 facility, 구역은 예약처 화면의 시설종류 값(priceCode)이다.
+  # 강동 040100 일반데크 · 040200 필로티 · 040300 카라반, 당사 040400 일반데크(단독형) · 040500 복층데크(단독형) · 040600 일반데크(당사) · 040700 복층데크(당사).
+  # 코드는 반드시 따옴표로 감싼다(따옴표가 없으면 YAML이 숫자로 읽어 앞의 0이 사라진다). 코드와 이름은 `catalog bukgu`와 `catalog bukgu <시설>`로 본다.
+  # 예약처가 한 번에 한 밤(1개소/1박)만 받아 nights는 1이다. 연박은 밤마다 날짜를 따로 건다. 기본 폴링 간격은 150초다.
+  # 알림은 표가 "예약가능"이라고 하는 자리다. 다음 달 날짜는 추첨 대상일 수 있어, 예약처 달력(예약 화면의 달력 상한)이 열어 준 날부터만 알린다(달력 상한 날짜 자체는 제외. 닫혀 있는 동안은 표가 모두 "예약가능"이어도 알리지 않는다). 시각이 아니라 달력이 말하는 대로 따른다.
+  # 선착순이 열릴 때(결제 마감일 다음 월요일 10시 KST)가 지났는데도 달력이 안 열리면 로그에 경고(bukgu lottery gate stuck)만 남는다(텔레그램으로는 가지 않는다).
+  # - name: 강동 10월 평일 일반데크
+  #   provider: bukgu
+  #   facility: gangdong
+  #   zones: ["040100", "040200"]
+  #   checkIn: { from: 2026-10-14, to: 2026-10-30 }
+  #   weekdays: [sun, mon, tue, wed, thu]
+  #   nights: 1
+  #   notify: [default]
+  # - name: 당사 10월 복층데크
+  #   provider: bukgu
+  #   facility: dangsa
+  #   zones: ["040500", "040700"]
+  #   checkIn: { from: 2026-10-14, to: 2026-10-30 }
+  #   nights: 1
+  #   notify: [default]

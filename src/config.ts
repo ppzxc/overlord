@@ -65,7 +65,15 @@ const configSchema = z.strictObject({
         name: z.string().min(1),
         provider: z.string(),
         facility: z.string().optional(),
-        zones: z.array(z.string()).min(1),
+        // 숫자처럼 보이는 구역 코드(북구 `040100` 등)는 따옴표가 없으면 YAML이 숫자로 읽어 앞의 0이 사라진다. 코드를 짐작해 되살리지 않고 따옴표를 안내한다.
+        zones: z
+          .array(
+            z.string({
+              error: (issue) =>
+                typeof issue.input === "number" ? '숫자로 읽혔다. 구역 코드는 따옴표로 감싸야 한다(예: zones: ["040100"]). 따옴표가 없으면 앞의 0이 사라진다' : undefined,
+            }),
+          )
+          .min(1),
         seats: z
           .array(z.string().refine(isValidSeatToken, "자리 번호(A02) 또는 범위(A10-A15) 형식이어야 한다"))
           .min(1)

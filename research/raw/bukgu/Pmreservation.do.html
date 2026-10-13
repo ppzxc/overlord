@@ -1,0 +1,2552 @@
+
+
+
+
+
+
+
+
+<!DOCTYPE HTML>
+<html lang="ko">
+<head>
+	<title>예약하기(즉시결제)</title>
+	
+	<meta charset="UTF-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+	<meta property="og:title" content="울산북구캠핑장">
+	<meta property="og:url" content="">
+	<meta property="og:description" content="울산북구캠핑장"/>
+	<script src="/js/jquery-3.2.1.min.js"></script>
+	<script src="/js/common.js"></script>
+	<script src="/js/nav.js"></script>
+	<link rel="stylesheet" href="/css/bootstrap.css" />
+	<link rel="stylesheet" href="/css/basic.css" />   
+	<link rel="stylesheet" href="/css/layout.css" />   
+	<link rel="stylesheet" href="/css/sub.css" />	
+	<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+	
+	<link rel="stylesheet" type="text/css" href="/js/slick/slick.css"/>
+	<link rel="stylesheet" type="text/css" href="/js/slick/slick-theme.css"/>
+	
+	
+	<script type="text/javascript" src="/js/bootstrap.js"></script>
+					
+	
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	
+	<link href="/plug-in/fullcalendar-3.8.2/fullcalendar.css" rel="stylesheet" />
+	<link href="/plug-in/fullcalendar-3.8.2/fullcalendar.print.min.css" rel="stylesheet" media="print" />
+	<script src="/plug-in/fullcalendar-3.8.2/lib/moment.min.js"></script>
+	<script src="/plug-in/fullcalendar-3.8.2/fullcalendar.min.js"></script>
+	<script src="/plug-in/fullcalendar-3.8.2/locale-all.js"></script>
+
+
+
+</head>
+<body>
+
+	<div id="wrap">
+		<!-- header -->
+		<header id="header" class="">
+			<div class="header_top">
+				<ul>
+					
+					<li><a href="/login.do" title="로그인" class="login_btn" >로그인</a></li>
+					<li><a href="https://www.ulsan.go.kr/logins" target="_blank" title="울산시 통합회원[새창]" class="member_btn">회원가입</a></li>
+					<li><a href="https://www.ulsan.go.kr/logins" target="_blank" title="울산시 통합회원[새창]" class="member_btn line-h">아이디 비밀번호 찾기</a></li>
+					
+					<!-- <li><a href="/BBS_003List.do" title="고객센터" class="member_btn">고객센터</a></li> -->
+				</ul>
+	        </div>
+			
+			<div class="gnb-overlay-bg"></div>
+			
+			<div id="headerInnerWrap">
+				<!-- ****************** 헤더상단 ********************** -->
+				<div id="headerInner" class="clearfix area">
+					<h1 class="logo"><a href="/" title="메인으로"><img src="/image/main/logo.jpg" alt="강동오토캠핑장로고"></a></h1>
+					<div class="header-util-box">
+						<!-- 사이트맵 버튼 ( 기본 라인 三 ) -->
+						<button  onclick="openNav()" id="trigger-overlay" class="sitemap-line-btn flip-horizontal-bottom" title="사이트맵 열기">
+							<span class="line line1"></span><span class="line line2"></span><span class="line line3"></span><!-- <span class="line line4"></span> -->
+						</button>
+						<div id="myNav" class="overlay overlay-hugeinc">
+						  <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
+						  <div id="navId" class="overlay-content sidenav">
+							<ul>
+							
+								<li class="dropdown-btn" onclick="">
+									캠핑장 소개
+									<div id="Allmenusub1" class="dropdown-container">
+									
+										
+										
+											
+											
+											<a href="Pgintroduction.do" target="_self" title="울산 북구 캠핑장 소개">울산 북구 캠핑장 소개</a>
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											<a href="/Pgcontent010201.do" target="_self" title="시설현황">시설현황</a>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											<a href="/Pgcontent010301.do" target="_self" title="찾아오시는 길">찾아오시는 길</a>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											<a href="/Pgtourism01.do" target="_self" title="주변관광안내">주변관광안내</a>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+										
+											
+											<a href="/Pgtourism02.do" target="_self" title="북구관광안내">북구관광안내</a>
+											
+											
+											
+											
+											
+										
+										
+									
+									</div>
+								</li>
+							
+								<li class="dropdown-btn" onclick="">
+									시설안내
+									<div id="Allmenusub2" class="dropdown-container">
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											<a href="/Pgcontent020201.do" target="" title="강동오토캠핑장">강동오토캠핑장</a>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											<a href="/Pgcontent020301.do" target="_self" title="당사현대차오션캠프">당사현대차오션캠프</a>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+									</div>
+								</li>
+							
+								<li class="dropdown-btn" onclick="">
+									이용안내
+									<div id="Allmenusub3" class="dropdown-container">
+									
+										
+									
+										
+										
+											
+											
+											<a href="Pgordinance.do" target="_self" title="캠핑장 운영조례">캠핑장 운영조례</a>
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											<a href="/Pgc030201.do" target="_self" title="이용요금(할인) 안내">이용요금(할인) 안내</a>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											<a href="/Pgc030301.do" target="_self" title="사용자준수사항">사용자준수사항</a>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											<a href="Pgrefundpolicy.do" target="_self" title="취소/환불규정">취소/환불규정</a>
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+									</div>
+								</li>
+							
+								<li class="dropdown-btn" onclick="">
+									온라인예약
+									<div id="Allmenusub4" class="dropdown-container">
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+											
+											<a href="Pmreservation.do" target="_self" title="예약하기(즉시결제)">예약하기(즉시결제)</a>
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+											
+											<a href="Pmbukgusubscription.do" target="_self" title="북구구민추첨 & 무장애카라반 추첨 신청">북구구민추첨 & 무장애카라반 추첨 신청</a>
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+											
+											<a href="Pmsubscription.do" target="_self" title="일반추첨 신청">일반추첨 신청</a>
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											<a href="Pgrefundpolicy2.do" target="_self" title="취소/환불규정">취소/환불규정</a>
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+									</div>
+								</li>
+							
+								<li class="dropdown-btn" onclick="">
+									커뮤니티
+									<div id="Allmenusub5" class="dropdown-container">
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+											<a href="BBS_000List.do" target="_self" title="공지사항">공지사항</a>
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+											<a href="BBS_001List.do" target="_self" title="포토갤러리">포토갤러리</a>
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+											<a href="BBS_002List.do" target="_self" title="자주하는 질문(FAQ)">자주하는 질문(FAQ)</a>
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+											<a href="BBS_003List.do" target="_self" title="질의응답(QA)">질의응답(QA)</a>
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+									</div>
+								</li>
+							
+							</ul>
+						  </div>
+						</div>
+						<script>
+							function navDropdown(args){
+								var navId = args;
+								
+								$("#Allmenusub"+navId).show();
+								$("#Allmenusub"+navId).parent().siblings().children().hide();
+							}
+						</script>
+					</div>
+				</div>
+				
+				
+			
+				<!-- ****************** GNB ********************** -->
+				<!-- GNB PC  -->
+				<nav id="gnb" class="each-menu">
+					<h2 class="blind">주메뉴</h2>
+					<!-- 
+						- 전체메뉴 : class="total-menu"
+						- 각각메뉴 : class="each-menu" + <div id="gnbBg"></div> 삭제
+					-->
+					<div id="gnbBg" class=""></div>
+					<div class="gnb-wrapper area">
+						<!--<div class="gnb-2dep-tit" style="display: none;"><span>강동오토캠핑장소개</span></div>-->
+						<ul class="clearfix">
+							
+							<li class="gnb1 has-2dep">
+									<a href="/Pgintroduction.do" target="_self">캠핑장 소개</a>
+									<div class="gnb-2dep">
+									<ul>
+									
+										
+										
+											
+											
+												<li>
+													<a href="Pgintroduction.do" target="_self" title="울산 북구 캠핑장 소개">
+														<span>울산 북구 캠핑장 소개</span>
+													</a>
+												</li>
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+												<li>
+													<a href="/Pgcontent010201.do" target="_self"  title="시설현황">
+														<span>시설현황</span>
+													</a>
+												</li>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+												<li>
+													<a href="/Pgcontent010301.do" target="_self"  title="찾아오시는 길">
+														<span>찾아오시는 길</span>
+													</a>
+												</li>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+												<li>
+													<a href="/Pgtourism01.do" target="_self"  title="주변관광안내">
+														<span>주변관광안내</span>
+													</a>
+												</li>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+										
+											
+												<li>
+													<a href="/Pgtourism02.do" target="_self"  title="북구관광안내">
+														<span>북구관광안내</span>
+													</a>
+												</li>
+											
+											
+											
+											
+											
+										
+										
+									
+									</ul>
+									</div>
+							</li>
+							
+							<li class="gnb2 has-2dep">
+									<a href="/Pgcontent020201.do" target="_self">시설안내</a>
+									<div class="gnb-2dep">
+									<ul>
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+												<li>
+													<a href="/Pgcontent020201.do" target=""  title="강동오토캠핑장">
+														<span>강동오토캠핑장</span>
+													</a>
+												</li>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+												<li>
+													<a href="/Pgcontent020301.do" target="_self"  title="당사현대차오션캠프">
+														<span>당사현대차오션캠프</span>
+													</a>
+												</li>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+									</ul>
+									</div>
+							</li>
+							
+							<li class="gnb3 has-2dep">
+									<a href="/Pgordinance.do" target="_self">이용안내</a>
+									<div class="gnb-2dep">
+									<ul>
+									
+										
+									
+										
+										
+											
+											
+												<li>
+													<a href="Pgordinance.do" target="_self" title="캠핑장 운영조례">
+														<span>캠핑장 운영조례</span>
+													</a>
+												</li>
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+												<li>
+													<a href="/Pgc030201.do" target="_self"  title="이용요금(할인) 안내">
+														<span>이용요금(할인) 안내</span>
+													</a>
+												</li>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+												<li>
+													<a href="/Pgc030301.do" target="_self"  title="사용자준수사항">
+														<span>사용자준수사항</span>
+													</a>
+												</li>
+											
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+												<li>
+													<a href="Pgrefundpolicy.do" target="_self" title="취소/환불규정">
+														<span>취소/환불규정</span>
+													</a>
+												</li>
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+									</ul>
+									</div>
+							</li>
+							
+							<li class="gnb4 has-2dep">
+									<a href="/Pmreservation.do" target="_self">온라인예약</a>
+									<div class="gnb-2dep">
+									<ul>
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+											
+												<li>
+													<a href="Pmreservation.do" target="_self" title="예약하기(즉시결제)">
+														<span>예약하기(즉시결제)</span>
+													</a>
+												</li>
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+											
+												<li>
+													<a href="Pmbukgusubscription.do" target="_self" title="북구구민추첨 & 무장애카라반 추첨 신청">
+														<span>북구구민추첨 & 무장애카라반 추첨 신청</span>
+													</a>
+												</li>
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+											
+												<li>
+													<a href="Pmsubscription.do" target="_self" title="일반추첨 신청">
+														<span>일반추첨 신청</span>
+													</a>
+												</li>
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+												<li>
+													<a href="Pgrefundpolicy2.do" target="_self" title="취소/환불규정">
+														<span>취소/환불규정</span>
+													</a>
+												</li>
+											
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+									</ul>
+									</div>
+							</li>
+							
+							<li class="gnb5 has-2dep">
+									<a href="/BBS_000List.do" target="_self">커뮤니티</a>
+									<div class="gnb-2dep">
+									<ul>
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+												<li>
+													<a href="BBS_000List.do" target="_self" title="공지사항">
+														<span>공지사항</span>
+													</a>
+												</li>
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+												<li>
+													<a href="BBS_001List.do" target="_self" title="포토갤러리">
+														<span>포토갤러리</span>
+													</a>
+												</li>
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+												<li>
+													<a href="BBS_002List.do" target="_self" title="자주하는 질문(FAQ)">
+														<span>자주하는 질문(FAQ)</span>
+													</a>
+												</li>
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+										
+									
+										
+										
+											
+											
+											
+												<li>
+													<a href="BBS_003List.do" target="_self" title="질의응답(QA)">
+														<span>질의응답(QA)</span>
+													</a>
+												</li>
+											
+											
+											
+										
+										
+									
+										
+									
+										
+									
+									</ul>
+									</div>
+							</li>
+							
+						</ul>
+					</div>
+				</nav>
+			</div>
+			<!-- GNB Mobile -->
+			<button class="nav-open-btn" title="네비게이션 열기">
+				<span class="line line1"></span><span class="line line2"></span><span class="line line3"></span>
+			</button>
+			<div class="gnb-overlay-bg-m"></div>
+			<nav id="gnbM" class="gnb-style-basic">
+				<!-- 
+					기본스타일 : .gnb-style-basic
+					Full 스타일 : .gnb-style-full
+				-->
+				<h2 class="blind">주메뉴</h2>
+				<div class="gnb-navigation-wrapper">
+					<div class="gnb-navigation-inner">
+						<ul id="navigation">
+						
+							<li class="has-2dep">
+								<a href="/Pgintroduction.do" target="_self">
+									캠핑장 소개<span class="gnb-icon close-icon"><i class="material-icons"></i></span>
+									<span class="gnb-icon open-icon" style="display:none;"><i class="material-icons"></i></span>
+								</a>
+								<ul class="gnb-2dep">
+									
+									
+									
+										
+										
+											<li><a href="Pgintroduction.do" target="_self" title="울산 북구 캠핑장 소개"><span>울산 북구 캠핑장 소개</span></a></li>
+										
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										<li><a href="/Pgcontent010201.do" target="_self"  title="시설현황"><span>시설현황</span></a></li>
+										
+										
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										<li><a href="/Pgcontent010301.do" target="_self"  title="찾아오시는 길"><span>찾아오시는 길</span></a></li>
+										
+										
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										<li><a href="/Pgtourism01.do" target="_self"  title="주변관광안내"><span>주변관광안내</span></a></li>
+										
+										
+										
+										
+										
+									
+									
+									
+									
+									
+										
+										<li><a href="/Pgtourism02.do" target="_self"  title="북구관광안내"><span>북구관광안내</span></a></li>
+										
+										
+										
+										
+										
+									
+									
+									
+								</ul>
+							</li>
+						
+							<li class="has-2dep">
+								<a href="/Pgcontent020201.do" target="_self">
+									시설안내<span class="gnb-icon close-icon"><i class="material-icons"></i></span>
+									<span class="gnb-icon open-icon" style="display:none;"><i class="material-icons"></i></span>
+								</a>
+								<ul class="gnb-2dep">
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										<li><a href="/Pgcontent020201.do" target=""  title="강동오토캠핑장"><span>강동오토캠핑장</span></a></li>
+										
+										
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										<li><a href="/Pgcontent020301.do" target="_self"  title="당사현대차오션캠프"><span>당사현대차오션캠프</span></a></li>
+										
+										
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+								</ul>
+							</li>
+						
+							<li class="has-2dep">
+								<a href="/Pgordinance.do" target="_self">
+									이용안내<span class="gnb-icon close-icon"><i class="material-icons"></i></span>
+									<span class="gnb-icon open-icon" style="display:none;"><i class="material-icons"></i></span>
+								</a>
+								<ul class="gnb-2dep">
+									
+									
+									
+									
+									
+										
+										
+											<li><a href="Pgordinance.do" target="_self" title="캠핑장 운영조례"><span>캠핑장 운영조례</span></a></li>
+										
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										<li><a href="/Pgc030201.do" target="_self"  title="이용요금(할인) 안내"><span>이용요금(할인) 안내</span></a></li>
+										
+										
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										<li><a href="/Pgc030301.do" target="_self"  title="사용자준수사항"><span>사용자준수사항</span></a></li>
+										
+										
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										
+											<li><a href="Pgrefundpolicy.do" target="_self" title="취소/환불규정"><span>취소/환불규정</span></a></li>
+										
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+								</ul>
+							</li>
+						
+							<li class="has-2dep">
+								<a href="/Pmreservation.do" target="_self">
+									온라인예약<span class="gnb-icon close-icon"><i class="material-icons"></i></span>
+									<span class="gnb-icon open-icon" style="display:none;"><i class="material-icons"></i></span>
+								</a>
+								<ul class="gnb-2dep">
+									
+									
+									
+									
+									
+									
+									
+										
+										
+										
+										
+											<li><a href="Pmreservation.do" target="_self" title="예약하기(즉시결제)"><span>예약하기(즉시결제)</span></a></li>
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										
+										
+										
+											<li><a href="Pmbukgusubscription.do" target="_self" title="북구구민추첨 & 무장애카라반 추첨 신청"><span>북구구민추첨 & 무장애카라반 추첨 신청</span></a></li>
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										
+										
+										
+											<li><a href="Pmsubscription.do" target="_self" title="일반추첨 신청"><span>일반추첨 신청</span></a></li>
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										
+											<li><a href="Pgrefundpolicy2.do" target="_self" title="취소/환불규정"><span>취소/환불규정</span></a></li>
+										
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+								</ul>
+							</li>
+						
+							<li class="has-2dep">
+								<a href="/BBS_000List.do" target="_self">
+									커뮤니티<span class="gnb-icon close-icon"><i class="material-icons"></i></span>
+									<span class="gnb-icon open-icon" style="display:none;"><i class="material-icons"></i></span>
+								</a>
+								<ul class="gnb-2dep">
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										
+										
+											<li><a href="BBS_000List.do" target="_self" title="공지사항"><span>공지사항</span></a></li>
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										
+										
+											<li><a href="BBS_001List.do" target="_self" title="포토갤러리"><span>포토갤러리</span></a></li>
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										
+										
+											<li><a href="BBS_002List.do" target="_self" title="자주하는 질문(FAQ)"><span>자주하는 질문(FAQ)</span></a></li>
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+									
+										
+										
+										
+											<li><a href="BBS_003List.do" target="_self" title="질의응답(QA)"><span>질의응답(QA)</span></a></li>
+										
+										
+										
+									
+									
+									
+									
+									
+									
+									
+								</ul>
+							</li>
+						
+						</ul>
+						
+						<ul class="mo_login">
+							
+							<li><a href="/login.do" title="로그인" class="login_btn" >로그인</a></li>
+							<li><a href="https://www.ulsan.go.kr/logins" target="_blank" title="울산시 통합회원[새창]" class="member_btn">회원가입</a></li>
+							<li><a href="https://www.ulsan.go.kr/logins" target="_blank" title="울산시 통합회원[새창]" class="member_btn line-h">아이디<br/>비밀번호 찾기</a></li>
+							
+							<li><a href="/BBS_003List.do" title="고객센터" class="member_btn">고객센터</a></li>
+						</ul>
+						
+					</div>
+				</div>
+			</nav>
+		</header>	<!-- //header -->
+		
+	
+	<!-- sub top -->
+	<div id="svisual_layout">
+    <div class="svisual_wrap sub01"> <!-- sub01~sub06번까지 이미지 있음,  -->
+		<div class="title_wrap">
+			<strong>울산북구캠핑장</strong>
+			<p>
+				울산북구캠핑장으로 오세요. 추억을 선물해드립니다.<br>
+				강동오토캠핑장 / 당사현대차오션캠프
+			</p>
+		</div>
+	</div>
+	</div>
+	
+	<div id="body_layout">
+	<div class="body_wrap">
+    
+    <!-- 로케이션 시작 -->
+	<ul id="location_layout" class="location_wrap nav navbar-nav">
+		<li class="home"><a href="/">홈</a></li>
+		<li class="depth1 dropDown"><a href="#" class="dropdown-toggle" data-toggle="dropdown">온라인예약</a></li>
+		<li class="depth2 dropDown"><a href="#" class="step">예약하기(즉시결제)</a></li>
+	</ul>
+	<!-- 로케이션 끝 -->
+	
+	<!-- sub top (e) -->
+	<div id="txt" class="contents_wrap">
+
+        
+	<div class="sub-menu menu4">
+
+	
+	
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+		
+	
+	
+	
+		
+			
+		
+			
+		
+			
+				
+			
+		
+			
+		
+			
+		
+			
+		
+			
+		
+			
+				
+			
+		
+			
+		
+			
+		
+			
+		
+			
+		
+			
+		
+			
+				
+			
+		
+			
+		
+			
+		
+			
+		
+			
+				
+			
+		
+			
+		
+			
+		
+			
+		
+	
+	
+	
+	
+	
+	
+		
+			
+		
+			
+		
+			
+			
+				
+				
+				
+				
+					<a href="Pmreservation.do" class="active" target="_self">예약하기(즉시결제)</a>
+				
+				
+			
+			
+		
+			
+		
+			
+		
+			
+		
+			
+		
+			
+			
+				
+				
+				
+				
+					<a href="Pmbukgusubscription.do"  target="_self">북구구민추첨 & 무장애카라반 추첨 신청</a>
+				
+				
+			
+			
+		
+			
+		
+			
+		
+			
+		
+			
+		
+			
+		
+			
+			
+				
+				
+				
+				
+					<a href="Pmsubscription.do"  target="_self">일반추첨 신청</a>
+				
+				
+			
+			
+		
+			
+		
+			
+		
+			
+		
+			
+			
+				
+				
+					<a href="Pgrefundpolicy2.do"  target="_self">취소/환불규정</a>
+				
+				
+				
+				
+			
+			
+		
+			
+		
+			
+		
+			
+		
+	
+	
+	
+	
+    </div>
+    
+    
+    <!-- 3차 서브메뉴  -->
+    <div class="sub-menu2">
+    <ul>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+	</ul>
+    </div>
+    
+	<!-- 
+		<div id="navigate">
+	    	<h2 class="navi_title">캠핑장 소개</h2>
+	    </div>
+    --> 
+        
+	
+
+
+
+
+
+
+
+
+
+
+	    
+<div class="content">
+
+	<div class="step-box">
+		<div class="step-state step1">
+			<ul>
+				<li><p>예약선택</p></li>
+				<li><p>예약정보입력</p></li>
+				<li><p>예약하기</p></li>
+				<li><p>결제완료/예약확정</p></li>
+			</ul>
+		</div>
+	</div>
+	
+	<div class="date_w">
+		<div class="date_form">
+		<fieldset class="clearfix">
+			<legend>예약선택</legend>
+			
+			<span class="tit">캠핑장</span>
+			<span class="tit camping_name">
+				<button type="button" id="btn_siteKindCode_010100" class="btn btn-success siteKindCodeBtn" data-code="010100">강동오토캠핑장</button>
+				<button type="button" id="btn_siteKindCode_010200" class="btn btn-default siteKindCodeBtn" data-code="010200">당사현대차오션캠프</button>
+				<input type="hidden" name="siteKindCode" id="siteKindCode" value="010100" />
+			</span>
+		</fieldset>
+		</div>
+		<span class="noti"><strong>이용시설을 선택 후</strong> 아래 시설을 선택하여 주시기 바랍니다.</span>
+	</div>
+	
+	<div class="zone_area_w">
+		<p class="zene_notice">예약 할 <span>시설번호를 아래 그림을 보고 참고 후 선택</span>해 주세요.</p>
+		<div class="camping">
+			<img class="camping-image" id="camping_map" src="/image/sub/autocamping.png" data-media-pc="/image/sub/intro_top_img_01.png" alt="강동오토캠핑장 시설도" />
+		</div>
+	</div>
+
+
+<div id="notice_text" style="display: block; text-align: center;">
+		<span style="margin-right: 1px; color:#0038ea; font-size:19px">강동오토캠핑장 예약 전 공지사항 필독바랍니다.</span>
+	</div>
+	
+	<div class="page-content" id ="page-content">
+		<div class="row">
+			<div class="col-md-6">
+				<div id="calendar"></div>
+			</div>
+			<div class="col-md-6">
+				<div class="row">
+					<div class="date_line col-md-12 subscription">
+						사전예약을 원하시는 시설을 선택하세요.
+						<div class="date_line100">
+							<b id="date_line"> </b>
+						</div>
+					</div>
+					<br />
+		
+					<div id="divAjaxTable" class="site_list_wrap col-md-12"></div>
+		
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	<div id="notice_text" style="display: block; text-align: center; margin-top: 10px; margin-bottom: 10px">
+		<span style="margin-right: 1px; color:#0038ea; font-size:19px">강동오토캠핑장 예약 전 공지사항 필독바랍니다.</span>
+	</div>
+	
+	<!-- 캠핑장 선택 시 나타나는 부분 -->
+	<div class="result_info_w mg30t" id="result_info_w">
+	</div>
+
+</div>
+
+<form name="subscription" action="/Pmreservation2.do" method="post">
+	<input type="hidden" name="resDate" id="resDate" value="" /> 
+	<input type="hidden" name="idx" id="idx" value="" />
+	<input name="checkout" type="hidden" value="true" />
+	<input name="subscription" type="hidden" value="" />
+</form>
+
+<script type="text/javascript">
+var ulotStartDay = '5';
+var ulotEndDay = '7';
+var ulotDay = '8';
+var uresEndDay = '9';
+var lotStartDay = '12';
+var lotEndDay = '14';
+var lotDay = '15';
+var resEndDay = '16';
+var subscriptionIdx = 0;
+
+var priceCode = "";
+var useOnly = "";
+
+jQuery(function($) {
+	$('#external-events div.external-event').each(function() {
+		// create an Event Object (http://arshaw.com/fullcalendar/docs/event_data/Event_Object/)
+		// it doesn't need to have a start or end
+		var eventObject = {
+			title : $.trim($(this).text())
+		// use the element's text as the event title
+		};
+		// store the Event Object in the DOM element so we can get to it later
+		$(this).data('eventObject', eventObject);
+
+		// make the event draggable using jQuery UI
+		$(this).draggable({
+			zIndex : 999,
+			revert : true, // will cause the event to go back to its
+			revertDuration : 0
+		//  original position after the drag
+		});
+	});
+	
+	// 캠핑장 휴무일 세팅
+	var cList = new Array();
+	
+		cList.push("20200730");
+	
+		cList.push("20200901");
+	
+		cList.push("20200902");
+	
+		cList.push("20200903");
+	
+		cList.push("20200904");
+	
+		cList.push("20200905");
+	
+		cList.push("20200906");
+	
+		cList.push("20200907");
+	
+		cList.push("20200908");
+	
+		cList.push("20200909");
+	
+		cList.push("20200910");
+	
+		cList.push("20200911");
+	
+		cList.push("20200912");
+	
+		cList.push("20200913");
+	
+		cList.push("20201001");
+	
+		cList.push("20201002");
+	
+		cList.push("20201003");
+	
+		cList.push("20201004");
+	
+		cList.push("20201005");
+	
+		cList.push("20201006");
+	
+		cList.push("20201007");
+	
+		cList.push("20201008");
+	
+		cList.push("20201009");
+	
+		cList.push("20201010");
+	
+		cList.push("20201011");
+	
+		cList.push("20201012");
+	
+		cList.push("20201013");
+	
+		cList.push("20201014");
+	
+		cList.push("20201015");
+	
+		cList.push("20210101");
+	
+		cList.push("20210102");
+	
+		cList.push("20210103");
+	
+		cList.push("20210104");
+	
+		cList.push("20210105");
+	
+		cList.push("20210106");
+	
+		cList.push("20210107");
+	
+		cList.push("20210108");
+	
+		cList.push("20210109");
+	
+		cList.push("20210110");
+	
+		cList.push("20210111");
+	
+		cList.push("20210112");
+	
+		cList.push("20210113");
+	
+		cList.push("20210114");
+	
+		cList.push("20210115");
+	
+		cList.push("20210116");
+	
+		cList.push("20210117");
+	
+		cList.push("20210118");
+	
+		cList.push("20210119");
+	
+		cList.push("20210120");
+	
+		cList.push("20210121");
+	
+		cList.push("20210122");
+	
+		cList.push("20210123");
+	
+		cList.push("20210124");
+	
+		cList.push("20210125");
+	
+		cList.push("20210126");
+	
+		cList.push("20210127");
+	
+		cList.push("20210128");
+	
+		cList.push("20210129");
+	
+		cList.push("20210130");
+	
+		cList.push("20210131");
+	
+		cList.push("20210201");
+	
+		cList.push("20210202");
+	
+		cList.push("20210203");
+	
+		cList.push("20210204");
+	
+		cList.push("20210205");
+	
+		cList.push("20210206");
+	
+		cList.push("20210207");
+	
+		cList.push("20210208");
+	
+		cList.push("20210209");
+	
+		cList.push("20210210");
+	
+		cList.push("20210211");
+	
+		cList.push("20210212");
+	
+		cList.push("20210213");
+	
+		cList.push("20210214");
+	
+		cList.push("20210215");
+	
+		cList.push("20210216");
+	
+		cList.push("20210217");
+	
+		cList.push("20210218");
+	
+		cList.push("20210917");
+	
+		
+	/* initialize the calendar 
+	-----------------------------------------------------------------*/
+	var date = new Date();
+	var d = date.getDate();
+	var m = date.getMonth();
+	var y = date.getFullYear();
+	var startDate = moment([ y, m ]);
+	var holiday=";2021-06-06;2021-05-19;2021-03-01;2021-09-20;2021-09-21;2021-09-22;2021-10-03;2022-01-31;2022-02-01;2022-02-02;2022-05-08;2020-08-27;2020-10-02;2020-09-30;2020-10-01;2020-10-09;2021-02-13;2021-02-11;2021-02-12;2021-01-01;2020-12-25;2021-10-09;2021-05-05;2022-01-01;2021-12-25;2022-03-01;2022-05-05;2024-09-15;2024-09-16;2024-12-25;2025-06-03;2026-02-16;2026-02-17;2026-02-18;2026-03-01;2026-03-02;2026-05-05;2024-09-18;2024-10-01;2024-10-03;2024-10-09;2025-06-06;2025-10-03;2026-05-25;2026-06-03;2026-06-06;2026-07-17;2024-09-17;2025-01-29;2025-01-28;2025-01-30;2025-03-01;2025-03-03;2025-05-05;2025-05-06;2025-08-15;2025-10-06;2025-10-07;2025-10-08;2025-10-09;2025-12-25;2025-01-27;2026-08-15;2026-08-17;2026-09-24;2026-09-25;2026-09-26;2026-10-03;2026-10-05;2026-10-09;2026-12-25"; // 캠핑장 휴무일 전체 
+	
+	// Clone the value before .endOf()
+	var endDate = moment(startDate).endOf('month');
+	
+	$('#calendar').fullCalendar({
+		firstDay : 0,
+		locale: 'ko',
+		buttonHtml : {
+			prev : '<i class="ace-icon fa fa-chevron-left"></i>',
+			next : '<i class="ace-icon fa fa-chevron-right"></i>'
+		},
+        header: {
+            left: 'prev',
+            center: 'title',
+            right: 'next'
+		},
+        navLinks: false,
+        editable: false,
+        droppable : false,
+        eventLimit: false,
+        dayClick : function(date, jsEvent, view) {
+			if($(this).hasClass('closed')){
+				alert("캠핑장 휴장일 입니다. 다른 날짜를 클릭하여 주시기 바랍니다.");
+			}else if($(this).hasClass('disabled')){
+				alert("예약 가능한 날짜가 아닙니다.");
+			}else{
+			$('#resDate').val(date.format());
+			$('.fc-day').css('background-color', 'white');
+			$(this).css('background-color', '#f1f1f1');
+			$('#resDate').val();
+			addTable();
+			var dateLine=date.format("YYYY-MM-DD");
+			$('#date_line').html('선택날짜 :' + dateLine);
+			$('.date_line').show();
+			}
+		},
+		dayRender: function(date, cell){
+			$('.fc-day-number').each(function(index,lement){
+				var spHoliday=holiday.split(";");
+				for(var i in spHoliday){
+					if($(this).attr("data-date")==spHoliday[i]){
+						$(this).css("color","#ee525e");
+					}
+				}				
+			});
+
+			var cDate = new Date(date);
+			var cYear = cDate.getFullYear();
+			var cMonth = cDate.getMonth()+1;
+			if(cMonth < 10){ cMonth = "0"+cMonth; }
+			var cDays = cDate.getDate();
+			if(cDays <10){ cDays = "0"+cDays; }
+			var cFullDate = String(cYear)+String(cMonth)+String(cDays);
+			
+			var d = new Date(date);
+			var d2= 1793458800072;
+			var now= new Date().valueOf();
+			//var d3= 1793458800072;
+			
+	        if (d > d2 || d < now){
+	        	//예약불가능한 날짜 셋팅
+	            $(cell).addClass('disabled');
+	        }
+	        
+	        var nowDate = new Date();
+			var nowYear = nowDate.getFullYear();
+			var nowMonth = nowDate.getMonth();
+			var nowHour = nowDate.getHours();
+			var nowDate = nowDate.getDate();
+			 
+			
+			if(d.getFullYear() ==   nowYear &&  d.getMonth() == nowMonth && d.getDate() == nowDate){
+				$(cell).addClass('disabled');
+			}
+			
+			if(d.getFullYear() ==   nowYear &&  d.getMonth() == nowMonth && (d.getDate() == nowDate) 
+					&& (nowHour <18) ){
+				$(cell).removeClass('disabled');
+        	}
+			
+			if(cList.indexOf(cFullDate) > -1){
+				$(cell).addClass('disabled closed');
+			}
+		}
+	});
+	
+	//달력클릭시
+	$('#calendar').on("click", function() {
+		moment1 = $('#calendar').fullCalendar('getDate');
+		curMonth1 = moment1.format("MM");
+		curYear1 = moment1.format("YYYY");
+		$('#calendar').fullCalendar('removeEvents');
+	});
+	
+	$(".siteKindCodeBtn").click(function(){
+		var gangdong_map = "/image/sub/autocamping.png";
+		var ocean_map = "/image/sub/camping_ocean_zone.jpg";
+		
+		var selectCode = $(this).data("code");
+		
+		if(selectCode == "010100"){
+			$("#camping_map").attr("src", gangdong_map);
+			$(this).addClass("btn-success");
+			$(this).removeClass("btn-default");
+			
+			$("#btn_siteKindCode_010200").addClass("btn-default");
+			$("#btn_siteKindCode_010200").removeClass("btn-success");
+			
+		}else{
+			$("#camping_map").attr("src", ocean_map);
+			$(this).addClass("btn-success");
+			$(this).removeClass("btn-default");
+			
+			$("#btn_siteKindCode_010100").addClass("btn-default");
+			$("#btn_siteKindCode_010100").removeClass("btn-success");
+
+			// 당사현대차오션캠프 안내창 띄우기
+			window.open('/html/front/contents/210820.html', '예약시 안내사항','width=500, height=550, menubar=no, status=no, toolbar=no');
+
+
+		}
+		
+		$("#siteKindCode").val(selectCode);
+		$("#divAjaxTable").empty();
+		$("#date_line").empty();
+	});
+
+});
+
+function selectSchedule(m, y) {
+	var date = new Date();
+	var d = date.getDate();
+	var startDate = moment([ y, m ]);
+
+	// Clone the value before .endOf()
+	var endDate = moment(startDate).endOf('month');
+	var eventData = {
+		title : '북구구민 추첨예약',
+		start : new Date(y, m, ulotStartDay),
+		end : new Date(y, m, ulotEndDay),
+		className : 'label-important2'
+	};
+	$('#calendar').fullCalendar('renderEvent', eventData, true); // stick? = true
+	eventData = {
+		title : '북구구민 추첨',
+		start : new Date(y, m, ulotDay - 1),
+		className : 'label-info'
+	};
+	$('#calendar').fullCalendar('renderEvent', eventData, true); // stick? = true
+	eventData = {
+		title : '북구구민  당첨자예약',
+		start : new Date(y, m, ulotDay),
+		end : new Date(y, m, uresEndDay),
+		className : 'label-warning'
+	};
+	$('#calendar').fullCalendar('renderEvent', eventData, true); // stick? = true
+	eventData = {
+		title : '일반시민 추첨',
+		start : new Date(y, m, lotDay - 1),
+		className : 'label-info'
+	};
+	$('#calendar').fullCalendar('renderEvent', eventData, true); // stick? = true
+	eventData = {
+		title : '울산시민  당첨자예약',
+		start : new Date(y, m, lotDay),
+		end : new Date(y, m, resEndDay),
+		className : 'label-warning'
+	};
+	$('#calendar').fullCalendar('renderEvent', eventData, true); // stick? = true
+	eventData = {
+		title : '선착순예약',
+		start : new Date(y, m, resEndDay),
+		end : endDate,
+		className : 'label-success'
+	};
+
+	$('#calendar').fullCalendar('renderEvent', eventData, true); // stick? = true
+}
+
+var doubleSubmitFlag = false;
+function doubleSubmitCheck(){
+    if(doubleSubmitFlag){	
+        return doubleSubmitFlag;
+    }else{
+        doubleSubmitFlag = true;
+        return false;
+    }
+    
+}
+ 
+function confirmRev() {
+	if(doubleSubmitCheck()) return;
+	
+	document.subscription.submit();
+}
+
+function subIdx(idx) {
+	document.subscription.idx.value = idx;
+	$("#result_info_w").empty();
+	
+	//로그인체크
+	
+	alert("로그인이 필요합니다.");
+	location.href="/login.do";
+	return false;
+	
+	
+	var resDate = $('#resDate').val();
+	var idx = $("#idx").val();
+	
+	$.ajax({
+		dataType : "html",
+  	    type : "POST",
+  	  	url : "/ajax/preReservationAjax2.do",
+  	  	data : {resDate:resDate, idx:idx},
+		contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+		success: function(args) {
+			$("#result_info_w").html(args);
+		},
+		error: function(data, status, err) {
+			alert("데이터를 가져오는 동안 에러가 발생했습니다.");
+		}
+	});
+}
+
+function filterChange(){
+	var siteKindCode = $("#siteKindCode").val();
+	priceCode = $('#priceCode').val();
+	var resDate = $("#resDate").val();
+	
+	var gangdong_map = "/image/sub/autocamping.png";
+	var ocean_map = "/image/sub/camping_ocean_zone.jpg";
+	
+	$.ajax({
+		dataType : "html",
+  	    type : "POST",
+  	  	url : "/ajax/reservationCntAjax.do",
+		data : {resDate:resDate, siteKindCode:siteKindCode, priceCode:priceCode},
+		contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+		success: function(args) {
+			$("#divAjaxTable").html(args);
+			$("#divAjaxTable").css('background-image', 'url("")');
+			
+			if(siteKindCode == "010100"){
+				$("#camping_map").attr("src", gangdong_map);
+			}else{
+				$("#camping_map").attr("src", ocean_map);
+			}
+			
+		},
+		error: function(data, status, err) {
+			alert("데이터를 가져오는 동안 에러가 발생했습니다.");
+		}
+	});
+
+}
+
+
+function addTable(){
+	var resDate = $("#resDate").val();
+	var siteKindCode = $("#siteKindCode").val();
+	
+	var gangdong_map = "/image/sub/autocamping.png";
+	var ocean_map = "/image/sub/camping_ocean_zone.jpg";
+
+	$.ajax({
+		dataType : "html",
+  	    type : "POST",
+  	  	url : "/ajax/reservationCntAjax.do",
+		data : {resDate:resDate, siteKindCode:siteKindCode, priceCode:priceCode},
+		contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+		success: function(args) {
+			$("#divAjaxTable").html(args);
+			$("#divAjaxTable").css('background-image', 'url("")');
+			
+			if(siteKindCode == "010100"){
+				$("#camping_map").attr("src", gangdong_map);
+			}else{
+				$("#camping_map").attr("src", ocean_map);
+			}
+		},
+		error: function(data, status, err) {
+			alert("데이터를 가져오는 동안 에러가 발생했습니다.");
+		}
+	});
+}
+
+/*
+* 인증요청 처리 
+*/
+function doPay() {
+	// OID, TIMESTAMP 생성
+	makeoid();
+	// 결제창 호출
+	document.getElementById("LGD_PAYINFO").submit();
+}
+
+function makeoid() {
+	var now = new Date();
+	var years = now.getFullYear();
+	var months = LPad(now.getMonth() + 1, 2, "0");
+	var dates = LPad(now.getDate(), 2, "0");
+	var hours = LPad(now.getHours(), 2, "0");
+	var minutes = LPad(now.getMinutes(), 2, "0");
+	var seconds = LPad(now.getSeconds(), 2, "0");
+	var timeValue = years + months + dates + hours + minutes + seconds; 
+	document.getElementById("LGD_OID").value = "test_" + timeValue;
+	document.getElementById("LGD_TIMESTAMP").value = timeValue;
+}
+
+function LPad(digit, size, attatch) {
+    var add = "";
+    digit = digit.toString();
+
+    if (digit.length < size) {
+        var len = size - digit.length;
+        for (var i=0; i<len; i++) {
+            add += attatch;
+        }
+    }
+    return add + digit;
+}
+</script>
+	
+        
+        
+		</div>
+	</div>
+	</div>
+	
+	<div id="quick">				
+		<ul class="quick">	
+			<li class="quick01 color1"><a href="/Pmreservation.do"><span>온라인예약</span></a></li>
+			<li class="quick02 color2"><a href="PmmySubscription.do"><span>예약확인</span></a></li>
+			<li class="quick03 color3"><a href="/Pgcontent020201.do"><span>시설안내</span></a></li>
+			<li class="quick04 color4"><a href="/Pgc030201.do"><span>이용요금</span></a></li>
+			<li class="quick05 color5"><a href="/BBS_002List.do"><span>FAQ</span></a></li>	
+		</ul>	
+	</div>
+	</div>
+	<footer>
+	<a href="#doc-wrap" class="topBt over"><span>TOP</span></a>
+	<div class="footer-wrap">
+		  <!-- <div class="fam-site">
+		<div class="fam-list">
+		  <div class="fam-list-wrap">
+			<a href="https://www.bukgu.ulsan.kr/index.do" target="_blank">울산북구청</a>
+		  </div>
+		</div>
+		<a href="javascript:;" class="btn-dropdown">관계사 바로가기</a>
+	  </div> -->
+	  <div class="fam-site">
+		<a href="https://www.bukgu.ulsan.kr/corona.jsp" class="btn-dropdown">북구청 홈페이지 바로가기</a>
+	  </div>
+	  <div class="footer-txt">
+		<!--
+		<div class="footer-logo">
+			<a href="https://www.kyobo.co.kr" target="_blank" class="gangdong"></a>
+		</div>
+		-->
+		<ul class="terms">
+		  <li><a href="http://www.bukgu.ulsan.kr/lay1/S1T271C272/contents.do" target="_blank" title="개인정보처리방침[새창]">개인정보처리방침</a></li>
+		  <li><a href="http://www.bukgu.ulsan.kr/lay1/S1T271C276/contents.do" target="_blank" title="이용약관[새창]">이용약관</a></li>
+		</ul>
+		<p>
+		울산광역시 북구 당사동 87번지 강동오토캠핑장(<a href="tel:0522913663">052-291-3663</a>)<br />
+		울산광역시 북구 당사동 378-4번지 당사현대차오션캠프(<a href="tel:0522910805">052-291-0805</a>)
+		</p>
+		<p class="copyrights">Copyright ⓒ Gangdong Auto Camping Site in Buk-gu, Ulsan. All Rights Reserved.</p>
+	  </div>
+	</div>
+	</footer>
+	
+	
+	<script>
+	$(function(){
+		/* top 버튼 */
+	    // Fakes the loading setting a timeout
+	    setTimeout(function () {
+	        $('body').addClass('loaded');
+	    }, 400);
+		
+	    $(window).scroll(function () {
+	        if ($(this).scrollTop() > $(window).height() * 0.2) {
+	            $('.topBt').addClass('over');
+	        } else {
+	            $('.topBt').removeClass('over');
+	        }
+	    });
+	
+	    //Click event to scroll to top
+	    $('.topBt').click(function () {
+	        $('html, body').animate({ scrollTop: 0 }, 300);
+	        return false;
+	    });
+	 });
+	</script>
+	
+	<script type="text/javascript">
+
+	  // FOOTER FAMILY SITE 
+	  $(".btn-dropdown").on("click", function(){
+	    if($(".fam-site").hasClass("active")) {
+	      $(".fam-site").removeClass("active");
+	    } else {
+	      $(".fam-site").addClass("active");
+	    }
+	  });
+	</script>
+	
+</body>
+</html>

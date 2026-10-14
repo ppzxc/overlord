@@ -170,7 +170,7 @@ describe("태백 폴러", () => {
       await settle();
       expect(p.allRequests).toHaveLength(0);
       await p.stop();
-      const open = run({ from: "2026-11-02" }, { now: "2026-10-01T10:00:00+09:00" });
+      const open = run({ from: "2026-11-02" }, { now: "2026-10-01T10:30:00+09:00" });
       await settle();
       expect(open.allRequests).toHaveLength(1);
       await open.stop();
@@ -295,5 +295,132 @@ describe("catalog taebaek", () => {
 
   it("최대 4박은 확인하지 못한 값이라 미확인으로 표시한다", async () => {
     expect((await catalog("gowon")).out).toMatch(/^taebaek \(최대 4박\(미확인\)\)$/m);
+  });
+});
+
+describe("태백 오픈 경쟁 시간(매월 1일)", () => {
+  const MIN = 60_000;
+  const ONE = "2026-10-01T09:50:00+09:00"; // 매월 1일. 10/1~14는 예약종료이므로 10/15를 감시한다.
+  const TWO = "2026-10-02T09:50:00+09:00";
+  const cycles = (p: ReturnType<typeof run>) => p.allRequests.length;
+
+  it("기본값은 매월 1일 09:55~10:30이다", () => {
+    expect(adapters.taebaek!.describe().openingRush).toEqual({ from: "09:55", to: "10:30", dayOfMonth: 1 });
+  });
+
+  it("1일에는 다음 바퀴 예정(10:00)이 구간 안이라 10:30까지 요청이 없고 그 뒤에 다시 돈다", async () => {
+    const p = run({ from: "2026-10-15" }, { now: ONE });
+    await settle();
+    expect(cycles(p)).toBe(1); // 09:50 첫 바퀴
+    await p.clock.advance(39 * MIN); // 10:29
+    expect(cycles(p)).toBe(1);
+    await p.clock.advance(2 * MIN); // 10:31
+    await settle();
+    expect(cycles(p)).toBeGreaterThan(1);
+    await p.stop();
+  });
+
+  it("1일이 아닌 날에는 같은 시각이라도 10:00에 바퀴가 돈다", async () => {
+    const p = run({ from: "2026-10-15" }, { now: TWO });
+    await settle();
+    expect(cycles(p)).toBe(1);
+    await p.clock.advance(10 * MIN + 1000); // 10:00
+    await settle();
+    expect(cycles(p)).toBe(2);
+    await p.stop();
+  });
+
+  it("1일 구간 안에서 시작하면 첫 바퀴도 구간이 끝날 때까지 요청하지 않는다", async () => {
+    const p = run({ from: "2026-10-15" }, { now: "2026-10-01T10:00:00+09:00" });
+    await settle();
+    expect(cycles(p)).toBe(0);
+    await p.stop();
+  });
+
+  it("구간 안에서도 살아있음 신호가 폴링 간격마다 나가고 예약처 상태 알림은 없다", async () => {
+    const PING = "https://hc.example/ping";
+    const p = startPoller(() => ({ status: 404, body: "" }), {
+      yaml: configWith(watch({ from: "2026-10-15" })).replace("providers:", `deadManPingUrl: ${PING}\nproviders:`),
+      server: taebaekServer(),
+      now: "2026-10-01T10:00:00+09:00",
+    });
+    await settle();
+    const pings = () => p.allRequests.filter((r) => r.url === PING).length;
+    const before = pings();
+    for (let i = 0; i < 2; i++) {
+      await p.clock.advance(600_000);
+      await settle();
+    }
+    expect(pings() - before).toBeGreaterThanOrEqual(2); // 10:00 시작, 10:20까지
+    expect(p.allRequests.filter((r) => r.url !== PING)).toHaveLength(0);
+    expect(p.sent.filter((m) => /상태|점검|중단|일시/.test(m.text))).toEqual([]);
+    await p.stop();
+  });
+
+  it("설정의 providers.taebaek.openingRush로 구간과 일을 바꿀 수 있다", async () => {
+    const custom = configWith(watch({ from: "2026-10-15" })).replace("providers:", 'providers:\n  taebaek: { openingRush: { from: "09:00", to: "09:20", dayOfMonth: 15 } }');
+    const p = startPoller(() => ({ status: 404, body: "" }), { yaml: custom, server: taebaekServer(), now: "2026-10-15T09:10:00+09:00" });
+    await settle();
+    expect(p.allRequests).toHaveLength(0);
+    await p.clock.advance(11 * MIN);
+    await settle();
+    expect(cycles(p)).toBeGreaterThan(0);
+    await p.stop();
+  });
+
+  it("dayOfMonth는 1~31의 정수여야 한다", () => {
+    const cfg = (v: string) => loadConfig(configWith(watch({ from: "2026-10-15" })).replace("providers:", `providers:\n  taebaek: { openingRush: { from: "09:55", to: "10:30", dayOfMonth: ${v} } }`), ENV);
+    expect(cfg("1").providers.taebaek?.openingRush?.dayOfMonth).toBe(1);
+    expect(() => cfg("0")).toThrow(ConfigError);
+    expect(() => cfg("32")).toThrow(ConfigError);
+    expect(() => cfg("1.5")).toThrow(ConfigError);
+  });
+});
+
+describe("catalog taebaek gowon --live", () => {
+  const live = async (server: (r: TransportRequest) => { status: number; body: string }, now = NOW) => {
+    const out: string[] = [];
+    const err: string[] = [];
+    const requests: TransportRequest[] = [];
+    const code = await runCatalog(
+      { kind: "catalog", provider: "taebaek", facility: "gowon", live: true },
+      { adapters, transport: async (r) => (requests.push(r), server(r)), version: "0.1.0", now: () => new Date(now), sleep: async () => {}, random: () => 0.5, out: (t) => void out.push(t), err: (t) => void err.push(t) },
+    );
+    return { code, out: out.join(""), err: err.join(""), requests };
+  };
+
+  it("예약 화면의 탭 집합이 카탈로그와 같으면 구역 일치를 알리고 요청은 기본 탭 GET 한 번이다", async () => {
+    const r = await live(taebaekServer());
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("구역 일치 (3곳)");
+    expect(r.requests.map((q) => `${q.method} ${q.url}`)).toEqual(["GET https://tfmc.huyang.co.kr:452/reservation.asp?location=002&wloc=B01"]);
+  });
+
+  it("사라진 구역과 새로 생긴 구역을 각각 보고한다", async () => {
+    const body = taebaekCalendar("2026-10", "2").replace("카라반", "글램핑");
+    const r = await live(taebaekServer({ calendar: () => ({ status: 200, body }) }));
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("예약처에서 사라진 구역 카라반");
+    expect(r.out).toContain("예약처에 새로 생긴 구역 글램핑");
+  });
+
+  it("탭이 하나도 없으면 구조 변경으로 실패(1)한다", async () => {
+    const body = taebaekCalendar("2026-10", "2").replace(/<div class="btn-box clear">/, '<div class="x">');
+    const r = await live(taebaekServer({ calendar: () => ({ status: 200, body }) }));
+    expect(r.code).toBe(1);
+    expect(r.out).toContain("조회 실패(unrecognized)");
+  });
+
+  it("매월 1일 오픈 경쟁 시간 안에서는 실행을 거부하고 요청하지 않는다", async () => {
+    const r = await live(taebaekServer(), "2026-11-01T10:00:00+09:00");
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("오픈 경쟁 시간");
+    expect(r.requests).toEqual([]);
+  });
+
+  it("1일이 아닌 날 같은 시각에는 실행한다", async () => {
+    const r = await live(taebaekServer(), "2026-10-14T10:00:00+09:00");
+    expect(r.code).toBe(0);
+    expect(r.requests).toHaveLength(1);
   });
 });

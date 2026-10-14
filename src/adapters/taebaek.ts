@@ -26,6 +26,7 @@ const INFO: ProviderInfo = {
   // 62일은 이달 1일에 열리는 다음 달 말일까지를 덮는 느슨한 걸러내기이고 개시 시각이 아니다. 당일 입실은 화면이 종일 예약종료로 보여 주지만 요청 없이 건너뛰지는 않는다(23:59).
   openingRule: { openDaysBefore: 62, openTime: "00:00", sameDayCutoff: "23:59" },
   // 취소분이 중심이라 지연을 감수한다. 다른 예약처(60초)보다 느린 하한은 ADR 0003의 조건이다.
+  openingRush: { from: "09:55", to: "10:30", dayOfMonth: 1 },
   defaultPollIntervalSeconds: 600,
   minPollIntervalSeconds: 300,
   // 예약 제출·자리 목록(`location=002_01`), 예약확인·취소·결제(`location=003`), 로그인·회원 경로. 달력(`location=002`)과 안내(`location=001`)는 막지 않는다.
@@ -151,6 +152,23 @@ export const taebaekAdapter: ProviderAdapter = {
   id: "taebaek",
   describe: () => INFO,
   queryAvailabilityBatch: runBatch,
+  /**
+   * 예약 화면(이번 달 기본 탭) 한 장을 읽어 탭 버튼의 이름 집합을 돌려준다. 달력 칸은 읽지 않는다. 탭은 켜진 탭과 다른 탭의 폼 버튼으로 나뉘어 있다.
+   */
+  async listZones(q, ctx) {
+    const where = "reservation.asp(예약 화면)";
+    const res = await send(where, () => ctx.http.get(deepLinkOf(q.facility)));
+    assertOk(res, where);
+    if (BOT_DETECTION.test(res.body)) throw new AdapterError("blocked", `${where}: 봇 탐지·captcha 표지가 왔다`);
+    if (QUEUE.test(res.body)) throw new AdapterError("blocked", `${where}: 대기열 표지가 왔다`);
+    const $ = cheerio.load(res.body);
+    const tabs = $(".btn-box button").map((_, b) => $(b).text().trim()).get().filter((t) => t !== "");
+    if (tabs.length === 0) {
+      if (LOGIN.test(res.body) && $("table.calendar_list_table").length === 0) throw new AdapterError("blocked", `${where}: 예약 화면 대신 로그인 요구가 왔다`);
+      throw new AdapterError("unrecognized", `${where}: 탭(.btn-box button)이 없다`);
+    }
+    return { zones: [...new Set(tabs)], unknown: [] };
+  },
   isQueryable: (q, now) => monthsOf(q).every((m) => monthOpen(m, now)),
   deepLink: (q) => deepLinkOf(q.facility),
 };

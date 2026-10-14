@@ -45,8 +45,9 @@ const configSchema = z.strictObject({
       z.strictObject({
         pollIntervalSeconds: z.number().int("정수여야 한다").min(60, "60초 이상이어야 한다").optional(),
         openingRush: z
-          .strictObject({ from: hhmm, to: hhmm })
+          .strictObject({ from: hhmm, to: hhmm, dayOfMonth: z.number().int("정수여야 한다").min(1, "1 이상이어야 한다").max(31, "31 이하여야 한다").optional() })
           .refine((q) => q.from !== q.to, "from과 to가 같을 수 없다")
+          .refine((q) => q.dayOfMonth === undefined || q.from < q.to, "dayOfMonth를 쓰면 from이 to보다 앞서야 한다(자정을 넘는 구간은 쓸 수 없다)")
           .optional(),
       }),
     )

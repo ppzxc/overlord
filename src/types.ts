@@ -83,6 +83,8 @@ export interface OpeningRule {
 export interface OpeningRush {
   from: string;
   to: string;
+  /** 있으면 한국 시각으로 매월 이 일(1~31)에만 적용된다. 없으면 매일 적용된다. 이 일에 구간이 끝나야 하므로 from < to여야 한다. */
+  dayOfMonth?: number;
 }
 
 /** 예약처 안의 캠핑장·휴양림 한 곳. */

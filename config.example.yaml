@@ -10,6 +10,7 @@ hourlySummary: { enabled: false, everyHours: 1 }
 healthz: { bind: "127.0.0.1:8080" }
 providers:
   goraebul: { pollIntervalSeconds: 150 }
+  # taebaek: { openingRush: { from: "09:55", to: "10:30", dayOfMonth: 1 } }  # dayOfMonth를 쓰면 매월 그 일(KST)에만 쉰다. 생략하면 매일 적용된다. 예약처 기본값(태백 매월 1일 09:55~10:30)과 같은 값이다
   # donghae: { pollIntervalSeconds: 150, openingRush: { from: "10:55", to: "11:30" } }  # 오픈 경쟁 시간(KST). 생략하면 예약처 기본값(동해시 10:55~11:30)
 notifiers:
   default: { type: telegram, botToken: ${TELEGRAM_BOT_TOKEN}, chatId: ${TELEGRAM_CHAT_ID} }

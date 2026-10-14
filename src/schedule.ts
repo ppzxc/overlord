@@ -93,8 +93,9 @@ export function isQuiet(now: Date, quiet: { from: string; to: string } | undefin
 }
 
 /** now가 오픈 경쟁 시간 안이면 구간 끝까지 남은 ms, 아니면 0. from > to면 자정을 넘는 구간이다. */
-export function msUntilRushEnd(now: Date, rush: { from: string; to: string } | undefined): number {
+export function msUntilRushEnd(now: Date, rush: { from: string; to: string; dayOfMonth?: number | undefined } | undefined): number {
   if (!rush || !isQuiet(now, rush)) return 0;
+  if (rush.dayOfMonth !== undefined && Number(kstDate(now).slice(8)) !== rush.dayOfMonth) return 0;
   return msUntilNext(now, rush.to);
 }
 

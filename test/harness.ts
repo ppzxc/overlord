@@ -1,14 +1,6 @@
 import { readFileSync } from "node:fs";
 import * as cheerio from "cheerio";
-import { donghaeAdapter } from "../src/adapters/donghae.js";
-import { bukguAdapter } from "../src/adapters/bukgu.js";
-import { goraebulAdapter } from "../src/adapters/goraebul.js";
-import { jungguAdapter } from "../src/adapters/junggu.js";
-import { knpsAdapter } from "../src/adapters/knps.js";
-import { mirihaeAdapter } from "../src/adapters/mirihae.js";
-import { taebaekAdapter } from "../src/adapters/taebaek.js";
-import { uljuAdapter } from "../src/adapters/ulju.js";
-import { xticketAdapter } from "../src/adapters/xticket.js";
+import { adapters as defaultAdapters } from "../src/adapters/index.js";
 import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
 import { loadConfig } from "../src/config.js";
 import { Liveness } from "../src/liveness.js";
@@ -151,7 +143,7 @@ export function startPoller(
   const done = runPoller(
     {
       config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV, opts.adapters),
-      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter, xticket: xticketAdapter, ulju: uljuAdapter, junggu: jungguAdapter, bukgu: bukguAdapter, mirihae: mirihaeAdapter, taebaek: taebaekAdapter },
+      adapters: opts.adapters ?? defaultAdapters,
       transport,
       clock,
       sink,

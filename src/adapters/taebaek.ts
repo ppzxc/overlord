@@ -22,7 +22,7 @@ const INFO: ProviderInfo = {
   // 화면의 1~4박 라디오에 맞춘 값이다. 서버가 실제로 받는 최대 박수는 보지 못했다(미확인).
   maxNights: 4,
   maxNightsUnconfirmed: true,
-  // 오픈은 "이용 월 전월 1일 오전 10시"다. 일 단위 규칙(`openDaysBefore`)으로 쓸 수 없어 `isQueryable`이 달 단위로 가른다.
+  // 오픈은 "이용 월 전월 1일 오전 10시"다. 10시는 확인하지 못했다(#119). 그 값은 `monthOpen`과 아래 `openingRush` 기본값에 있다. 일 단위 규칙(`openDaysBefore`)으로 쓸 수 없어 `isQueryable`이 달 단위로 가른다.
   // 62일은 이달 1일에 열리는 다음 달 말일까지를 덮는 느슨한 걸러내기이고 개시 시각이 아니다. 당일 입실은 화면이 종일 예약종료로 보여 주지만 요청 없이 건너뛰지는 않는다(23:59).
   openingRule: { openDaysBefore: 62, openTime: "00:00", sameDayCutoff: "23:59" },
   // 취소분이 중심이라 지연을 감수한다. 다른 예약처(60초)보다 느린 하한은 ADR 0003의 조건이다.
@@ -41,18 +41,25 @@ const deepLinkOf = (facility: string): string => `${ORIGIN}${CALENDAR_PATH}&wloc
 const OPEN = "예약가능";
 const KNOWN_STATUS = new Set([OPEN, "예약종료", "예약완료"]);
 
-/** 대기열 표지. 나타나면 ADR 0001·0002에 따라 차단으로 본다. */
+/** 대기열 표지. 달력 표가 없는 화면에 나타나면 ADR 0001·0002에 따라 차단으로 본다(달력 표가 있는 정상 화면의 안내 문구는 세지 않는다). */
 const QUEUE = /netfunnel|대기\s*순번|대기\s*인원|접속\s*대기/i;
 const LOGIN = /로그인|login/i;
+const CALENDAR_LABEL = "reservation.asp(달력)";
+
+/** 봇 탐지·대기열 표지가 오면 blocked로 던지고, 아니면 파싱한 문서를 돌려준다. 로그인 요구는 호출자가 내용이 비었을 때 가른다. */
+function loadGuarded(html: string, where: string): cheerio.CheerioAPI {
+  if (BOT_DETECTION.test(html)) throw new AdapterError("blocked", `${where}: 봇 탐지·captcha 표지가 왔다`);
+  const $ = cheerio.load(html);
+  if ($("table.calendar_list_table").length === 0 && QUEUE.test(html)) throw new AdapterError("blocked", `${where}: 대기열 표지가 왔다`);
+  return $;
+}
 
 /** 달력 한 장: 날짜(일) -> 예약가능 여부. */
 type Month = Map<number, boolean>;
 
 function parseCalendar(html: string, month: string, zone: string, tab: string): Month {
-  const where = "reservation.asp(달력)";
-  if (BOT_DETECTION.test(html)) throw new AdapterError("blocked", `${where}: 봇 탐지·captcha 표지가 왔다`);
-  if (QUEUE.test(html)) throw new AdapterError("blocked", `${where}: 대기열 표지가 왔다`);
-  const $ = cheerio.load(html);
+  const where = CALENDAR_LABEL;
+  const $ = loadGuarded(html, where);
   const table = $("table.calendar_list_table");
   if (table.length === 0) {
     if (LOGIN.test(html)) throw new AdapterError("blocked", `${where}: 달력 대신 로그인 요구가 왔다`);
@@ -77,7 +84,7 @@ function parseCalendar(html: string, month: string, zone: string, tab: string): 
   return days;
 }
 
-/** 이 달의 달력을 지금 조회할 수 있는가. 이번 달과, 이번 달 1일 오전 10시 이후의 다음 달이다. */
+/** 이 달의 달력을 지금 조회할 수 있는가. 이번 달과, 이번 달 1일 오전 10시 이후의 다음 달이다. 10시는 미확인이다(#119). 같은 값이 `openingRush`에도 있다. */
 function monthOpen(month: string, now: Date): boolean {
   const today = kstDate(now);
   const current = today.slice(0, 7);
@@ -89,7 +96,7 @@ const monthsOf = (q: AvailabilityQuery): string[] => [...new Set(nightsOf(q).map
 
 async function fetchMonth(facility: string, zone: string, month: string, today: string, ctx: AdapterContext): Promise<Month> {
   const wloc = wlocOf(facility);
-  const where = "reservation.asp(달력)";
+  const where = CALENDAR_LABEL;
   const [year, mm] = month.split("-").map(Number) as [number, number];
   const res = await send(where, () =>
     zone === "2" && month === today.slice(0, 7)
@@ -128,7 +135,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
         const key = `${q.facility}|${q.zone}|${month}`;
         if (!months.has(key)) months.set(key, await fetchMonth(q.facility, q.zone, month, today, ctx)); // 직렬: 요청은 HTTP 층이 한 줄로 보낸다.
         const open = months.get(key)!.get(Number(date.slice(8)));
-        if (open === undefined) throw new UnitStructureError(`reservation.asp(달력): ${date} 날짜 칸이 없다`);
+        if (open === undefined) throw new UnitStructureError(`${CALENDAR_LABEL}: ${date} 날짜 칸이 없다`);
         if (!open) allOpen = false;
       }
       results.set(q, allOpen ? [{ id: OPEN, name: OPEN }] : []);
@@ -159,9 +166,7 @@ export const taebaekAdapter: ProviderAdapter = {
     const where = "reservation.asp(예약 화면)";
     const res = await send(where, () => ctx.http.get(deepLinkOf(q.facility)));
     assertOk(res, where);
-    if (BOT_DETECTION.test(res.body)) throw new AdapterError("blocked", `${where}: 봇 탐지·captcha 표지가 왔다`);
-    if (QUEUE.test(res.body)) throw new AdapterError("blocked", `${where}: 대기열 표지가 왔다`);
-    const $ = cheerio.load(res.body);
+    const $ = loadGuarded(res.body, where);
     const tabs = $(".btn-box button").map((_, b) => $(b).text().trim()).get().filter((t) => t !== "");
     if (tabs.length === 0) {
       if (LOGIN.test(res.body) && $("table.calendar_list_table").length === 0) throw new AdapterError("blocked", `${where}: 예약 화면 대신 로그인 요구가 왔다`);

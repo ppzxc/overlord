@@ -199,6 +199,16 @@ describe("태백 폴러", () => {
       await p.stop();
     });
 
+    it("달력 표가 있는 정상 화면에 대기 안내 문구가 섞여 있어도 대기열로 멈추지 않는다", async () => {
+      const body = taebaekCalendar("2026-10", "2").replace("</body>", "<p>접속 대기 인원 안내</p></body>");
+      expect(body).toContain("접속 대기 인원");
+      const p = run({ from: "2026-10-15" }, { server: taebaekServer({ calendar: () => ({ status: 200, body }) }) });
+      await settle();
+      expect(failedKinds(p)).toEqual([]);
+      expect(p.sent).toHaveLength(1);
+      await p.stop();
+    });
+
     it("날짜 칸의 뜻을 알 수 없으면 unrecognized다", async () => {
       const p = run({ from: "2026-10-15" }, { server: taebaekServer({ calendar: () => ({ status: 200, body: taebaekPatched("예약가능", "예약마감") }) }) });
       await settle();

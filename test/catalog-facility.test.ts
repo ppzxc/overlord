@@ -64,6 +64,29 @@ describe("catalog <예약처> <시설>", () => {
     expect(s.requests).toEqual([]);
   });
 
+  it("최대 박수가 미확인인 예약처라도 시설이 최대 박수를 따로 정했으면 (미확인)을 붙이지 않는다", async () => {
+    const base = twoFacilityAdapter().adapter;
+    const info = base.describe();
+    const adapter = {
+      ...base,
+      describe: () => ({
+        ...info,
+        maxNightsUnconfirmed: true,
+        facilities: info.facilities.map((f) => (f.code === "alpha" ? { ...f, maxNights: 3 } : f)),
+      }),
+    };
+    const s = setup({ adapters: { multi: adapter } });
+    expect(await s.run("multi", "alpha")).toBe(0);
+    expect(s.out.join("")).toContain("최대 3박)");
+    expect(s.out.join("")).not.toContain("미확인");
+    s.out.length = 0;
+    expect(await s.run("multi", "beta")).toBe(0);
+    expect(s.out.join("")).toContain("최대 2박(미확인)");
+    s.out.length = 0;
+    expect(await s.run("multi", undefined)).toBe(0);
+    expect(s.out.join("")).toContain("(미확인)"); // 시설 목록: beta가 예약처 기본을 따른다
+  });
+
   it("없는 시설은 쓸 수 있는 값과 함께 1을 돌려준다", async () => {
     const s = setup();
     expect(await s.run("multi", "gamma")).toBe(1);

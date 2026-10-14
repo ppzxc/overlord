@@ -10,6 +10,7 @@ hourlySummary: { enabled: false, everyHours: 1 }
 healthz: { bind: "127.0.0.1:8080" }
 providers:
   goraebul: { pollIntervalSeconds: 150 }
+  # taebaek: { openingRush: { from: "09:55", to: "10:30", dayOfMonth: 1 } }  # dayOfMonth를 쓰면 매월 그 일(KST)에만 쉰다. 생략하면 매일 적용된다. 예약처 기본값(태백 매월 1일 09:55~10:30)과 같은 값이다
   # donghae: { pollIntervalSeconds: 150, openingRush: { from: "10:55", to: "11:30" } }  # 오픈 경쟁 시간(KST). 생략하면 예약처 기본값(동해시 10:55~11:30)
 notifiers:
   default: { type: telegram, botToken: ${TELEGRAM_BOT_TOKEN}, chatId: ${TELEGRAM_CHAT_ID} }
@@ -59,5 +60,16 @@ watches:
   #   facility: danyang-cheondong
   #   zones: [야영장A, 야영장B]
   #   checkIn: { from: 2026-10-14, to: 2026-10-31 }
+  #   nights: 1
+  #   notify: [default]
+  # 태백 고원힐링캠핑장(taebaek, gowon): robots.txt가 막는 예약처이고 이 예약처만 예외다(docs/adr/0003). 시설은 facility(꼭 골라야 한다), 구역은 예약처 탭의 값이다: "1" 야영데크, "2" 자동차야영장, "3" 카라반. `catalog taebaek`과 `catalog taebaek gowon`으로 본다.
+  # 달력이 날짜마다 "예약가능/예약종료"만 보여 주고 남은 수와 자리 번호를 주지 않아, 알림은 구역, 날짜, "예약가능", 예약 화면 링크만 담는다(seats 불가). 여러 박(최대 4박, 화면 라디오 기준이고 서버가 받는 값은 미확인)은 입실일부터 연속한 N일이 모두 예약가능일 때만 알린다.
+  # 기본 폴링 간격은 600초이고 설정 하한은 300초다(`providers.taebaek.pollIntervalSeconds`). 다음 달 날짜는 이번 달 1일 오전 10시부터 읽는다. 차단 신호(403·429, 로그인·봇 탐지·대기열)는 예약처를 멈춘다.
+  # - name: 고원 자동차야영장 주말
+  #   provider: taebaek
+  #   facility: gowon
+  #   zones: ["2"]
+  #   checkIn: { from: 2026-10-15, to: 2026-11-30 }
+  #   weekdays: [fri, sat]
   #   nights: 1
   #   notify: [default]

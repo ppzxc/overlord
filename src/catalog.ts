@@ -31,11 +31,13 @@ function renderRows(rows: string[][]): string {
     .join("\n");
 }
 
+const unconfirmedMark = (unconfirmed: boolean | undefined, facilityOverrides: boolean) => (unconfirmed && !facilityOverrides ? "(미확인)" : "");
+
 /** 시설 목록: 코드, 이름, 구역 수. 시설이 둘 이상인 예약처에서 시설을 고르게 한다. */
 export function renderFacilities(adapter: ProviderAdapter): string {
   const info = adapter.describe();
   const rows = info.facilities.map((f) => [f.code, f.name, `${f.zones.length}곳`]);
-  return `${info.id} (최대 ${info.maxNights}박)\n${renderRows(rows)}\n`;
+  return `${info.id} (최대 ${info.maxNights}박${unconfirmedMark(info.maxNightsUnconfirmed, info.facilities.every((f) => f.maxNights !== undefined))})\n${renderRows(rows)}\n`;
 }
 
 /** 구역 표: 코드, 이름, 유형, 정원, 자리 번호. 시설을 안 고르면 첫 시설이다(시설이 하나인 예약처용). */
@@ -48,5 +50,5 @@ export function renderCatalog(adapter: ProviderAdapter, facilityCode?: string): 
     ["코드", "이름", "유형", "정원", "자리"],
     ...facility.zones.map((z) => [z.code, z.name, z.type, z.capacity ? `${z.capacity}인` : "-", seatsText(z)]),
   ];
-  return `${info.id} (최대 ${maxNights}박)\n${renderRows(rows)}\n`;
+  return `${info.id} (최대 ${maxNights}박${unconfirmedMark(info.maxNightsUnconfirmed, facility.maxNights !== undefined)})\n${renderRows(rows)}\n`;
 }

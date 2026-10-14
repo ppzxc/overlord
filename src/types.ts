@@ -83,6 +83,8 @@ export interface OpeningRule {
 export interface OpeningRush {
   from: string;
   to: string;
+  /** 있으면 한국 시각으로 매월 이 일(1~31)에만 적용된다. 없으면 매일 적용된다. 이 일에 구간이 끝나야 하므로 from < to여야 한다. */
+  dayOfMonth?: number;
 }
 
 /** 예약처 안의 캠핑장·휴양림 한 곳. */
@@ -103,11 +105,15 @@ export interface ProviderInfo {
   facilities: FacilityInfo[];
   /** 예약처 기본 최대 박수. 시설마다 다르면 가장 큰 값이고 `FacilityInfo.maxNights`가 덮어쓴다. */
   maxNights: number;
+  /** `maxNights`가 서버에서 확인한 값이 아니라 화면에서 읽은 값이면 true. 카탈로그가 "미확인"으로 표시한다. */
+  maxNightsUnconfirmed?: boolean;
   openingRule: OpeningRule;
   /** 오픈 경쟁 시간의 기본값. 설정의 `providers.<id>.openingRush`가 덮어쓴다. 없으면 쉬지 않는다. */
   openingRush?: OpeningRush;
   /** 기본 폴링 간격(초). 설정의 `providers.<id>.pollIntervalSeconds`가 덮어쓴다. 선언하지 않으면 150초. */
   defaultPollIntervalSeconds?: number;
+  /** 이 예약처의 폴링 간격 하한(초). 설정이 이보다 짧게 줄이면 거부한다. 없으면 설정 공통 하한(60초)만 적용된다. */
+  minPollIntervalSeconds?: number;
   /**
    * 어떤 경우에도 호출하지 않는 경로 접두어. 예: robots.txt가 막은 /bbs/
    * 경로와 `?쿼리`를 붙인 원문(`/camping/pageCont.do?menuNo=5`)의 접두어로 견주고 대소문자는 가리지 않는다. 쿼리 파라미터의 순서나 인코딩이 다르면 걸리지 않는다.

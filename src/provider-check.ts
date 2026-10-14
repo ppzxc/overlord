@@ -15,7 +15,17 @@ export function checkAgainstProviders(config: Config, adapters: Record<string, P
   const problems: Problem[] = [];
   const providerIds = Object.keys(adapters).join(", ");
   for (const id of Object.keys(config.providers)) {
-    if (!adapters[id]) problems.push({ path: ["providers", id], message: `알 수 없는 예약처다. 쓸 수 있는 값: ${providerIds}` });
+    const adapter = adapters[id];
+    if (!adapter) {
+      problems.push({ path: ["providers", id], message: `알 수 없는 예약처다. 쓸 수 있는 값: ${providerIds}` });
+      continue;
+    }
+    // 예약처가 공통 하한(60초)보다 느린 하한을 선언했으면 그보다 짧은 간격은 거부한다.
+    const floor = adapter.describe().minPollIntervalSeconds;
+    const seconds = config.providers[id]?.pollIntervalSeconds;
+    if (floor !== undefined && seconds !== undefined && seconds < floor) {
+      problems.push({ path: ["providers", id, "pollIntervalSeconds"], message: `${id}는 ${floor}초 이상이어야 한다(설정값 ${seconds})` });
+    }
   }
   config.watches.forEach((w, i) => {
     const at = (field: string) => ["watches", i, field];

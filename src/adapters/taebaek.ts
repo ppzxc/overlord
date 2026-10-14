@@ -21,6 +21,7 @@ const INFO: ProviderInfo = {
   facilities,
   // 화면의 1~4박 라디오에 맞춘 값이다. 서버가 실제로 받는 최대 박수는 보지 못했다(미확인).
   maxNights: 4,
+  maxNightsUnconfirmed: true,
   // 오픈은 "이용 월 전월 1일 오전 10시"다. 일 단위 규칙(`openDaysBefore`)으로 쓸 수 없어 `isQueryable`이 달 단위로 가른다.
   // 62일은 이달 1일에 열리는 다음 달 말일까지를 덮는 느슨한 걸러내기이고 개시 시각이 아니다. 당일 입실은 화면이 종일 예약종료로 보여 주지만 요청 없이 건너뛰지는 않는다(23:59).
   openingRule: { openDaysBefore: 62, openTime: "00:00", sameDayCutoff: "23:59" },

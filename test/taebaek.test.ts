@@ -82,6 +82,14 @@ describe("태백 폴러", () => {
       await p.stop();
     });
 
+    it("같은 구역·달을 쓰는 감시 조건이 여럿이어도 달력 조회는 한 번만 나가고 야영데크도 읽는다", async () => {
+      const yaml = configWith(watch({ from: "2026-10-15", to: "2026-10-20" }, ["1"]) + watch({ from: "2026-10-21", to: "2026-10-30" }, ["1"], 2));
+      const p = startPoller(() => ({ status: 404, body: "" }), { yaml, server: taebaekServer(), now: NOW });
+      await settle();
+      expect(p.allRequests.map((r) => r.body)).toEqual(["wh_year=2026&wh_month=10&man=1&wloc=B01"]);
+      await p.stop();
+    });
+
     it("카라반은 예약완료 날짜를 알리지 않는다", async () => {
       const p = run({ from: "2026-10-15", to: "2026-10-18" }, { zones: ["3"] }); // 15 가능, 16·17 완료, 18 가능
       await settle();
@@ -283,5 +291,9 @@ describe("catalog taebaek", () => {
     expect(r.out).toMatch(/^2\s+자동차야영장/m);
     expect(r.out).toMatch(/^3\s+카라반/m);
     expect(r.requests).toEqual([]);
+  });
+
+  it("최대 4박은 확인하지 못한 값이라 미확인으로 표시한다", async () => {
+    expect((await catalog("gowon")).out).toMatch(/^taebaek \(최대 4박\(미확인\)\)$/m);
   });
 });

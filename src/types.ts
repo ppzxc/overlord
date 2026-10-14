@@ -103,6 +103,8 @@ export interface ProviderInfo {
   facilities: FacilityInfo[];
   /** 예약처 기본 최대 박수. 시설마다 다르면 가장 큰 값이고 `FacilityInfo.maxNights`가 덮어쓴다. */
   maxNights: number;
+  /** `maxNights`가 서버에서 확인한 값이 아니라 화면에서 읽은 값이면 true. 카탈로그가 "미확인"으로 표시한다. */
+  maxNightsUnconfirmed?: boolean;
   openingRule: OpeningRule;
   /** 오픈 경쟁 시간의 기본값. 설정의 `providers.<id>.openingRush`가 덮어쓴다. 없으면 쉬지 않는다. */
   openingRush?: OpeningRush;

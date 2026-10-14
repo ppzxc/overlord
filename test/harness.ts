@@ -6,6 +6,7 @@ import { goraebulAdapter } from "../src/adapters/goraebul.js";
 import { jungguAdapter } from "../src/adapters/junggu.js";
 import { knpsAdapter } from "../src/adapters/knps.js";
 import { mirihaeAdapter } from "../src/adapters/mirihae.js";
+import { taebaekAdapter } from "../src/adapters/taebaek.js";
 import { uljuAdapter } from "../src/adapters/ulju.js";
 import { xticketAdapter } from "../src/adapters/xticket.js";
 import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
@@ -150,7 +151,7 @@ export function startPoller(
   const done = runPoller(
     {
       config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV, opts.adapters),
-      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter, xticket: xticketAdapter, ulju: uljuAdapter, junggu: jungguAdapter, bukgu: bukguAdapter, mirihae: mirihaeAdapter },
+      adapters: opts.adapters ?? { goraebul: goraebulAdapter, donghae: donghaeAdapter, knps: knpsAdapter, xticket: xticketAdapter, ulju: uljuAdapter, junggu: jungguAdapter, bukgu: bukguAdapter, mirihae: mirihaeAdapter, taebaek: taebaekAdapter },
       transport,
       clock,
       sink,
@@ -837,3 +838,58 @@ export function mirihaeServer(
 /** 기록한 `POST /camping/calendar.do` 응답(2026-10-13 09:28 KST, research/raw/mirihae). 11월은 11/01 ~ 11/14가 `click`이고 12월은 모두 닫혀 있다. 그 밖의 달은 기록이 없다. */
 export const mirihaeRecordedCalendar = (month: string): TransportResponse | undefined =>
   ["2026-11", "2026-12"].includes(month) ? { status: 200, body: mirihaeRaw(`calendar.do_V39628874_${month}.html`) } : undefined;
+
+/** 기록한 태백 고원힐링 달력(research/raw/taebaek, 2026-10-14 13시대 KST). */
+const taebaekRaw = recordedRaw("taebaek");
+
+/** 기록한 달력 본문. 기본 탭(자동차야영장 `man=2`)의 이번 달(10월)은 GET이고 나머지는 달력 조회 POST다. */
+export const taebaekCalendar = (month: string, man: string): string => {
+  const names: Record<string, string> = {
+    "2026-10|2": "reservation.asp_location002_B01_2026-10_man2_GET.html",
+    "2026-11|2": "reservation.asp_location002_B01_2026-11_man2_POST.html",
+    "2026-10|1": "reservation.asp_location002_B01_2026-10_man1_POST.html",
+    "2026-10|3": "reservation.asp_location002_B01_2026-10_man3_POST.html",
+  };
+  const name = names[`${month}|${man}`];
+  if (!name) throw new Error(`기록하지 않은 달력: ${month} man=${man}`);
+  return taebaekRaw(name);
+};
+
+/**
+ * 가짜 태백 서버(`tfmc.huyang.co.kr:452`). 쿠키 없이 답하고(기록), 달력 GET과 달력 조회 POST만 흉내 낸다.
+ * 기록하지 않은 달·탭이나 그 밖의 요청은 404라서 어댑터가 다른 경로를 부르면 드러난다.
+ */
+export function taebaekServer(
+  opts: {
+    /** 달력 응답을 바꾼다. `via`는 GET(이번 달 기본 탭)인지 POST인지다. */
+    calendar?: (form: { month: string; man: string; via: "GET" | "POST" }) => TransportResponse | undefined;
+    /** 모든 요청에 앞서 응답을 가로챈다. */
+    intercept?: (req: TransportRequest) => TransportResponse | undefined;
+  } = {},
+) {
+  const forms: { month: string; man: string; via: "GET" | "POST" }[] = [];
+  const respond = (req: TransportRequest): TransportResponse => {
+    const hijacked = opts.intercept?.(req);
+    if (hijacked) return hijacked;
+    const url = new URL(req.url);
+    if (url.hostname !== "tfmc.huyang.co.kr" || url.port !== "452" || url.pathname !== "/reservation.asp" || url.searchParams.get("location") !== "002") return { status: 404, body: "" };
+    let form: { month: string; man: string; via: "GET" | "POST" };
+    if (req.method === "GET") {
+      if (url.searchParams.get("wloc") !== "B01") return { status: 404, body: "" };
+      form = { month: "2026-10", man: "2", via: "GET" };
+    } else {
+      const raw = Object.fromEntries(new URLSearchParams(req.body ?? ""));
+      if (raw.wloc !== "B01") return { status: 404, body: "" };
+      form = { month: `${raw.wh_year}-${String(raw.wh_month).padStart(2, "0")}`, man: raw.man ?? "", via: "POST" };
+    }
+    forms.push(form);
+    const custom = opts.calendar?.(form);
+    if (custom) return custom;
+    try {
+      return { status: 200, body: taebaekCalendar(form.month, form.man) };
+    } catch {
+      return { status: 404, body: "" };
+    }
+  };
+  return Object.assign(respond, { forms });
+}

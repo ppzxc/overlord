@@ -108,6 +108,8 @@ export interface ProviderInfo {
   openingRush?: OpeningRush;
   /** 기본 폴링 간격(초). 설정의 `providers.<id>.pollIntervalSeconds`가 덮어쓴다. 선언하지 않으면 150초. */
   defaultPollIntervalSeconds?: number;
+  /** 이 예약처의 폴링 간격 하한(초). 설정이 이보다 짧게 줄이면 거부한다. 없으면 설정 공통 하한(60초)만 적용된다. */
+  minPollIntervalSeconds?: number;
   /**
    * 어떤 경우에도 호출하지 않는 경로 접두어. 예: robots.txt가 막은 /bbs/
    * 경로와 `?쿼리`를 붙인 원문(`/camping/pageCont.do?menuNo=5`)의 접두어로 견주고 대소문자는 가리지 않는다. 쿼리 파라미터의 순서나 인코딩이 다르면 걸리지 않는다.

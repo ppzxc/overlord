@@ -79,6 +79,7 @@ if (command.kind === "catalog") {
       ...(catalogConfig ? { config: catalogConfig } : {}),
       adapters,
       transport,
+      env: process.env,
       version: pkg.version,
       now: () => new Date(),
       sleep: (ms) => systemClock.sleep(ms),

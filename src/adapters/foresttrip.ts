@@ -52,7 +52,7 @@ const SCREEN_QUEUE: NetFunnelQueue = { ...QUEUE_BASE, aid: "action3" };
 const GOODS_QUEUE: NetFunnelQueue = { ...QUEUE_BASE, aid: "action8" };
 const JSON_TYPE = "application/json; charset=UTF-8";
 /** 서버가 잔여 호출 한 번에 돌려주는 상품 수 상한. */
-const GOODS_PER_CALL = 5;
+export const GOODS_PER_CALL = 5;
 
 const USERNAME = "FORESTTRIP_USERNAME";
 const PASSWORD = "FORESTTRIP_PASSWORD";
@@ -835,6 +835,73 @@ async function runBatch(
     for (const q of units) if (!results.has(q)) results.set(q, failure);
   }
   return results;
+}
+
+/** `catalog --live`가 읽는 시설 현황: 예약 정책과 유형(구역)별 상품 이름. */
+export interface ForestLiveView {
+  cycle: string | undefined;
+  /** 예약 개시 시각 `HHMM`. */
+  beginTime: string | undefined;
+  lastDay: string;
+  zones: { code: string; label: string; goods: string[] }[];
+}
+
+/**
+ * 시설 하나의 유형과 상품을 `insttId`로 읽는다(로그인, 정책, 유형별 상품 목록).
+ * 정책을 읽은 뒤 `gate`가 사유를 돌려주면 상품 목록 호출 없이 그 사유로 멈춘다(오픈 경쟁 시간 확인용).
+ */
+export async function readFacilityLive(
+  facility: string,
+  ctx: AdapterContext,
+  gate: (policy: { cycle: string | undefined; beginTime: string | undefined }) => string | undefined,
+): Promise<ForestLiveView | { stopped: string }> {
+  const seen: string[] = [];
+  try {
+    let session = sessions.get(ctx.http);
+    session ??= await login(ctx, seen);
+    seen.push(session.csrf);
+    sessions.set(ctx.http, session);
+    const insttId = insttIdOf(facility);
+    const body = await postJson(ctx, session, "/rep/or/selectSthngListForMonthRsrvt.do", { insttId }, "시설 정책");
+    const p = body.rsrvtPolcy;
+    if (typeof p !== "object" || p === null) throw unrecognized("시설 정책: rsrvtPolcy가 없다");
+    const policy = p as Record<string, unknown>;
+    const lastDay = [str(policy.weekLastDay), str(policy.monthLastDay)].filter((d): d is string => d !== undefined && /^\d{8}$/.test(d)).sort().at(-1);
+    if (!lastDay) throw unrecognized("시설 정책: 예약 가능 마지막 날이 없다");
+    const cycle = str(policy.rsrvtCycleTpeCd);
+    const beginTime = str(policy.rsrvtBgnTm);
+    const stopped = gate({ cycle, beginTime });
+    if (stopped) return { stopped };
+    const today = compact(kstDate(ctx.clock.now()));
+    const zones = new Map<string, { code: string; label: string; goods: string[] }>();
+    for (const upper of listOf(body, "sthngList", "시설 정책").flatMap((u) => str(u.upperGoodsClsscCd) ?? [])) {
+      const pass = await enterQueue(ctx, GOODS_QUEUE);
+      try {
+        setNetFunnelCookie(ctx.http, "www.foresttrip.go.kr", pass.result);
+        const list = await postJson(
+          ctx,
+          session,
+          "/rep/or/sssn/selectRsrvtGoodsListForMonthRsrvt.do",
+          { insttId, upperGoodsClsscCd: upper, inqurSctin: "02", srchDate: today, lastDay, netfunnelKey: pass.key },
+          "상품 목록",
+        );
+        for (const g of listOf(list, "rsrvtGoodsList", "상품 목록")) {
+          const code = str(g.goodsClsscCd);
+          const name = str(g.goodsNm);
+          if (!code || !name) throw unrecognized("상품 목록: 상품에 goodsClsscCd·goodsNm이 없다");
+          const zone = zones.get(code) ?? { code, label: str(g.goodsClsscNm) ?? "", goods: [] };
+          zones.set(code, zone);
+          zone.goods.push(name);
+        }
+      } finally {
+        await completeQueue(ctx, GOODS_QUEUE, pass.key);
+      }
+    }
+    return { cycle, beginTime, lastDay, zones: [...zones.values()] };
+  } catch (e) {
+    if (!(e instanceof AdapterError)) throw e;
+    throw redacted(e, ctx, seen);
+  }
 }
 
 export const foresttripAdapter: ProviderAdapter = {

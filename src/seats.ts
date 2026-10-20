@@ -21,9 +21,10 @@ function parseToken(token: string): Matcher | null {
 
 export const isValidSeatToken = (token: string) => parseToken(token) !== null;
 
-/** 자리 필터에 맞는 자리만 남긴다. 필터를 생략하면 모두 남긴다. 토큰은 설정 로딩 때 검증된다. */
-export function filterSeats(sites: AvailableSite[], filter: string[] | undefined): AvailableSite[] {
+/** 자리 필터에 맞는 자리만 남긴다. 필터를 생략하면 모두 남긴다. `name`이면 자리 id(이름)가 정확히 같은 자리만, 아니면 토큰은 설정 로딩 때 검증된다. */
+export function filterSeats(sites: AvailableSite[], filter: string[] | undefined, match: "token" | "name" = "token"): AvailableSite[] {
   if (!filter) return sites;
+  if (match === "name") return sites.filter((s) => filter.includes(s.id)); // 이름이 겹치는 자리는 모두 남는다.
   const matchers = filter.map((t) => parseToken(t)!);
   return sites.filter((s) => matchers.some((m) => m(s.id)));
 }

@@ -11,6 +11,7 @@ import { queryOne } from "./query-one.js";
 import {
   renderHealth,
   renderOpenings,
+  renderSeatMismatch,
   renderStartup,
   renderWatchExpired,
   type OpeningEntry,
@@ -130,6 +131,9 @@ async function runProvider(
   const notified = new Map<string, Map<string, Map<string, Set<string>>>>();
   // 만료 알림을 이미 보낸 (감시 조건, 알림 대상)
   const expiredSent = new Set<string>();
+  // 자리 이름 불일치: 감시 조건 이름 → 지금 불일치 상태(없는 이름들, 전부면 stopped), (감시 조건, 알림 대상) → 마지막으로 알린 상태.
+  const seatState = new Map<string, { missing: string[]; stopped: boolean }>();
+  const seatNoticeSent = new Map<string, string>();
   let firstCycle = true;
   const health = new ProviderHealth();
   const stat: ProviderStat = { health, days: new Map<string, DayStats>(), hours: new Map<string, DayStats>() };
@@ -234,10 +238,37 @@ async function runProvider(
       }
     }
 
+    // 자리 이름으로 거는 예약처는 받은 상품 목록과 `seats:`를 견줘 오타와 없는 자리를 1회 알린다.
+    if (info.seatMatch === "name" && adapter.seatNames) {
+      for (const { watch, units } of plans) {
+        const facility = units[0]?.facility;
+        if (!watch.seats || !facility) continue;
+        const lists = watch.zones.map((zone) => adapter.seatNames!(facility, zone, ctx));
+        if (lists.some((l) => l === undefined)) continue; // 상품 목록을 아직 받지 못했다. 판단을 미룬다.
+        const present = new Set(lists.flat());
+        const missing = watch.seats.filter((s) => !present.has(s));
+        const stopped = missing.length === watch.seats.length;
+        if (missing.length === 0) {
+          seatState.delete(watch.name);
+          for (const name of watch.notify) seatNoticeSent.delete(`${watch.name}|${name}`);
+          continue;
+        }
+        seatState.set(watch.name, { missing, stopped });
+        const signature = `${stopped ? "stopped" : "partial"}:${missing.join("\u0000")}`;
+        for (const name of watch.notify) {
+          const key = `${watch.name}|${name}`;
+          if (seatNoticeSent.get(key) === signature) continue;
+          const ok = await shared.send(name, watch.name, (chatId) => renderSeatMismatch({ chatId, watchName: watch.name, missing, stopped }));
+          if (ok) seatNoticeSent.set(key, signature);
+        }
+      }
+    }
+
     // 알림 대상마다 이번 바퀴의 새 빈자리를 모아 메시지 한 건(넘치면 여러 건)으로 보낸다.
     type Pending = OpeningEntry & { known: Set<string> };
     const pending = new Map<string, Pending[]>();
     for (const { watch, units } of plans) {
+      if (seatState.get(watch.name)?.stopped) continue; // 맞는 자리가 없어 멈춘 조건. 알림 상태는 건드리지 않는다.
       const byNotifier = notified.get(watch.name) ?? new Map<string, Map<string, Set<string>>>();
       notified.set(watch.name, byNotifier);
       for (const name of watch.notify) {
@@ -250,7 +281,7 @@ async function runProvider(
           const key = unitKey(q);
           const found = results.get(key);
           if (!found) continue; // 조회 실패: 알림 상태를 건드리지 않는다.
-          const sites = filterSeats(found, watch.seats);
+          const sites = filterSeats(found, watch.seats, info.seatMatch);
           const current = new Set(sites.map((s) => s.name));
           // 사라진 자리는 잊어서, 다시 생기면 새 빈자리로 알린다.
           const known = new Set([...(perUnit.get(key) ?? [])].filter((n) => current.has(n)));

@@ -39,7 +39,6 @@ const bodyOf = (r: TransportRequest) => (r.body?.startsWith("{") ? (JSON.parse(r
 const hits = (p: Poller, suffix: string) => p.allRequests.filter((r) => new URL(r.url).pathname.endsWith(suffix));
 /** 상품 목록을 받아 간 시설 id. 시설이 쉬지 않았다는 증거다. */
 const polled = (p: Poller) => [...new Set(hits(p, "selectRsrvtGoodsListForMonthRsrvt.do").map((r) => String(bodyOf(r).insttId)))].sort();
-const queryFailures = (p: Poller) => p.logs.filter((l) => l.msg === "query failed");
 
 describe("숲나들e 시설별 오픈 경쟁 시간", () => {
   it("개시 시각이 다른 두 시설은 각자 자기 구간에만 쉰다", async () => {

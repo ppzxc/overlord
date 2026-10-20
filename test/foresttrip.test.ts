@@ -88,6 +88,19 @@ describe("숲나들e 폴러", () => {
       await p.stop();
     });
 
+    it("잔여 응답이 목록을 그대로 돌려줘도 같은 빈자리 알림이 나간다", async () => {
+      const { p } = run({
+        server: {
+          status: mixedStatus,
+          avail: (rows) => ({ status: 200, body: JSON.stringify(rows) }),
+        },
+      });
+      await settle();
+      expect(p.sent).toHaveLength(1);
+      expect(p.sent[0]!.text).toContain("야영데크(101)");
+      await p.stop();
+    });
+
     it("모르는 상태와 추첨·우선예약은 빈자리로 치지 않고 로그에 남긴다", async () => {
       const { p } = run({ server: { status: mixedStatus } });
       await settle();

@@ -231,6 +231,7 @@ function assertData(res: TransportResponse, where: string): void {
 function jsonOf(
   res: TransportResponse,
   where: string,
+  arrayKey?: string,
 ): Record<string, unknown> {
   let parsed: unknown;
   try {
@@ -243,8 +244,13 @@ function jsonOf(
       );
     throw unrecognized(`${where}: JSON이 아니다`);
   }
+  // 목록을 그대로 돌려주는 응답은 `arrayKey` 아래 담아 객체 응답처럼 읽는다.
+  if (Array.isArray(parsed) && arrayKey !== undefined)
+    return { [arrayKey]: parsed };
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
-    throw unrecognized(`${where}: JSON 객체가 아니다`);
+    throw unrecognized(
+      `${where}: JSON 객체가 아니다(${parsed === null ? "null" : Array.isArray(parsed) ? "배열" : typeof parsed})`,
+    );
   return parsed as Record<string, unknown>;
 }
 
@@ -422,6 +428,7 @@ async function postJson(
   path: string,
   payload: Record<string, unknown>,
   where: string,
+  arrayKey?: string,
 ): Promise<Record<string, unknown>> {
   const res = await send(where, () =>
     ctx.http.post(`${ORIGIN}${path}`, JSON.stringify(payload), {
@@ -434,7 +441,7 @@ async function postJson(
     }),
   );
   assertData(res, where);
-  return jsonOf(res, where);
+  return jsonOf(res, where, arrayKey);
 }
 
 interface Goods {
@@ -586,7 +593,7 @@ async function goodsOf(
         .filter((g) => str(g.goodsClsscCd) === zone)
         .map((g) => {
           const id = str(g.goodsId);
-          const name = str(g.goodsNm);
+          const name = str(g.goodsNm)?.trim(); // 휴양림이 이름 끝에 공백을 넣기도 한다(화면에서는 안 보인다)
           if (!id || !name)
             throw unrecognized(`${where}: 상품에 goodsId·goodsNm이 없다`);
           return { id, name };
@@ -666,6 +673,7 @@ async function availabilityOf(
           lastDay,
         },
         where,
+        "rsrvtAvailInfoList",
       ),
     );
     const rows = listOf(body, "rsrvtAvailInfoList", where);
@@ -960,7 +968,7 @@ export async function readFacilityLive(
       });
       for (const g of listOf(list, "rsrvtGoodsList", "상품 목록")) {
         const code = str(g.goodsClsscCd);
-        const name = str(g.goodsNm);
+        const name = str(g.goodsNm)?.trim(); // 휴양림이 이름 끝에 공백을 넣기도 한다(화면에서는 안 보인다)
         if (!code || !name) throw unrecognized("상품 목록: 상품에 goodsClsscCd·goodsNm이 없다");
         const zone = zones.get(code) ?? { code, label: str(g.goodsClsscNm) ?? "", goods: [] };
         zones.set(code, zone);

@@ -370,8 +370,8 @@ describe("숲나들e 폴러", () => {
       await p.stop();
     });
 
-    it("월별 주기 시설은 빈자리 없음으로 착각하지 않고 구조 변경으로 본다", async () => {
-      const { p } = run({ server: { policy: (base) => ({ ...base, rsrvtPolcy: { rsrvtCycleTpeCd: "MON", monthLastDay: "20261130" } }) } });
+    it("모르는 예약 주기 시설은 빈자리 없음으로 착각하지 않고 구조 변경으로 본다", async () => {
+      const { p } = run({ server: { policy: (base) => ({ ...base, rsrvtPolcy: { rsrvtCycleTpeCd: "QTR", monthLastDay: "20261130" } }) } });
       await settle();
       expect(p.logs.find((l) => l.msg === "query failed")!.fields).toMatchObject({ kind: "unrecognized" });
       await p.stop();

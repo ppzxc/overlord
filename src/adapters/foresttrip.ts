@@ -4,14 +4,16 @@ import { facilities } from "../catalogs/foresttrip.js";
 import { fieldsRef } from "../facility.js";
 import { BOT_DETECTION, ConnectionFailure, assertOk, send } from "../adapter-signals.js";
 import { completeQueue, enterQueue, setNetFunnelCookie, type NetFunnelQueue } from "../netfunnel.js";
-import { kstDate } from "../schedule.js";
+import { kstDate, nightsOf } from "../schedule.js";
 
 /**
  * 숲나들e 예약처. 로그인 조회만 예외로 허용한다(ADR 0004). 봇 판별(`crawlingCheck.do`)은 우회하지 않고 거부되면 멈춘다. 이 파일은 워킹 스켈레톤(#143)이다.
  * 흐름(research/forest-login-probe.md): 로그인 화면(`_csrf`) → `crawlingCheck.do`(`param=noData`) → 로그인 POST(302면 성공, 변경 화면은 따라가지 않는다)
  * → 월별 현황 화면(NetFunnel `action3`, 화면의 `_csrf`가 AJAX의 `X-CSRF-TOKEN`) → 시설 정책 → 상품 목록(NetFunnel `action8`) → 잔여(상품 5개씩).
  * 빈자리는 상태가 `Y`이고 `rsrvtCnt`가 0인 칸이다. 지난 날짜·기간 밖·마감·대기·공사·휴무·추첨·우선예약과 모르는 상태는 빈자리가 아니다.
- * 이 티켓은 1박, 주별(`WEEK`) 시설, 구역의 모든 상품만 읽는다. 자리 이름 필터, 연박, 월별 시설, 상품 목록 캐시, 재로그인(`-5`), 로그인 실패 파일 기록, 시설별 오픈 경쟁 시간, `catalog --live`는 후속 티켓이다.
+ * 연박은 같은 자리(`goodsId`)가 입실일부터 N일 연속 빈자리일 때만 빈자리다. 월별(`MON`) 시설은 달별(`inqurSctin=01`, `srchDate`=YYYYMM) 응답을 이어 붙여 달 경계를 넘는 연박도 판정한다.
+ * 시설의 최대 연박은 잔여 응답의 `mxmmStngDayCnt`이고, 조건의 박 수가 넘으면 그 조건은 더 조회하지 않고 조건·시설마다 한 번 로그로 알린다(`ctx.log`; 알림 채널이 따로 없다).
+ * 구역의 모든 상품만 읽는다. 자리 이름 필터, 호출 수 줄이기, 상품 목록 캐시, 재로그인(`-5`), 로그인 실패 파일 기록, 시설별 오픈 경쟁 시간, `catalog --live`는 후속 티켓이다.
  * 잔여 응답의 목록 키(`rsrvtAvailInfoList`)와 `goodsIdList` 형식(배열)은 스파이크 문서가 적지 않아 가정한 값이다. 모양이 다르면 `unrecognized`로 멈춘다.
  */
 const ORIGIN = "https://www.foresttrip.go.kr";
@@ -30,8 +32,9 @@ const PASSWORD = "FORESTTRIP_PASSWORD";
 const INFO: ProviderInfo = {
   id: "foresttrip",
   facilities,
-  // 유명산의 최대 연박은 3이지만 연박 판정은 후속 티켓이라 1박만 받는다.
-  maxNights: 1,
+  // 시설별 최대 연박은 잔여 응답(`mxmmStngDayCnt`)이 정한다(유명산 3). 설정 검증의 상한은 느슨하게 두고, 넘는 조건은 조회 때 걸러 알린다.
+  maxNights: 10,
+  maxNightsUnconfirmed: true,
   // 예약 가능 마지막 날은 응답(`weekLastDay`)이 정한다. 조회 창은 느슨하게 두고 그 밖의 날짜는 빈자리 없음으로 둔다.
   openingRule: { openDaysBefore: 60, openTime: "00:00", sameDayCutoff: "23:59" },
   // 개시 시각(`rsrvtBgnTm`) 앞뒤로 쉬는 시설별 오픈 경쟁 시간은 후속 티켓이다. 지금은 `openingRush`를 두지 않는다.
@@ -56,6 +59,8 @@ interface Session {
   csrf: string;
 }
 const sessions = new WeakMap<HttpClient, Session>();
+/** 최대 연박 초과를 이미 알린 조건(시설|구역|박 수). 같은 연결(프로세스)에서 한 번만 알린다. */
+const tooLongNotified = new WeakMap<HttpClient, Set<string>>();
 
 const unrecognized = (message: string) => new AdapterError("unrecognized", message);
 
@@ -167,21 +172,39 @@ interface Goods {
   name: string;
 }
 
-/** 시설 정책: 주기와 예약 가능 마지막 날(YYYYMMDD). 월별 주기 시설은 아직 읽지 않는다. */
-async function policyOf(ctx: AdapterContext, session: Session, insttId: string): Promise<{ lastDay: string }> {
+type Cycle = "WEEK" | "MON";
+
+/** 시설 정책: 주기와 예약 가능 마지막 날(YYYYMMDD). */
+async function policyOf(ctx: AdapterContext, session: Session, insttId: string): Promise<{ cycle: Cycle; lastDay: string }> {
   const where = "시설 정책";
   const body = await postJson(ctx, session, "/rep/or/selectSthngListForMonthRsrvt.do", { insttId }, where);
   const policy = body.rsrvtPolcy;
   if (typeof policy !== "object" || policy === null) throw unrecognized(`${where}: rsrvtPolcy가 없다`);
   const p = policy as Record<string, unknown>;
-  if (p.rsrvtCycleTpeCd !== "WEEK") throw unrecognized(`${where}: 주별(WEEK)이 아닌 시설(${str(p.rsrvtCycleTpeCd) ?? "주기 없음"})은 아직 읽지 않는다`);
+  const cycle = p.rsrvtCycleTpeCd;
+  if (cycle !== "WEEK" && cycle !== "MON") throw unrecognized(`${where}: 알 수 없는 예약 주기(${str(cycle) ?? "주기 없음"})`);
   const lastDay = [str(p.weekLastDay), str(p.monthLastDay)].filter((d): d is string => d !== undefined && /^\d{8}$/.test(d)).sort().at(-1);
   if (!lastDay) throw unrecognized(`${where}: 예약 가능 마지막 날(weekLastDay)이 없다`);
-  return { lastDay };
+  return { cycle, lastDay };
+}
+
+/** 잔여를 읽는 단위. 주별은 오늘부터 마지막 날까지 한 번(`02`), 월별은 달마다(`01`, `srchDate`=YYYYMM)다. */
+interface View {
+  inqurSctin: "01" | "02";
+  srchDate: string;
+}
+function viewsOf(cycle: Cycle, today: string, lastDay: string): View[] {
+  if (cycle === "WEEK") return [{ inqurSctin: "02", srchDate: today }];
+  const views: View[] = [];
+  const end = Number(lastDay.slice(0, 6));
+  for (let year = Number(today.slice(0, 4)), month = Number(today.slice(4, 6)); year * 100 + month <= end; year += month === 12 ? 1 : 0, month = (month % 12) + 1) {
+    views.push({ inqurSctin: "01", srchDate: `${year}${String(month).padStart(2, "0")}` });
+  }
+  return views;
 }
 
 /** 구역의 상품 목록. 대기열(action8) 키를 본문과 쿠키에 싣는 유일한 호출이다. */
-async function goodsOf(ctx: AdapterContext, session: Session, insttId: string, zone: string, today: string, lastDay: string): Promise<Goods[]> {
+async function goodsOf(ctx: AdapterContext, session: Session, insttId: string, zone: string, view: View, lastDay: string): Promise<Goods[]> {
   const where = "상품 목록";
   const pass = await enterQueue(ctx, GOODS_QUEUE);
   try {
@@ -190,7 +213,7 @@ async function goodsOf(ctx: AdapterContext, session: Session, insttId: string, z
       ctx,
       session,
       "/rep/or/sssn/selectRsrvtGoodsListForMonthRsrvt.do",
-      { insttId, upperGoodsClsscCd: upperOf(zone), goodsClsscCd: zone, inqurSctin: "02", srchDate: today, lastDay, netfunnelKey: pass.key },
+      { insttId, upperGoodsClsscCd: upperOf(zone), goodsClsscCd: zone, ...view, lastDay, netfunnelKey: pass.key },
       where,
     );
     return listOf(body, "rsrvtGoodsList", where)
@@ -211,26 +234,31 @@ const KNOWN_STATUS = new Set(["Y", "PRIOR", "DRLTS", "WEEKEND_DRLTS", "REPAIR", 
 /** 빈자리로 치지 않되 로그에 남기는 상태: 추첨·우선예약(표본에 없어 방법을 정하지 않았다)과 모르는 값. */
 const LOGGED_STATUS = new Set(["PRIOR", "DRLTS", "WEEKEND_DRLTS"]);
 
-/** 구역 상품의 날짜별 빈자리 여부(`goodsId` → 날짜 YYYY-MM-DD → 빈자리). 상품 5개씩 묶어 호출한다. */
+/**
+ * 구역 상품의 날짜별 빈자리 여부(`goodsId` → 날짜 YYYY-MM-DD → 빈자리). 상품 5개씩 묶어 호출하고 월별 시설은 달마다 이어 붙인다.
+ * 첫 응답에서 시설의 최대 연박(`maxStay`)을 읽고, 모든 조건이 넘으면(`minNights` 초과) 더 조회하지 않는다.
+ */
 async function availabilityOf(
   ctx: AdapterContext,
   session: Session,
   insttId: string,
   zone: string,
   goods: Goods[],
-  today: string,
+  views: View[],
   lastDay: string,
-): Promise<Map<string, Map<string, boolean>>> {
+  minNights: number,
+): Promise<{ open: Map<string, Map<string, boolean>>; maxStay?: number }> {
   const where = "잔여";
   const out = new Map<string, Map<string, boolean>>();
   const noted = new Map<string, number>();
-  for (let i = 0; i < goods.length; i += GOODS_PER_CALL) {
-    const chunk = goods.slice(i, i + GOODS_PER_CALL);
+  let maxStay: number | undefined;
+  const calls = views.flatMap((view) => Array.from({ length: Math.ceil(goods.length / GOODS_PER_CALL) }, (_, n) => ({ view, chunk: goods.slice(n * GOODS_PER_CALL, (n + 1) * GOODS_PER_CALL) })));
+  for (const { view, chunk } of calls) {
     const body = await postJson(
       ctx,
       session,
       "/rep/or/selectRsrvtAvailInfoListForMonthRsrvt.do",
-      { insttId, upperGoodsClsscCd: upperOf(zone), goodsIdList: chunk.map((g) => g.id), srchDate: today, lastDay, inqurSctin: "02" },
+      { insttId, upperGoodsClsscCd: upperOf(zone), goodsIdList: chunk.map((g) => g.id), ...view, lastDay },
       where,
     );
     const rows = listOf(body, "rsrvtAvailInfoList", where);
@@ -246,12 +274,15 @@ async function availabilityOf(
       const byDate = out.get(goodsId) ?? new Map<string, boolean>();
       out.set(goodsId, byDate);
       byDate.set(`${useDt.slice(0, 4)}-${useDt.slice(4, 6)}-${useDt.slice(6)}`, open);
+      const stay = Number(row.mxmmStngDayCnt);
+      if (Number.isInteger(stay) && stay > 0) maxStay = Math.max(maxStay ?? 0, stay);
     }
+    if (maxStay !== undefined && minNights > maxStay) break;
   }
   for (const [status, count] of noted) {
     ctx.log?.(KNOWN_STATUS.has(status) ? "foresttrip status not treated as opening" : "foresttrip unknown status", { zone, status, count });
   }
-  return out;
+  return { open: out, maxStay };
 }
 
 /** 키별로 묶는다. 처음 나온 순서를 지킨다. */
@@ -281,16 +312,30 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
     seen.push(session.csrf);
     sessions.set(ctx.http, session);
     const today = kstDate(ctx.clock.now());
+    const tooLong = tooLongNotified.get(ctx.http) ?? new Set<string>();
+    tooLongNotified.set(ctx.http, tooLong);
     for (const [facility, facilityUnits] of groupBy(units, (q) => q.facility)) {
       const insttId = insttIdOf(facility);
-      const { lastDay } = await policyOf(ctx, session, insttId);
+      const { cycle, lastDay } = await policyOf(ctx, session, insttId);
       const lastDate = `${lastDay.slice(0, 4)}-${lastDay.slice(4, 6)}-${lastDay.slice(6)}`;
+      const views = viewsOf(cycle, compact(today), lastDay);
       for (const [zone, zoneUnits] of groupBy(facilityUnits, (q) => q.zone)) {
-        const goods = await goodsOf(ctx, session, insttId, zone, compact(today), lastDay);
-        const open = goods.length > 0 ? await availabilityOf(ctx, session, insttId, zone, goods, compact(today), lastDay) : new Map<string, Map<string, boolean>>();
+        const goods = await goodsOf(ctx, session, insttId, zone, views[0]!, lastDay);
+        const { open, maxStay } =
+          goods.length > 0
+            ? await availabilityOf(ctx, session, insttId, zone, goods, views, lastDay, Math.min(...zoneUnits.map((q) => q.nights)))
+            : { open: new Map<string, Map<string, boolean>>(), maxStay: undefined };
         for (const q of zoneUnits) {
-          // 마지막 날 밖과 지난 날짜는 빈자리가 아니다. 박수는 1박만 받는다.
-          const sites = q.checkIn > lastDate || q.checkIn < today ? [] : goods.filter((g) => open.get(g.id)?.get(q.checkIn) === true);
+          if (maxStay !== undefined && q.nights > maxStay) {
+            const key = `${facility}|${zone}|${q.nights}`;
+            if (!tooLong.has(key)) ctx.log?.("foresttrip nights over facility max", { facility, zone, nights: q.nights, maxNights: maxStay });
+            tooLong.add(key);
+            results.set(q, []);
+            continue;
+          }
+          // 마지막 날 밖과 지난 날짜는 빈자리가 아니다. 같은 자리가 입실일부터 박 수만큼 연속으로 비어야 한다.
+          const dates = nightsOf(q);
+          const sites = q.checkIn > lastDate || q.checkIn < today ? [] : goods.filter((g) => dates.every((d) => open.get(g.id)?.get(d) === true));
           results.set(q, sites.map((g) => ({ id: g.name, name: g.name })));
         }
       }

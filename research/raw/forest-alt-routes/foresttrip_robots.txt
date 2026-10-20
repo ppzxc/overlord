@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /pot/is/gs/selectGnrlSrchView.do
+
+User-agent: Googlebot
+Disallow: /pot/cc/nm/selectNticBbrssListView.do
+Disallow: /pot/cc/fa/selectFaqBbrssListView.do
+Disallow: /pot/cc/ca/insertCvappSntnRgstnView.do
+Disallow: /pot/cc/bb/selectSttmnBbrssListView.do
+Disallow: /pot/cc/qe/selectQstnnExmnnListView.do
+Disallow: /pot/is/gs/selectGnrlSrchView.do

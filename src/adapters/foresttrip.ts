@@ -1,3 +1,6 @@
+import { scryptSync } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import * as cheerio from "cheerio";
 import { AdapterError, type AdapterContext, type AvailabilityQuery, type AvailableSite, type HttpClient, type ProviderAdapter, type ProviderInfo, type TransportResponse } from "../types.js";
 import { facilities } from "../catalogs/foresttrip.js";
@@ -11,7 +14,9 @@ import { kstDate } from "../schedule.js";
  * 흐름(research/forest-login-probe.md): 로그인 화면(`_csrf`) → `crawlingCheck.do`(`param=noData`) → 로그인 POST(302면 성공, 변경 화면은 따라가지 않는다)
  * → 월별 현황 화면(NetFunnel `action3`, 화면의 `_csrf`가 AJAX의 `X-CSRF-TOKEN`) → 시설 정책 → 상품 목록(NetFunnel `action8`) → 잔여(상품 5개씩).
  * 빈자리는 상태가 `Y`이고 `rsrvtCnt`가 0인 칸이다. 지난 날짜·기간 밖·마감·대기·공사·휴무·추첨·우선예약과 모르는 상태는 빈자리가 아니다.
- * 이 티켓은 1박, 주별(`WEEK`) 시설, 구역의 모든 상품만 읽는다. 자리 이름 필터, 연박, 월별 시설, 상품 목록 캐시, 재로그인(`-5`), 로그인 실패 파일 기록, 시설별 오픈 경쟁 시간, `catalog --live`는 후속 티켓이다.
+ * 이 티켓은 1박, 주별(`WEEK`) 시설, 구역의 모든 상품만 읽는다. 자리 이름 필터, 연박, 월별 시설, 상품 목록 캐시, 시설별 오픈 경쟁 시간, `catalog --live`는 후속 티켓이다.
+ * 로그인 운영 정책(#144): 바퀴 시작에 세션이 없으면 로그인하고, 조회 중 `-5`면 재로그인 1회 뒤 그 호출을 다시 보낸다(선제 갱신 없음). 재로그인 직후 호출이 또 `-5`이거나 1시간에 재로그인이 3회를 넘으면 멈춘다.
+ * 로그인 실패 코드(`-6`·`-8`·`-9`·`-10`)는 재시도 없이 멈추고 자격증명 지문을 파일에 남겨, 같은 자격증명이면 재시작해도 로그인하지 않는다.
  * 잔여 응답의 목록 키(`rsrvtAvailInfoList`)와 `goodsIdList` 형식(배열)은 스파이크 문서가 적지 않아 가정한 값이다. 모양이 다르면 `unrecognized`로 멈춘다.
  */
 const ORIGIN = "https://www.foresttrip.go.kr";
@@ -51,9 +56,23 @@ const upperOf = (zone: string): string => zone.slice(0, 2);
 const deepLinkOf = (q: Pick<AvailabilityQuery, "facility" | "zone">): string =>
   `${ORIGIN}${SCREEN_PATH}&upperGoodsClsscCd=${upperOf(q.zone)}&insttId=${insttIdOf(q.facility)}`;
 
-/** 로그인한 세션. `csrf`는 월별 현황 화면에서 받은 AJAX용 토큰이다. 세션 사이로 옮기지 않으려고 HttpClient에 묶는다. */
+/** 세션이 이 시간 안에 끊기면 특수 출력을 남긴다. 세션 수명 30분은 가정이다(research/forest-concurrent-login.md). */
+const SESSION_ASSUMED_MS = 30 * 60_000;
+const RELOGIN_WINDOW_MS = 60 * 60_000;
+/** 창 안에서 허용하는 재로그인 수. 이 수를 넘기려 하면 멈춘다. */
+const RELOGIN_MAX = 3;
+
+/** 로그인한 세션. `csrf`는 월별 현황 화면에서 받은 AJAX용 토큰이다. 세션 사이로 옮기지 않으려고 HttpClient에 묶는다. 재로그인하면 같은 객체를 고쳐 쓴다. */
 interface Session {
   csrf: string;
+  /** 마지막 로그인을 마친 시각(ms). */
+  loginAt: number;
+  /** 최근 재로그인 시각(ms). 첫 로그인은 넣지 않는다. */
+  relogins: number[];
+  /** 이 로그인 뒤 `-5`를 이미 봤는지. 첫 `-5`만 경과 시간을 남긴다. */
+  dropped: boolean;
+  /** 이번 바퀴에 본 `_csrf` 값. 오류 문구에서 가린다. */
+  seen: string[];
 }
 const sessions = new WeakMap<HttpClient, Session>();
 
@@ -70,6 +89,44 @@ function csrfOf(html: string, where: string): string {
 /** 본문의 `loginErrorCode = "-5"` 같은 값. 숫자만 읽어 돌려주므로 본문 원문이 메시지에 들어가지 않는다. */
 const loginErrorCodeOf = (body: string): string | undefined => /loginErrorCode\s*[=:]\s*["']?(-?\d+)/.exec(body)?.[1];
 
+/** 로그인 실패 코드별 사유. 이 넷은 재시도 없이 멈추고 지문을 파일에 남긴다. */
+const LOGIN_STOP: Record<string, string> = {
+  "-6": "비밀번호가 일치하지 않는다. 비밀번호를 바꾸면 풀린다",
+  "-8": "24개월 미접속으로 휴면 처리된 계정이다. 사이트에서 직접 처리한 뒤 재시작한다",
+  "-9": "비밀번호가 만료됐다. 사이트에서 직접 처리한 뒤 재시작한다",
+  "-10": "비밀번호를 5회 틀려 계정이 잠겼다. 사이트에서 잠금을 푼 뒤 재시작한다",
+};
+
+/** 세션 끊김(`-5`). `retrying`이 받아 재로그인하고, 끝내 못 풀면 차단으로 멈춘다. */
+class SessionDropped extends AdapterError {
+  constructor(where: string) {
+    super("blocked", `${where}: 세션이 끊겼다(loginErrorCode -5, HTTP 401)`);
+  }
+}
+
+const stateFile = (): string => process.env.FORESTTRIP_LOGIN_STATE_FILE || "data/foresttrip-login-failure.json";
+
+/** 자격증명 지문. 원문 대신 느린 해시만 파일에 둔다. */
+const fingerprintOf = (id: string, pw: string): string => scryptSync(`${id}\0${pw}`, "overlord-foresttrip-login", 32).toString("hex");
+
+function recordedFailure(fingerprint: string): { loginErrorCode: string } | undefined {
+  try {
+    const rec = JSON.parse(readFileSync(stateFile(), "utf8")) as { fingerprint?: unknown; loginErrorCode?: unknown };
+    return rec.fingerprint === fingerprint && typeof rec.loginErrorCode === "string" ? { loginErrorCode: rec.loginErrorCode } : undefined;
+  } catch {
+    return undefined; // 파일이 없거나 읽을 수 없으면 기록이 없는 것으로 본다.
+  }
+}
+
+function recordFailure(ctx: AdapterContext, fingerprint: string, loginErrorCode: string, now: Date): void {
+  try {
+    mkdirSync(dirname(stateFile()), { recursive: true });
+    writeFileSync(stateFile(), JSON.stringify({ fingerprint, loginErrorCode, at: now.toISOString() }), { mode: 0o600 });
+  } catch {
+    ctx.log?.("foresttrip login failure not recorded"); // 못 써도 이번 실행은 이미 멈춘다. 원인 문구에 경로 외 값은 없지만 싣지 않는다.
+  }
+}
+
 const credentials = (ctx: AdapterContext): { id: string; pw: string } => {
   const id = ctx.secrets?.[USERNAME];
   const pw = ctx.secrets?.[PASSWORD];
@@ -79,7 +136,7 @@ const credentials = (ctx: AdapterContext): { id: string; pw: string } => {
 
 /** 조회 응답을 판정한다. 401 `-5`(세션 끊김), 403·429, 5xx를 가르고 사유를 문구로 남긴다. 본문은 메시지에 싣지 않는다. */
 function assertData(res: TransportResponse, where: string): void {
-  if (res.status === 401 && loginErrorCodeOf(res.body) === "-5") throw new AdapterError("blocked", `${where}: 세션이 끊겼다(loginErrorCode -5, HTTP 401). 재로그인은 아직 지원하지 않아 멈춘다`);
+  if (res.status === 401 && loginErrorCodeOf(res.body) === "-5") throw new SessionDropped(where);
   assertOk(res, where);
 }
 
@@ -104,9 +161,15 @@ const listOf = (obj: Record<string, unknown>, key: string, where: string): Recor
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v !== "" ? v : typeof v === "number" ? String(v) : undefined);
 
-/** 로그인 화면 → 봇 판별 → 로그인 POST → 월별 현황 화면. 로그인 응답이 302면 성공이고 따라가지 않는다. */
-async function login(ctx: AdapterContext, seen: string[]): Promise<Session> {
+/** 로그인 화면 → 봇 판별 → 로그인 POST → 월별 현황 화면. 로그인 응답이 302면 성공이고 따라가지 않는다. AJAX용 `_csrf`를 돌려준다. */
+async function login(ctx: AdapterContext, seen: string[]): Promise<string> {
   const { id, pw } = credentials(ctx);
+  const fingerprint = fingerprintOf(id, pw);
+  const earlier = recordedFailure(fingerprint);
+  if (earlier) {
+    const hint = LOGIN_STOP[earlier.loginErrorCode] ?? "";
+    throw new AdapterError("blocked", `이전 로그인 실패(loginErrorCode ${earlier.loginErrorCode})가 같은 자격증명으로 기록돼 있어 로그인하지 않는다. ${hint}. 풀려면 비밀번호를 바꾸거나 기록 파일(${stateFile()})을 지운 뒤 재시작한다`);
+  }
   const page = await send("로그인 화면", () => ctx.http.get(`${ORIGIN}/com/login.do?targetUrl=/main.do?${HMPG}`));
   assertOk(page, "로그인 화면");
   const loginCsrf = csrfOf(page.body, "로그인 화면");
@@ -134,7 +197,11 @@ async function login(ctx: AdapterContext, seen: string[]): Promise<Session> {
     ctx.log?.(to.pathname === "/com/alert.do" ? "foresttrip login ok: alert.do redirect not followed" : "foresttrip login ok", { user: `${id.slice(0, 2)}***` });
   } else {
     const code = loginErrorCodeOf(res.body);
-    if (code !== undefined) throw new AdapterError("blocked", `로그인 실패(loginErrorCode ${code}, HTTP ${res.status}). 재시도하지 않고 멈춘다`);
+    if (code !== undefined) {
+      const hint = LOGIN_STOP[code];
+      if (hint) recordFailure(ctx, fingerprint, code, ctx.clock.now());
+      throw new AdapterError("blocked", `로그인 실패(loginErrorCode ${code}, HTTP ${res.status}). 아이디 ${id.slice(0, 2)}***: ${hint ? `${hint}. ` : ""}재시도하지 않고 멈춘다`);
+    }
     assertOk(res, "로그인");
     throw unrecognized(`로그인: 302가 아닌 성공 응답(HTTP ${res.status})`);
   }
@@ -145,9 +212,40 @@ async function login(ctx: AdapterContext, seen: string[]): Promise<Session> {
     setNetFunnelCookie(ctx.http, "www.foresttrip.go.kr", pass.result);
     const screen = await send("월별 현황 화면", () => ctx.http.get(`${ORIGIN}${SCREEN_PATH}`));
     assertData(screen, "월별 현황 화면");
-    return { csrf: csrfOf(screen.body, "월별 현황 화면") };
+    return csrfOf(screen.body, "월별 현황 화면");
   } finally {
     await completeQueue(ctx, SCREEN_QUEUE, pass.key);
+  }
+}
+
+/** 세션이 끊겨(`-5`) 다시 로그인한다. 같은 세션 객체를 고쳐 쓰므로 이미 세션을 쥔 호출도 새 토큰을 본다. */
+async function relogin(ctx: AdapterContext, session: Session): Promise<void> {
+  const now = ctx.clock.now().getTime();
+  if (!session.dropped) {
+    session.dropped = true;
+    const elapsedSeconds = Math.round((now - session.loginAt) / 1000);
+    ctx.log?.(now - session.loginAt < SESSION_ASSUMED_MS ? "foresttrip session dropped early" : "foresttrip session dropped", { elapsedSeconds });
+  }
+  const recent = session.relogins.filter((t) => now - t < RELOGIN_WINDOW_MS);
+  if (recent.length >= RELOGIN_MAX) throw new AdapterError("blocked", `세션이 끊겨 1시간에 재로그인이 ${RELOGIN_MAX}회를 넘어 멈춘다(loginErrorCode -5)`);
+  const csrf = await login(ctx, session.seen);
+  session.seen.push(csrf);
+  Object.assign(session, { csrf, loginAt: ctx.clock.now().getTime(), relogins: [...recent, now], dropped: false });
+}
+
+/** 한 호출을 보낸다. `-5`면 재로그인 1회 뒤 같은 호출을 다시 보내고, 그 호출이 또 `-5`면 멈춘다. */
+async function retrying<T>(ctx: AdapterContext, session: Session, call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (e) {
+    if (!(e instanceof SessionDropped)) throw e;
+  }
+  await relogin(ctx, session);
+  try {
+    return await call();
+  } catch (e) {
+    if (e instanceof SessionDropped) throw new AdapterError("blocked", `${e.message}. 재로그인 직후 호출도 -5라 멈춘다`);
+    throw e;
   }
 }
 
@@ -170,7 +268,7 @@ interface Goods {
 /** 시설 정책: 주기와 예약 가능 마지막 날(YYYYMMDD). 월별 주기 시설은 아직 읽지 않는다. */
 async function policyOf(ctx: AdapterContext, session: Session, insttId: string): Promise<{ lastDay: string }> {
   const where = "시설 정책";
-  const body = await postJson(ctx, session, "/rep/or/selectSthngListForMonthRsrvt.do", { insttId }, where);
+  const body = await retrying(ctx, session, () => postJson(ctx, session, "/rep/or/selectSthngListForMonthRsrvt.do", { insttId }, where));
   const policy = body.rsrvtPolcy;
   if (typeof policy !== "object" || policy === null) throw unrecognized(`${where}: rsrvtPolcy가 없다`);
   const p = policy as Record<string, unknown>;
@@ -183,27 +281,30 @@ async function policyOf(ctx: AdapterContext, session: Session, insttId: string):
 /** 구역의 상품 목록. 대기열(action8) 키를 본문과 쿠키에 싣는 유일한 호출이다. */
 async function goodsOf(ctx: AdapterContext, session: Session, insttId: string, zone: string, today: string, lastDay: string): Promise<Goods[]> {
   const where = "상품 목록";
-  const pass = await enterQueue(ctx, GOODS_QUEUE);
-  try {
-    setNetFunnelCookie(ctx.http, "www.foresttrip.go.kr", pass.result);
-    const body = await postJson(
-      ctx,
-      session,
-      "/rep/or/sssn/selectRsrvtGoodsListForMonthRsrvt.do",
-      { insttId, upperGoodsClsscCd: upperOf(zone), goodsClsscCd: zone, inqurSctin: "02", srchDate: today, lastDay, netfunnelKey: pass.key },
-      where,
-    );
-    return listOf(body, "rsrvtGoodsList", where)
-      .filter((g) => str(g.goodsClsscCd) === zone)
-      .map((g) => {
-        const id = str(g.goodsId);
-        const name = str(g.goodsNm);
-        if (!id || !name) throw unrecognized(`${where}: 상품에 goodsId·goodsNm이 없다`);
-        return { id, name };
-      });
-  } finally {
-    await completeQueue(ctx, GOODS_QUEUE, pass.key);
-  }
+  // 재로그인 뒤에는 대기열 키를 새로 받아야 하므로 대기열 진입부터 한 호출로 묶어 다시 보낸다.
+  return retrying(ctx, session, async () => {
+    const pass = await enterQueue(ctx, GOODS_QUEUE);
+    try {
+      setNetFunnelCookie(ctx.http, "www.foresttrip.go.kr", pass.result);
+      const body = await postJson(
+        ctx,
+        session,
+        "/rep/or/sssn/selectRsrvtGoodsListForMonthRsrvt.do",
+        { insttId, upperGoodsClsscCd: upperOf(zone), goodsClsscCd: zone, inqurSctin: "02", srchDate: today, lastDay, netfunnelKey: pass.key },
+        where,
+      );
+      return listOf(body, "rsrvtGoodsList", where)
+        .filter((g) => str(g.goodsClsscCd) === zone)
+        .map((g) => {
+          const id = str(g.goodsId);
+          const name = str(g.goodsNm);
+          if (!id || !name) throw unrecognized(`${where}: 상품에 goodsId·goodsNm이 없다`);
+          return { id, name };
+        });
+    } finally {
+      await completeQueue(ctx, GOODS_QUEUE, pass.key);
+    }
+  });
 }
 
 /** 잔여 응답의 상태 코드. 화면 JS(`dispGoodsTr`) 해석이다. */
@@ -226,12 +327,14 @@ async function availabilityOf(
   const noted = new Map<string, number>();
   for (let i = 0; i < goods.length; i += GOODS_PER_CALL) {
     const chunk = goods.slice(i, i + GOODS_PER_CALL);
-    const body = await postJson(
-      ctx,
-      session,
-      "/rep/or/selectRsrvtAvailInfoListForMonthRsrvt.do",
-      { insttId, upperGoodsClsscCd: upperOf(zone), goodsIdList: chunk.map((g) => g.id), srchDate: today, lastDay, inqurSctin: "02" },
-      where,
+    const body = await retrying(ctx, session, () =>
+      postJson(
+        ctx,
+        session,
+        "/rep/or/selectRsrvtAvailInfoListForMonthRsrvt.do",
+        { insttId, upperGoodsClsscCd: upperOf(zone), goodsIdList: chunk.map((g) => g.id), srchDate: today, lastDay, inqurSctin: "02" },
+        where,
+      ),
     );
     const rows = listOf(body, "rsrvtAvailInfoList", where);
     if (rows.length === 0) throw unrecognized(`${where}: 요청한 상품의 잔여 행이 하나도 없다`);
@@ -277,7 +380,11 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
   let session = sessions.get(ctx.http);
   const seen: string[] = []; // 이번 바퀴에 본 `_csrf` 값. 오류 문구에서 가린다.
   try {
-    session ??= await login(ctx, seen);
+    if (!session) {
+      const csrf = await login(ctx, seen);
+      session = { csrf, loginAt: ctx.clock.now().getTime(), relogins: [], dropped: false, seen };
+    }
+    session.seen = seen;
     seen.push(session.csrf);
     sessions.set(ctx.http, session);
     const today = kstDate(ctx.clock.now());

@@ -94,11 +94,11 @@ describe("숲나들e 시설별 오픈 경쟁 시간", () => {
     const yaml = configWith(watch("유명산", "yumyeongsan", "02002", "2026-11-05"));
     const day1 = run("2026-11-01T09:00:00+09:00", { yaml, policy: monthly });
     await settle();
-    expect(queryFailures(day1.p)).toEqual([]); // 조회하지 않았다
+    expect(polled(day1.p)).toEqual([]); // 조회하지 않았다
     await day1.p.stop();
     const day2 = run("2026-10-20T09:00:00+09:00", { yaml, policy: monthly });
     await settle();
-    expect(queryFailures(day2.p).length).toBeGreaterThan(0); // 돌았다(월별 시설 읽기는 아직 없어 구조 변경으로 멈춘다)
+    expect(polled(day2.p)).toEqual([YUMYEONGSAN]); // 돌았다
     await day2.p.stop();
   });
 

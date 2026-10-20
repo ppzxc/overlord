@@ -85,8 +85,8 @@ export function foresttripServer(opts: ForestOptions = {}) {
     return opts.policy ? opts.policy(base, insttId) : base;
   };
   const lastDay = () => {
-    const p = policyBody().rsrvtPolcy as { weekLastDay?: string } | undefined;
-    return p?.weekLastDay ?? "20261124";
+    const p = policyBody().rsrvtPolcy as { weekLastDay?: string; monthLastDay?: string } | undefined;
+    return p?.weekLastDay || p?.monthLastDay || "20261124";
   };
 
   const respond = (req: TransportRequest): TransportResponse => {

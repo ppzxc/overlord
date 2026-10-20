@@ -1,0 +1,13 @@
+{
+  "sthngList": [
+    { "upperGoodsClsscCd": "01", "upperGoodsClsscNm": "숙소" },
+    { "upperGoodsClsscCd": "02", "upperGoodsClsscNm": "야영" }
+  ],
+  "rsrvtPolcy": {
+    "rsrvtCycleTpeCd": "WEEK",
+    "rsrvtBgnTm": "0900",
+    "weekLastDay": "20261124",
+    "monthLastDay": "",
+    "dytmCycleEstbsVal": 5
+  }
+}

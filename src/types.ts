@@ -57,6 +57,8 @@ export interface AdapterContext {
   clock: Clock;
   /** 종료 중이면 쉬는 것을 바로 끝낸다. */
   signal?: AbortSignal;
+  /** `ProviderInfo.secrets`가 선언한 환경 변수의 값. 선언하지 않은 값은 들어오지 않는다. 로그·알림·오류에 싣지 않는다. */
+  secrets?: Readonly<Record<string, string>>;
   /** 경고처럼 알림까진 필요 없는 관찰을 남긴다. */
   log?: (msg: string, fields?: Record<string, unknown>) => void;
 }
@@ -121,6 +123,11 @@ export interface ProviderInfo {
   blockedPaths: string[];
   /** 받은 쿠키를 들고 다음 요청에 싣는다. 세션이 필요한 예약처만 켠다. */
   cookieSession: boolean;
+  /**
+   * 이 예약처를 가리키는 감시 조건이 있으면 설정 로드 때 비어 있지 않아야 하는 환경 변수 이름. 값은 셸·변수 확장 없이 읽고, 어댑터는 `AdapterContext.secrets`로만 받는다.
+   * 감시 조건이 없으면 검사하지 않는다.
+   */
+  secrets?: string[];
   /** 켜면 시설이 하나뿐이어도 감시 조건이 `facility`를 골라야 하고, `catalog <예약처>`는 시설 목록을 먼저 보인다. 시설이 늘어날 예약처용이다. */
   facilityRequired?: boolean;
 }

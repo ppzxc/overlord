@@ -110,6 +110,8 @@ export function startPoller(
     now?: string;
     /** true면 시작 알림을 보낸다. 기본은 보내지 않는다. */
     notifyStartup?: boolean;
+    /** 기본 환경(ENV)에 더하는 환경 변수. 예약처가 선언한 비밀 값(숲나들e 계정 등)을 준다. */
+    env?: Record<string, string | undefined>;
   } = {},
 ) {
   const respond = (req: TransportRequest) =>
@@ -144,8 +146,9 @@ export function startPoller(
   const controller = new AbortController();
   const done = runPoller(
     {
-      config: loadConfig(opts.yaml ?? CONFIG_YAML, ENV, opts.adapters),
+      config: loadConfig(opts.yaml ?? CONFIG_YAML, { ...ENV, ...opts.env }, opts.adapters),
       adapters: opts.adapters ?? defaultAdapters,
+      env: { ...ENV, ...opts.env },
       transport,
       clock,
       sink,

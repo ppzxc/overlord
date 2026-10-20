@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<title>로그인 | 숲나들e</title>
+<script src="/portal/js/common.js"></script>
+<script>
+  // 로그인 화면이 열릴 때 페이지 JS가 봇 판별을 부른다(crawlingCheck.do). 우리는 같은 호출을 한 번만 보낸다.
+  function chkCrawling() { $.post("/com/crawlingCheck.do?_csrf=" + $("#_csrf").val(), { param: JSON.stringify(navigator.plugins) }); }
+</script>
+</head>
+<body>
+<form id="loginFrm" action="/com/login" method="post">
+  <input type="hidden" id="_csrf" name="_csrf" value="{{CSRF}}"/>
+  <input type="hidden" name="socialToken" value=""/>
+  <input type="hidden" name="passCI" value=""/>
+  <input type="hidden" name="simpleCI" value=""/>
+  <input type="hidden" name="targetUrl" value="/main.do?hmpgId=FRIP"/>
+  <input type="text" name="loginId"/>
+  <input type="password" name="loginPwd"/>
+</form>
+</body>
+</html>

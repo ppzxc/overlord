@@ -35,6 +35,8 @@ export interface PollerDeps {
   version: string;
   /** 0 이상 1 미만. 지터에 쓴다. 기본은 Math.random. */
   random?: () => number;
+  /** 환경 변수. 어댑터가 `ProviderInfo.secrets`로 선언한 이름만 어댑터에 넘어간다. */
+  env?: Record<string, string | undefined>;
   /** 예약처 루프가 살아 있는지 알리는 곳. 없으면 알리지 않는다. */
   liveness?: Liveness;
   log?: (msg: string, fields?: Record<string, unknown>) => void;
@@ -109,10 +111,12 @@ async function runProvider(
 
   const rush = config.providers[providerId]?.openingRush ?? info.openingRush;
 
+  const secrets = Object.fromEntries((info.secrets ?? []).flatMap((name) => (deps.env?.[name] ? [[name, deps.env[name]!]] : [])));
   const ctx: AdapterContext = {
     clock,
     signal,
     log,
+    ...(info.secrets ? { secrets } : {}),
     http: createHttpClient({
       transport: deps.transport,
       version: deps.version,

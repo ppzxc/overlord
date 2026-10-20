@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<title>월별 현황 | 숲나들e</title>
+<script>
+  // 스파이크가 읽은 화면의 모양을 줄인 것. 이 화면은 captchaImg.do(예약 확정 단계용)와 crawlingCheck.do를 문자열로 갖는다.
+  $.ajaxSetup({ contentType: "application/json; charset=UTF-8", beforeSend: function (xhr) { xhr.setRequestHeader("X-CSRF-TOKEN", $("#_csrf").val()); } });
+  function refreshCaptcha() { $("#captchaImg").attr("src", "/com/captchaImg.do?" + Date.now()); }
+</script>
+</head>
+<body>
+<input type="hidden" id="_csrf" name="_csrf" value="{{CSRF}}"/>
+<select id="srchDate"><option value="202610">2026-10</option><option value="202611">2026-11</option><option value="202612">2026-12</option></select>
+</body>
+</html>

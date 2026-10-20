@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { ProviderAdapter } from "./types.js";
 import { checkAgainstProviders, type Problem } from "./provider-check.js";
 import { adapters as knownAdapters } from "./adapters/index.js";
-import { isValidSeatToken } from "./seats.js";
 import { WEEKDAY_KEYS } from "./schedule.js";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 한다");
@@ -76,7 +75,7 @@ const configSchema = z.strictObject({
           )
           .min(1),
         seats: z
-          .array(z.string().refine(isValidSeatToken, "자리 번호(A02) 또는 범위(A10-A15) 형식이어야 한다"))
+          .array(z.string()) // 형식은 예약처마다 달라 `checkAgainstProviders`가 본다.
           .min(1)
           .optional(),
         weekdays: z.array(z.enum(WEEKDAY_KEYS)).min(1).optional(),

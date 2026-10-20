@@ -218,11 +218,9 @@ describe("숲나들e 폴러", () => {
       const first = p.allRequests.length;
       await p.clock.advance(600_000);
       await settle();
+      // 상품 목록은 24시간 캐시라 다시 받지 않는다(Ticket-5).
       expect(p.allRequests.slice(first).map(label)).toEqual([
         "POST /rep/or/selectSthngListForMonthRsrvt.do",
-        "NF 5101 action8",
-        "POST /rep/or/sssn/selectRsrvtGoodsListForMonthRsrvt.do",
-        "NF 5004 action8",
         "POST /rep/or/selectRsrvtAvailInfoListForMonthRsrvt.do",
         "POST /rep/or/selectRsrvtAvailInfoListForMonthRsrvt.do",
       ]);
@@ -370,8 +368,8 @@ describe("숲나들e 폴러", () => {
       await p.stop();
     });
 
-    it("월별 주기 시설은 빈자리 없음으로 착각하지 않고 구조 변경으로 본다", async () => {
-      const { p } = run({ server: { policy: (base) => ({ ...base, rsrvtPolcy: { rsrvtCycleTpeCd: "MON", monthLastDay: "20261130" } }) } });
+    it("모르는 예약 주기 시설은 빈자리 없음으로 착각하지 않고 구조 변경으로 본다", async () => {
+      const { p } = run({ server: { policy: (base) => ({ ...base, rsrvtPolcy: { rsrvtCycleTpeCd: "QTR", monthLastDay: "20261130" } }) } });
       await settle();
       expect(p.logs.find((l) => l.msg === "query failed")!.fields).toMatchObject({ kind: "unrecognized" });
       await p.stop();

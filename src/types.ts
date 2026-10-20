@@ -130,6 +130,11 @@ export interface ProviderInfo {
   secrets?: string[];
   /** 켜면 시설이 하나뿐이어도 감시 조건이 `facility`를 골라야 하고, `catalog <예약처>`는 시설 목록을 먼저 보인다. 시설이 늘어날 예약처용이다. */
   facilityRequired?: boolean;
+  /**
+   * `seats:`를 읽는 방식. 생략하면 `token`(`A02`, `A10-A15`)이다. `name`은 자리 이름 정확 일치이고 범위 토큰을 받지 않는다.
+   * `name`이면 정적 카탈로그에 자리 목록이 없으므로 설정 로드는 자리를 확인하지 않고(어댑터가 `seatNames`로 알려 주면 코어가 조회 뒤에 확인한다), 구역 오류 메시지에 코드와 라벨을 함께 싣는다.
+   */
+  seatMatch?: "token" | "name";
 }
 
 export interface AvailabilityQuery {
@@ -186,6 +191,14 @@ export class AdapterError extends Error {
   }
 }
 
+/**
+ * 조회 단위를 이번 바퀴에 조회하지 않기로 했다는 결과(실패가 아니다). 사용자가 조치해야 하는 이유(예: 호출 수 상한 초과)를 `reason`에 적으며,
+ * 코어가 그 단위를 쓰는 감시 조건·시설마다 한 번 알린다. 예약처 상태와 바퀴의 성공·실패 기록에는 영향이 없다.
+ */
+export class UnitSkipped {
+  constructor(readonly reason: string) {}
+}
+
 export interface ProviderAdapter {
   readonly id: string;
   describe(): ProviderInfo;
@@ -196,12 +209,13 @@ export interface ProviderAdapter {
    * 결과 키는 넘겨받은 조회 단위 객체다. 실패는 두 방식 가운데 어댑터가 고른다.
    * 단위별 값에 AdapterError를 담아 돌려주면 코어가 그 단위만 실패로 치고 나머지 결과는 쓴다(울주는 차단도 이렇게 값으로 돌려준다).
    * 던지면 코어가 모든 단위를 그 오류로 실패 처리한다(고래불은 차단을 던진다).
+   * 조회하지 않기로 한 단위는 UnitSkipped를 담는다. 실패로 치지 않고 감시 조건·시설마다 한 번 알린다.
    * 어느 쪽이든 바퀴의 실패 종류는 가장 무거운 오류로 정해진다. 어댑터마다 다르니 차단이 던져진다고 가정하지 않는다.
    */
   queryAvailabilityBatch?(
     units: AvailabilityQuery[],
     ctx: AdapterContext,
-  ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>>;
+  ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError | UnitSkipped>>;
   /**
    * 조회 창이 날짜 규칙(openingRule로 쓸 수 없는 것)으로 정해지는 어댑터가 구현한다. false인 조회 단위는 코어가 이번 바퀴에서 빼서
    * 어댑터에 넘기지 않는다. 열리지 않은 날짜를 openingRule이 거르는 것과 같게, 단위가 하나도 남지 않아 요청이 없는 바퀴는
@@ -209,6 +223,16 @@ export interface ProviderAdapter {
    */
   isQueryable?(q: AvailabilityQuery, now: Date): boolean;
   deepLink(q: AvailabilityQuery): string;
+  /**
+   * `seatMatch: "name"`인 어댑터가 구현한다. 이 구역에서 가장 최근에 받은 자리 이름 목록이다. 아직 받지 못했으면 undefined.
+   * 코어가 조회 뒤에 감시 조건의 `seats:`가 실제 자리와 맞는지 이것으로 확인한다.
+   */
+  seatNames?(facility: string, zone: string, ctx: AdapterContext): string[] | undefined;
+  /**
+   * 시설마다 오픈 경쟁 시간이 다른 어댑터가 구현한다. 바퀴 시작 때 감시 중인 시설마다 한 번 불러 그 시설의 구간을 받는다. 없음(undefined)이면 쉬지 않는다.
+   * 설정의 `providers.<id>.openingRush`가 있으면 코어가 이 메서드를 부르지 않고 설정 값을 모든 시설에 쓴다. 던지면 코어가 그 시설의 조회 단위를 이번 바퀴 실패로 친다.
+   */
+  facilityOpeningRush?(facility: string, ctx: AdapterContext): Promise<OpeningRush | undefined>;
   /** 예약처 루프가 끝날 때(프로세스 종료) 한 번 부른다. 들고 있던 세션을 마무리한다. 실패는 무시된다. */
   close?(ctx: AdapterContext): Promise<void>;
   /**

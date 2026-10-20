@@ -79,6 +79,7 @@ if (command.kind === "catalog") {
       ...(catalogConfig ? { config: catalogConfig } : {}),
       adapters,
       transport,
+      env: process.env,
       version: pkg.version,
       now: () => new Date(),
       sleep: (ms) => systemClock.sleep(ms),
@@ -108,6 +109,7 @@ const logger = pino({
 // 오류 문구에 URL이 섞여 들어와도 비밀값은 남기지 않는다.
 const secrets = [
   ...Object.values(config.notifiers).map((n) => n.botToken),
+  ...Object.values(adapters).flatMap((a) => (a.describe().secrets ?? []).flatMap((name) => (process.env[name] ? [process.env[name]!] : []))),
   ...(config.deadManPingUrl ? [config.deadManPingUrl] : []),
 ];
 const scrub = (text: string) => secrets.reduce((t, secret) => t.replaceAll(secret, "***"), text);
@@ -133,6 +135,7 @@ await runPoller(
   {
     config,
     adapters,
+    env: process.env,
     transport,
     clock: systemClock,
     sink,

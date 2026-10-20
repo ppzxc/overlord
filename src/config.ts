@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { ProviderAdapter } from "./types.js";
 import { checkAgainstProviders, type Problem } from "./provider-check.js";
 import { adapters as knownAdapters } from "./adapters/index.js";
-import { isValidSeatToken } from "./seats.js";
 import { WEEKDAY_KEYS } from "./schedule.js";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 한다");
@@ -76,7 +75,7 @@ const configSchema = z.strictObject({
           )
           .min(1),
         seats: z
-          .array(z.string().refine(isValidSeatToken, "자리 번호(A02) 또는 범위(A10-A15) 형식이어야 한다"))
+          .array(z.string()) // 형식은 예약처마다 달라 `checkAgainstProviders`가 본다.
           .min(1)
           .optional(),
         weekdays: z.array(z.enum(WEEKDAY_KEYS)).min(1).optional(),
@@ -120,6 +119,21 @@ function checkNotifiers(config: Config): Problem[] {
   );
 }
 
+/** 예약처가 선언한 비밀 값(`ProviderInfo.secrets`)이 환경에 있는지 본다. 그 예약처를 가리키는 감시 조건이 있을 때만 확인한다. 값은 셸·변수 확장 없이 그대로 읽으므로 메시지에도 싣지 않는다. */
+function checkSecrets(config: Config, env: Record<string, string | undefined>, adapters: Record<string, ProviderAdapter>): Problem[] {
+  const problems: Problem[] = [];
+  const seen = new Set<string>();
+  config.watches.forEach((w, i) => {
+    if (seen.has(w.provider)) return;
+    const names = adapters[w.provider]?.describe().secrets ?? [];
+    const missing = names.filter((n) => !env[n]);
+    if (missing.length === 0) return;
+    seen.add(w.provider);
+    problems.push({ path: ["watches", i, "provider"], message: `${w.provider}는 환경 변수 ${missing.join(", ")}이(가) 필요한데 비어 있다(.env에 둔다)` });
+  });
+  return problems;
+}
+
 const dotted = (path: PropertyKey[]) => path.map(String).join(".") || "(최상위)";
 
 export function loadConfig(
@@ -150,7 +164,7 @@ export function loadConfig(
   if (!parsed.success) {
     throw new ConfigError(parsed.error.issues.map((i) => describe(i.path as (string | number)[], i.message)));
   }
-  const problems: Problem[] = [...checkNotifiers(parsed.data), ...checkAgainstProviders(parsed.data, adapters)];
+  const problems: Problem[] = [...checkNotifiers(parsed.data), ...checkAgainstProviders(parsed.data, adapters), ...checkSecrets(parsed.data, env, adapters)];
   if (problems.length > 0) throw new ConfigError(problems.map((p) => describe(p.path, p.message)));
   return parsed.data;
 }

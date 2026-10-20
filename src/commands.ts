@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { renderCatalog, renderFacilities } from "./catalog.js";
 import { renderLiveDiff } from "./catalog-live.js";
-import { defaultFacility } from "./facility.js";
+import { renderForestLive, renderForestZones } from "./catalog-foresttrip.js";
+import { defaultFacility, resolveFacility } from "./facility.js";
 import type { Command } from "./cli.js";
 import { ConfigError, loadConfig, type Config } from "./config.js";
 import { TelegramError, chatsFromUpdates, type TelegramSink } from "./telegram.js";
@@ -19,6 +20,8 @@ export interface CatalogDeps {
   err: (text: string) => void;
   /** 있으면 설정의 openingRush가 예약처 기본값을 덮어쓴다. */
   config?: Config;
+  /** 환경 변수. 어댑터가 `ProviderInfo.secrets`로 선언한 이름만 `--live`에 쓴다. */
+  env?: Record<string, string | undefined>;
 }
 
 /** catalog 명령을 실행하고 종료 코드를 돌려준다. */
@@ -44,7 +47,8 @@ export async function runCatalog(command: Extract<Command, { kind: "catalog" }>,
     deps.out(renderFacilities(adapter));
     return 0;
   }
-  deps.out(renderCatalog(adapter, facility));
+  const forest = adapter.describe().id === "foresttrip";
+  deps.out(forest ? renderForestZones(resolveFacility(adapter.describe(), facility)) : renderCatalog(adapter, facility));
   if (!command.live) return 0;
   const rush = deps.config?.providers[adapter.describe().id]?.openingRush ?? adapter.describe().openingRush;
   if (rush && msUntilRushEnd(deps.now(), rush) > 0) {
@@ -52,14 +56,16 @@ export async function runCatalog(command: Extract<Command, { kind: "catalog" }>,
     return 1;
   }
   deps.out("\n실제 예약처와 비교:\n");
-  const result = await renderLiveDiff(adapter, {
+  const live = {
     transport: deps.transport,
     version: deps.version,
     now: deps.now(),
-    clock: { now: deps.now, sleep: (ms) => deps.sleep(ms) },
+    clock: { now: deps.now, sleep: (ms: number) => deps.sleep(ms) },
     random: deps.random,
     facility,
-  });
+    ...(deps.env ? { env: deps.env } : {}),
+  };
+  const result = forest ? await renderForestLive(adapter, live, { zones: command.zones, seats: command.seats }) : await renderLiveDiff(adapter, live);
   deps.out(result.text);
   return result.failed ? 1 : 0;
 }

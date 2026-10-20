@@ -1,8 +1,8 @@
 import { compact } from "./catalog.js";
 import { resolveFacility } from "./facility.js";
-import { createHttpClient } from "./http.js";
+import { createHttpClient, secretsOf } from "./http.js";
 import { addDays, kstDate } from "./schedule.js";
-import { AdapterError, type AdapterContext, type Clock, type ProviderAdapter, type Transport, type FacilityInfo, type FacilityObservation, type ZoneObservation } from "./types.js";
+import { AdapterError, type AdapterContext, type Clock, type ProviderAdapter, type Transport, type FacilityInfo, type ProviderInfo, type FacilityObservation, type ZoneObservation } from "./types.js";
 
 export interface LiveOptions {
   transport: Transport;
@@ -13,6 +13,8 @@ export interface LiveOptions {
   random: () => number;
   /** 대조할 시설 코드. 없으면 첫 시설이다(시설이 하나인 예약처용). */
   facility?: string;
+  /** 어댑터가 `ProviderInfo.secrets`로 선언한 값(환경 변수 이름 → 값). */
+  env?: Record<string, string | undefined>;
 }
 
 export interface LiveResult {
@@ -21,14 +23,12 @@ export interface LiveResult {
   failed: boolean;
 }
 
-/**
- * 구역마다 실제 자리 배치를 한 번 조회해서 고정 목록과 비교한다.
- * 한 구역이 실패해도 나머지는 계속 조회한다. 차단되면 더 부담을 주지 않도록 멈춘다.
- */
-export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions): Promise<LiveResult> {
-  const info = adapter.describe();
-  const ctx: AdapterContext = {
+/** 요청 간격을 지키는 HTTP 클라이언트와 비밀 값을 담은, `--live` 조회용 어댑터 맥락. */
+export function liveContext(info: ProviderInfo, opts: LiveOptions): AdapterContext {
+  const secrets = secretsOf(info, opts.env);
+  return {
     clock: opts.clock,
+    ...(info.secrets ? { secrets } : {}),
     http: createHttpClient({
       transport: opts.transport,
       version: opts.version,
@@ -38,6 +38,15 @@ export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions
       pacing: { clock: opts.clock, random: opts.random, signal: new AbortController().signal },
     }),
   };
+}
+
+/**
+ * 구역마다 실제 자리 배치를 한 번 조회해서 고정 목록과 비교한다.
+ * 한 구역이 실패해도 나머지는 계속 조회한다. 차단되면 더 부담을 주지 않도록 멈춘다.
+ */
+export async function renderLiveDiff(adapter: ProviderAdapter, opts: LiveOptions): Promise<LiveResult> {
+  const info = adapter.describe();
+  const ctx = liveContext(info, opts);
   try {
     return await compareLive(adapter, resolveFacility(info, opts.facility), addDays(kstDate(opts.now), 1), ctx);
   } finally {

@@ -1,0 +1,15 @@
+{
+  "rsrvtGoodsList": [
+    { "goodsId": "G0101020020000000101", "goodsNm": "야영데크(101)", "goodsClsscCd": "02002", "goodsClsscNm": "야영데크", "mnmmAccptCnt": 4, "mxmmAccptCnt": 6, "insttArea": "30" },
+    { "goodsId": "G0101020020000000102", "goodsNm": "야영데크(102)", "goodsClsscCd": "02002", "goodsClsscNm": "야영데크", "mnmmAccptCnt": 4, "mxmmAccptCnt": 6, "insttArea": "30" },
+    { "goodsId": "G0101020020000000103", "goodsNm": "야영데크(103)", "goodsClsscCd": "02002", "goodsClsscNm": "야영데크", "mnmmAccptCnt": 4, "mxmmAccptCnt": 6, "insttArea": "30" },
+    { "goodsId": "G0101020020000000104", "goodsNm": "야영데크(104)", "goodsClsscCd": "02002", "goodsClsscNm": "야영데크", "mnmmAccptCnt": 4, "mxmmAccptCnt": 6, "insttArea": "30" },
+    { "goodsId": "G0101020020000000105", "goodsNm": "야영데크(105)", "goodsClsscCd": "02002", "goodsClsscNm": "야영데크", "mnmmAccptCnt": 4, "mxmmAccptCnt": 6, "insttArea": "30" },
+    { "goodsId": "G0101020020000000106", "goodsNm": "야영데크(106)", "goodsClsscCd": "02002", "goodsClsscNm": "야영데크", "mnmmAccptCnt": 4, "mxmmAccptCnt": 6, "insttArea": "30" },
+    { "goodsId": "G0101020020000000107", "goodsNm": "야영데크(107)", "goodsClsscCd": "02002", "goodsClsscNm": "야영데크", "mnmmAccptCnt": 4, "mxmmAccptCnt": 6, "insttArea": "30" },
+    { "goodsId": "G0101010020000000201", "goodsNm": "고라니", "goodsClsscCd": "01002", "goodsClsscNm": "휴양관", "mnmmAccptCnt": 4, "mxmmAccptCnt": 6, "insttArea": "33" },
+    { "goodsId": "G0101010020000000202", "goodsNm": "꾀꼬리", "goodsClsscCd": "01002", "goodsClsscNm": "휴양관", "mnmmAccptCnt": 4, "mxmmAccptCnt": 6, "insttArea": "33" }
+  ],
+  "rsrvtPssblDtList": [],
+  "hldtInfoList": []
+}

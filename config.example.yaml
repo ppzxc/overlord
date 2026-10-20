@@ -73,3 +73,14 @@ watches:
   #   weekdays: [fri, sat]
   #   nights: 1
   #   notify: [default]
+  # 숲나들e(foresttrip, 유명산 yumyeongsan, 삼척활기 samcheok-hwalgi): 본인 계정으로 로그인해 조회만 한다(docs/adr/0004). 시설은 facility(꼭 골라야 한다), 구역은 상품 유형 코드이고 따옴표로 감싼다: "02002" 야영데크, "01002" 휴양관. `catalog foresttrip`과 `catalog foresttrip yumyeongsan`으로 본다.
+  # 계정은 .env의 FORESTTRIP_USERNAME, FORESTTRIP_PASSWORD로만 둔다(숲나들e 감시 조건이 있는데 비어 있으면 시작을 거부한다). 비밀번호에 $가 있으면 .env에서 작은따옴표로 감싸 compose가 확장하지 않게 한다. 이 티켓은 주별(WEEK) 시설의 1박만 읽는다. 기본 폴링 간격은 600초이고 하한은 300초다.
+  # 로그인 실패, 세션 끊김(-5), 403·429, 봇 탐지(crawlingCheck.do 거부)는 예약처를 멈춘다(stopped).
+  # - name: 유명산 주말 야영데크
+  #   provider: foresttrip
+  #   facility: yumyeongsan
+  #   zones: ["02002"]
+  #   checkIn: { from: 2026-10-24, to: 2026-11-24 }
+  #   weekdays: [fri, sat]
+  #   nights: 1
+  #   notify: [default]

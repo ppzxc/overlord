@@ -1,5 +1,10 @@
 import { CookieJar } from "./cookies.js";
-import type { Clock, HttpClient, RequestOptions, Transport, TransportRequest, TransportResponse } from "./types.js";
+import type { Clock, HttpClient, ProviderInfo, RequestOptions, Transport, TransportRequest, TransportResponse } from "./types.js";
+
+/** 어댑터가 `ProviderInfo.secrets`로 선언한 이름의 환경 변수 값만 모은다(값이 없는 이름은 뺀다). */
+export function secretsOf(info: ProviderInfo, env: Record<string, string | undefined> | undefined): Record<string, string> {
+  return Object.fromEntries((info.secrets ?? []).flatMap((name) => (env?.[name] ? [[name, env[name]!]] : [])));
+}
 
 const BASE_UA = "overlord-availability-poller";
 const TIMEOUT_MS = 10_000;

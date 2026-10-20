@@ -420,11 +420,52 @@ describe("숲나들e 폴러", () => {
 
     it("시설 목록은 slug와 이름을, 시설은 구역 코드와 이름을 보이고 요청은 보내지 않는다", async () => {
       const list = await catalog();
-      expect(list.out).toMatch(/^yumyeongsan\s+유명산자연휴양림\s+4곳$/m);
+      expect(list.out).toMatch(/^yumyeongsan\s+유명산자연휴양림\s+8곳$/m);
       const one = await catalog("yumyeongsan");
       expect(one.out).toMatch(/^02002\s+야영데크/m);
       expect(one.out).toMatch(/^01002\s+휴양관/m);
       expect(list.requests.length + one.requests.length).toBe(0);
+    });
+  });
+  describe("카탈로그 187곳과 설정·폴링", () => {
+    const problem = (yaml: string): string => {
+      try {
+        loadConfig(yaml, { ...ENV, ...FOREST_ENV });
+      } catch (e) {
+        expect(e).toBeInstanceOf(ConfigError);
+        return (e as Error).message;
+      }
+      return "";
+    };
+
+    it("설정이 slug와 구역 코드로 시설을 찾는다", () => {
+      expect(problem(configWith(watch(["02002", "01001"])))).toBe("");
+      const catalog = adapters.foresttrip!.describe().facilities;
+      expect(catalog).toHaveLength(187);
+      const other = catalog.find((f) => f.code !== "yumyeongsan")!;
+      const yaml = configWith(watch([other.zones[0]!.code]).replace("facility: yumyeongsan", `facility: ${other.code}`));
+      expect(problem(yaml)).toBe("");
+    });
+
+    it("없는 slug는 설정 로드에서 거부된다", () => {
+      expect(problem(configWith(watch().replace("facility: yumyeongsan", "facility: no-such-forest")))).toMatch(/no-such-forest/);
+    });
+
+    it("그 시설에 없는 구역 코드는 설정 로드에서 거부되고 쓸 수 있는 코드가 나온다", () => {
+      expect(problem(configWith(watch(["09999"])))).toMatch(/09999[\s\S]*02002/);
+    });
+
+    it("감시 조건이 있는 시설만 요청하고 나머지 시설은 요청을 만들지 않는다", async () => {
+      const { p } = run();
+      await settle();
+      const forest = p.allRequests.filter((r) => new URL(r.url).hostname === "www.foresttrip.go.kr");
+      expect(forest.length).toBeGreaterThan(0);
+      const insttIds = new Set(
+        forest.map((r) => new URL(r.url).searchParams.get("insttId") ?? (r.body?.startsWith("{") ? (JSON.parse(r.body) as { insttId?: string }).insttId : undefined)).filter(Boolean),
+      );
+      expect(insttIds).toEqual(new Set(["0101"]));
+      expect(adapters.foresttrip!.describe().facilities).toHaveLength(187);
+      await p.stop();
     });
   });
 });

@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { AdapterError, type AdapterContext, type AvailabilityQuery, type AvailableSite, type HttpClient, type ProviderAdapter, type ProviderInfo, type TransportResponse } from "../types.js";
+import { AdapterError, type AdapterContext, type AvailabilityQuery, type AvailableSite, type HttpClient, type OpeningRush, type ProviderAdapter, type ProviderInfo, type TransportResponse } from "../types.js";
 import { facilities } from "../catalogs/foresttrip.js";
 import { fieldsRef } from "../facility.js";
 import { BOT_DETECTION, ConnectionFailure, assertOk, send } from "../adapter-signals.js";
@@ -11,7 +11,7 @@ import { kstDate } from "../schedule.js";
  * 흐름(research/forest-login-probe.md): 로그인 화면(`_csrf`) → `crawlingCheck.do`(`param=noData`) → 로그인 POST(302면 성공, 변경 화면은 따라가지 않는다)
  * → 월별 현황 화면(NetFunnel `action3`, 화면의 `_csrf`가 AJAX의 `X-CSRF-TOKEN`) → 시설 정책 → 상품 목록(NetFunnel `action8`) → 잔여(상품 5개씩).
  * 빈자리는 상태가 `Y`이고 `rsrvtCnt`가 0인 칸이다. 지난 날짜·기간 밖·마감·대기·공사·휴무·추첨·우선예약과 모르는 상태는 빈자리가 아니다.
- * 이 티켓은 1박, 주별(`WEEK`) 시설, 구역의 모든 상품만 읽는다. 자리 이름 필터, 연박, 월별 시설, 상품 목록 캐시, 재로그인(`-5`), 로그인 실패 파일 기록, 시설별 오픈 경쟁 시간, `catalog --live`는 후속 티켓이다.
+ * 이 티켓은 1박, 주별(`WEEK`) 시설, 구역의 모든 상품만 읽는다. 자리 이름 필터, 연박, 월별 시설, 상품 목록 캐시, 재로그인(`-5`), 로그인 실패 파일 기록, `catalog --live`는 후속 티켓이다.
  * 잔여 응답의 목록 키(`rsrvtAvailInfoList`)와 `goodsIdList` 형식(배열)은 스파이크 문서가 적지 않아 가정한 값이다. 모양이 다르면 `unrecognized`로 멈춘다.
  */
 const ORIGIN = "https://www.foresttrip.go.kr";
@@ -34,7 +34,7 @@ const INFO: ProviderInfo = {
   maxNights: 1,
   // 예약 가능 마지막 날은 응답(`weekLastDay`)이 정한다. 조회 창은 느슨하게 두고 그 밖의 날짜는 빈자리 없음으로 둔다.
   openingRule: { openDaysBefore: 60, openTime: "00:00", sameDayCutoff: "23:59" },
-  // 개시 시각(`rsrvtBgnTm`) 앞뒤로 쉬는 시설별 오픈 경쟁 시간은 후속 티켓이다. 지금은 `openingRush`를 두지 않는다.
+  // 오픈 경쟁 시간은 시설마다 다르다. 정적 기본값(`openingRush`) 대신 `facilityOpeningRush`가 시설 정책의 개시 시각(`rsrvtBgnTm`)으로 구한다.
   defaultPollIntervalSeconds: 600,
   minPollIntervalSeconds: 300,
   // `/pot/mc/`는 회원정보(비밀번호 변경 화면 `/pot/mc/pu/updatePssrdChngExpiredView.do` 포함), `/com/alert.do`는 그 화면으로 보내는 안내라 따라가지 않는다.
@@ -167,17 +167,52 @@ interface Goods {
   name: string;
 }
 
-/** 시설 정책: 주기와 예약 가능 마지막 날(YYYYMMDD). 월별 주기 시설은 아직 읽지 않는다. */
-async function policyOf(ctx: AdapterContext, session: Session, insttId: string): Promise<{ lastDay: string }> {
+/** 시설 정책 응답의 `rsrvtPolcy`. 같은 바퀴에 오픈 경쟁 시간 확인과 조회가 두 번 읽지 않도록 잠깐 들고 있는다. */
+const POLICY_TTL_MS = 60_000;
+const policyCache = new WeakMap<HttpClient, Map<string, { at: number; policy: Record<string, unknown> }>>();
+
+async function rawPolicyOf(ctx: AdapterContext, session: Session, insttId: string): Promise<Record<string, unknown>> {
   const where = "시설 정책";
+  const now = ctx.clock.now().getTime();
+  const cache = policyCache.get(ctx.http) ?? new Map<string, { at: number; policy: Record<string, unknown> }>();
+  policyCache.set(ctx.http, cache);
+  const hit = cache.get(insttId);
+  if (hit && now - hit.at < POLICY_TTL_MS) return hit.policy;
   const body = await postJson(ctx, session, "/rep/or/selectSthngListForMonthRsrvt.do", { insttId }, where);
   const policy = body.rsrvtPolcy;
   if (typeof policy !== "object" || policy === null) throw unrecognized(`${where}: rsrvtPolcy가 없다`);
-  const p = policy as Record<string, unknown>;
+  cache.set(insttId, { at: now, policy: policy as Record<string, unknown> });
+  return policy as Record<string, unknown>;
+}
+
+/** 시설 정책: 주기와 예약 가능 마지막 날(YYYYMMDD). 월별 주기 시설은 아직 읽지 않는다. */
+async function policyOf(ctx: AdapterContext, session: Session, insttId: string): Promise<{ lastDay: string }> {
+  const where = "시설 정책";
+  const p = await rawPolicyOf(ctx, session, insttId);
   if (p.rsrvtCycleTpeCd !== "WEEK") throw unrecognized(`${where}: 주별(WEEK)이 아닌 시설(${str(p.rsrvtCycleTpeCd) ?? "주기 없음"})은 아직 읽지 않는다`);
   const lastDay = [str(p.weekLastDay), str(p.monthLastDay)].filter((d): d is string => d !== undefined && /^\d{8}$/.test(d)).sort().at(-1);
   if (!lastDay) throw unrecognized(`${where}: 예약 가능 마지막 날(weekLastDay)이 없다`);
   return { lastDay };
+}
+
+/** 개시 시각 앞뒤로 쉬는 구간: 5분 전부터 30분 후까지. */
+const RUSH_BEFORE_MIN = 5;
+const RUSH_AFTER_MIN = 30;
+const hhmm = (minutes: number): string => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
+/**
+ * 시설 정책의 개시 시각(`rsrvtBgnTm`, HHMM)으로 오픈 경쟁 시간을 구한다. 주별(`WEEK`)은 매일, 월별(`MON`)은 매월 1일이다.
+ * 개시 시각이나 주기를 읽을 수 없으면 쉬지 않고(undefined) 조회가 그 시설의 모양 변경을 판정하게 둔다.
+ * 월별 구간은 `dayOfMonth` 규칙상 자정을 넘을 수 없어 그날 안으로 자른다.
+ */
+function rushOf(policy: Record<string, unknown>): OpeningRush | undefined {
+  const bgn = str(policy.rsrvtBgnTm);
+  const m = bgn !== undefined ? /^([01]\d|2[0-3])([0-5]\d)$/.exec(bgn) : null;
+  const cycle = str(policy.rsrvtCycleTpeCd);
+  if (!m || (cycle !== "WEEK" && cycle !== "MON")) return undefined;
+  const at = Number(m[1]) * 60 + Number(m[2]);
+  if (cycle === "WEEK") return { from: hhmm((at - RUSH_BEFORE_MIN + 1440) % 1440), to: hhmm((at + RUSH_AFTER_MIN) % 1440) };
+  return { from: hhmm(Math.max(0, at - RUSH_BEFORE_MIN)), to: hhmm(Math.min(1439, at + RUSH_AFTER_MIN)), dayOfMonth: 1 };
 }
 
 /** 구역의 상품 목록. 대기열(action8) 키를 본문과 쿠키에 싣는 유일한 호출이다. */
@@ -272,14 +307,30 @@ function redacted(e: AdapterError, ctx: AdapterContext, seen: string[]): Adapter
   return message === e.message ? e : new AdapterError(e.kind, message, { cause: e.cause });
 }
 
+/** 이 클라이언트의 로그인 세션. 없으면 로그인한다. */
+async function ensureSession(ctx: AdapterContext, seen: string[]): Promise<Session> {
+  const session = sessions.get(ctx.http) ?? (await login(ctx, seen));
+  seen.push(session.csrf);
+  sessions.set(ctx.http, session);
+  return session;
+}
+
+async function facilityOpeningRush(facility: string, ctx: AdapterContext): Promise<OpeningRush | undefined> {
+  const seen: string[] = [];
+  try {
+    const session = await ensureSession(ctx, seen);
+    return rushOf(await rawPolicyOf(ctx, session, insttIdOf(facility)));
+  } catch (e) {
+    throw e instanceof AdapterError ? redacted(e, ctx, seen) : e;
+  }
+}
+
 async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>> {
   const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
-  let session = sessions.get(ctx.http);
+  let session: Session;
   const seen: string[] = []; // 이번 바퀴에 본 `_csrf` 값. 오류 문구에서 가린다.
   try {
-    session ??= await login(ctx, seen);
-    seen.push(session.csrf);
-    sessions.set(ctx.http, session);
+    session = await ensureSession(ctx, seen);
     const today = kstDate(ctx.clock.now());
     for (const [facility, facilityUnits] of groupBy(units, (q) => q.facility)) {
       const insttId = insttIdOf(facility);
@@ -308,5 +359,6 @@ export const foresttripAdapter: ProviderAdapter = {
   id: "foresttrip",
   describe: () => INFO,
   queryAvailabilityBatch: runBatch,
+  facilityOpeningRush,
   deepLink: (q) => deepLinkOf(q),
 };

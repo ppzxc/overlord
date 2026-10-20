@@ -42,6 +42,8 @@ const INFO: ProviderInfo = {
   blockedPaths: ["/pot/mc/", "/com/alert.do", "/rep/or/rsrvt", "/rep/or/pay", "/rep/or/cncl"],
   cookieSession: true,
   facilityRequired: true,
+  // `seats`는 화면에 보이는 상품 이름(`야영데크(101)`, `고라니`) 정확 일치다. 이름이 겹치는 상품은 모두 남는다.
+  seatMatch: "name",
   secrets: [USERNAME, PASSWORD],
 };
 
@@ -56,6 +58,14 @@ interface Session {
   csrf: string;
 }
 const sessions = new WeakMap<HttpClient, Session>();
+/** 구역(`시설|구역 코드`)별로 가장 최근에 받은 상품 이름. 코어가 `seats:` 이름이 실제로 있는지 확인하는 데 쓴다. */
+const seatNamesOf = new WeakMap<HttpClient, Map<string, string[]>>();
+const zoneKey = (facility: string, zone: string) => `${facility}|${zone}`;
+function rememberSeatNames(http: HttpClient, facility: string, zone: string, goods: Goods[]): void {
+  const known = seatNamesOf.get(http) ?? new Map<string, string[]>();
+  seatNamesOf.set(http, known);
+  known.set(zoneKey(facility, zone), goods.map((g) => g.name));
+}
 
 const unrecognized = (message: string) => new AdapterError("unrecognized", message);
 
@@ -287,6 +297,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       const lastDate = `${lastDay.slice(0, 4)}-${lastDay.slice(4, 6)}-${lastDay.slice(6)}`;
       for (const [zone, zoneUnits] of groupBy(facilityUnits, (q) => q.zone)) {
         const goods = await goodsOf(ctx, session, insttId, zone, compact(today), lastDay);
+        rememberSeatNames(ctx.http, facility, zone, goods);
         const open = goods.length > 0 ? await availabilityOf(ctx, session, insttId, zone, goods, compact(today), lastDay) : new Map<string, Map<string, boolean>>();
         for (const q of zoneUnits) {
           // 마지막 날 밖과 지난 날짜는 빈자리가 아니다. 박수는 1박만 받는다.
@@ -376,4 +387,5 @@ export const foresttripAdapter: ProviderAdapter = {
   describe: () => INFO,
   queryAvailabilityBatch: runBatch,
   deepLink: (q) => deepLinkOf(q),
+  seatNames: (facility, zone, ctx) => seatNamesOf.get(ctx.http)?.get(zoneKey(facility, zone)),
 };

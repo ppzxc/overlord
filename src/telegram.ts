@@ -211,6 +211,17 @@ export function renderWatchExpired(opts: {
   return { chatId: opts.chatId, text, parse_mode: "HTML" };
 }
 
+/** 감시 조건의 `seats:` 이름이 시설의 상품에 없다. `stopped`면 맞는 자리가 하나도 없어 그 조건만 멈춘 것이다. */
+export function renderSeatMismatch(opts: { chatId: string; watchName: string; missing: string[]; stopped: boolean }): TelegramMessage {
+  const text = [
+    opts.stopped ? "⏸ 감시 조건 멈춤: 자리 이름이 모두 없다" : "❓ 없는 자리 이름이 있다",
+    `<b>${escapeHtml(opts.watchName)}</b>`,
+    `시설의 상품에 없는 이름: ${opts.missing.map(escapeHtml).join(", ")}`,
+    opts.stopped ? "맞는 자리가 없어 이 조건은 조회 결과를 알리지 않는다. 이름을 고치거나 시설이 상품을 되살리면 다시 감시한다." : "나머지 자리는 계속 감시한다.",
+  ].join("\n");
+  return { chatId: opts.chatId, text, parse_mode: "HTML" };
+}
+
 const HEALTH_TITLES: Record<NoticeStatus, string> = {
   blocked: "🚫 예약처가 폴러를 차단했다",
   unrecognized: "🧩 예약처 화면 구조가 바뀌었다",

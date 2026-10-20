@@ -1,7 +1,7 @@
 import type { Config } from "./config.js";
 import { compact } from "./catalog.js";
 import { defaultFacility } from "./facility.js";
-import { seatsMatching } from "./seats.js";
+import { isValidSeatToken, seatsMatching } from "./seats.js";
 import type { ProviderAdapter } from "./types.js";
 
 export interface Problem {
@@ -51,9 +51,16 @@ export function checkAgainstProviders(config: Config, adapters: Record<string, P
     if (!facility) return;
     const zones = facility.zones;
     const codes = zones.map((z) => z.code);
+    // 이름으로 자리를 고르는 예약처는 같은 코드가 시설마다 다른 이름이라 코드와 라벨을 함께 보인다.
+    const nameSeats = info.seatMatch === "name";
+    const usable = nameSeats ? zones.map((z) => `${z.code}(${z.name})`).join(", ") : codes.join(", ");
     for (const z of w.zones) {
-      if (!codes.includes(z)) problems.push({ path: at("zones"), message: `없는 구역 "${z}"다. 쓸 수 있는 값: ${codes.join(", ")}` });
+      if (!codes.includes(z)) problems.push({ path: at("zones"), message: `없는 구역 "${z}"다. 쓸 수 있는 값: ${usable}` });
     }
+    if (nameSeats) return; // 자리 이름은 상품 목록을 받은 뒤에 확인한다.
+    const badTokens = (w.seats ?? []).flatMap((token, j) => (isValidSeatToken(token) ? [] : [j]));
+    for (const j of badTokens) problems.push({ path: [...at("seats"), j], message: "자리 번호(A02) 또는 범위(A10-A15) 형식이어야 한다" });
+    if (badTokens.length > 0) return; // 형식이 틀린 토큰으로는 자리를 맞춰 볼 수 없다.
     // 자리 목록이 없는 구역은 자리로 거를 수 없다.
     if (w.seats) {
       const noSeats = zones.filter((z) => w.zones.includes(z.code) && !z.seats).map((z) => z.code);

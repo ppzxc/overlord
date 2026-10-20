@@ -857,10 +857,7 @@ export async function readFacilityLive(
 ): Promise<ForestLiveView | { stopped: string }> {
   const seen: string[] = [];
   try {
-    let session = sessions.get(ctx.http);
-    session ??= await login(ctx, seen);
-    seen.push(session.csrf);
-    sessions.set(ctx.http, session);
+    const session = await ensureSession(ctx, seen);
     const insttId = insttIdOf(facility);
     const body = await postJson(ctx, session, "/rep/or/selectSthngListForMonthRsrvt.do", { insttId }, "시설 정책");
     const p = body.rsrvtPolcy;

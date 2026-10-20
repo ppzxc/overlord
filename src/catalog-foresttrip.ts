@@ -1,6 +1,6 @@
 import { compact, renderRows } from "./catalog.js";
 import { liveContext, type LiveOptions, type LiveResult } from "./catalog-live.js";
-import { GOODS_PER_CALL, readFacilityLive, type ForestLiveView } from "./adapters/foresttrip.js";
+import { GOODS_PER_CALL, callsFor, readFacilityLive, scopeGoods, viewCount, type ForestLiveView } from "./adapters/foresttrip.js";
 import { resolveFacility } from "./facility.js";
 import { kstDate } from "./schedule.js";
 import { AdapterError, type FacilityInfo, type ProviderAdapter } from "./types.js";
@@ -36,9 +36,7 @@ function inOpeningRush(now: Date, policy: { cycle: string | undefined; beginTime
   return sinceOpen < 30 * MINUTE_MS || sinceOpen >= DAY_MS - 5 * MINUTE_MS;
 }
 
-const callsFor = (goods: number) => Math.ceil(goods / GOODS_PER_CALL);
-
-function compare(facility: FacilityInfo, view: ForestLiveView, filter: ForestFilter): string[] {
+function compare(facility: FacilityInfo, view: ForestLiveView, filter: ForestFilter, today: string): string[] {
   const lines: string[] = [];
   let differences = 0;
   const rows = [["구역 코드", "라벨", "상품 수", "대조"]];
@@ -66,12 +64,14 @@ function compare(facility: FacilityInfo, view: ForestLiveView, filter: ForestFil
   const scoped = view.zones.filter((z) => !filter.zones || filter.zones.includes(z.code));
   const callRows = [["구역 코드", "라벨", "조회 상품", "호출"]];
   let total = 0;
+  const months = viewCount(view.cycle, today, view.lastDay);
   for (const z of scoped) {
-    const goods = filter.seats ? z.goods.filter((g) => filter.seats!.includes(g)) : z.goods;
-    total += callsFor(goods.length);
-    callRows.push([z.code, z.label, String(goods.length), `${callsFor(goods.length)}번`]);
+    const goods = scopeGoods(z.goods.map((name) => ({ name })), filter.seats);
+    const calls = callsFor(goods.length, months);
+    total += calls;
+    callRows.push([z.code, z.label, String(goods.length), `${calls}번`]);
   }
-  lines.push("", `예상 호출 수(한 바퀴, 잔여 상품 ${GOODS_PER_CALL}개씩)`, renderRows(callRows));
+  lines.push("", `예상 호출 수(한 바퀴, 잔여 상품 ${GOODS_PER_CALL}개씩${months > 1 ? `, ${months}달` : ""})`, renderRows(callRows));
   for (const code of (filter.zones ?? []).filter((c) => !view.zones.some((z) => z.code === c))) lines.push(`없는 구역: ${code}`);
   for (const name of (filter.seats ?? []).filter((n) => !scoped.some((z) => z.goods.includes(n)))) lines.push(`없는 자리 이름: ${name}`);
   lines.push(
@@ -92,7 +92,7 @@ export async function renderForestLive(adapter: ProviderAdapter, opts: LiveOptio
       inOpeningRush(opts.now, policy) ? `이 시설의 오픈 경쟁 시간(예약 개시 ${policy.beginTime} 5분 전~30분 후)이라 상품 목록을 조회하지 않는다. 그 뒤에 다시 실행하라` : undefined,
     );
     if ("stopped" in view) return { text: `${view.stopped}\n`, failed: true };
-    return { text: `${compare(facility, view, filter).join("\n")}\n`, failed: false };
+    return { text: `${compare(facility, view, filter, kstDate(opts.now).replaceAll("-", "")).join("\n")}\n`, failed: false };
   } catch (e) {
     if (!(e instanceof AdapterError)) throw e;
     return { text: `조회 실패(${e.kind}): ${e.message}\n`, failed: true };

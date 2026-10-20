@@ -1,6 +1,6 @@
 import { compact } from "./catalog.js";
 import { resolveFacility } from "./facility.js";
-import { createHttpClient } from "./http.js";
+import { createHttpClient, secretsOf } from "./http.js";
 import { addDays, kstDate } from "./schedule.js";
 import { AdapterError, type AdapterContext, type Clock, type ProviderAdapter, type Transport, type FacilityInfo, type ProviderInfo, type FacilityObservation, type ZoneObservation } from "./types.js";
 
@@ -25,7 +25,7 @@ export interface LiveResult {
 
 /** 요청 간격을 지키는 HTTP 클라이언트와 비밀 값을 담은, `--live` 조회용 어댑터 맥락. */
 export function liveContext(info: ProviderInfo, opts: LiveOptions): AdapterContext {
-  const secrets = Object.fromEntries((info.secrets ?? []).flatMap((name) => (opts.env?.[name] ? [[name, opts.env[name]!]] : [])));
+  const secrets = secretsOf(info, opts.env);
   return {
     clock: opts.clock,
     ...(info.secrets ? { secrets } : {}),

@@ -105,6 +105,74 @@ describe("숲나들e 호출 예산", () => {
   });
 });
 
+describe("숲나들e seats로 줄이는 호출", () => {
+  const seatWatch = (name: string, seats?: string[]) => `
+  - name: ${name}
+    provider: foresttrip
+    facility: yumyeongsan
+    zones: ["02002"]${seats ? `\n    seats: [${seats.map((s) => `"${s}"`).join(", ")}]` : ""}
+    checkIn: { from: 2026-11-20, to: 2026-11-20 }
+    nights: 1
+    notify: [default]`;
+  const asked = (p: ReturnType<typeof run>["p"]) => p.allRequests.filter((r) => pathOf(r) === AVAIL).map((r) => (bodyOf(r).goodsIdList as string[]).length);
+
+  it("seats만 있는 감시 조건은 그 이름의 상품만 묻는다", async () => {
+    const { p } = run({ yaml: configWith(seatWatch("하나", ["야영데크(101)", "야영데크(102)"])) });
+    await settle();
+    expect(asked(p)).toEqual([2]);
+    await p.stop();
+  });
+
+  it("같은 구역을 보는 감시 조건들의 seats 합집합만 묻는다", async () => {
+    const { p } = run({ yaml: configWith(seatWatch("하나", ["야영데크(101)"]) + seatWatch("둘", ["야영데크(105)", "야영데크(101)"])) });
+    await settle();
+    expect(asked(p)).toEqual([2]);
+    await p.stop();
+  });
+
+  it("seats가 없는 감시 조건이 하나라도 있으면 구역의 모든 상품을 묻는다", async () => {
+    const { p } = run({ yaml: configWith(seatWatch("하나", ["야영데크(101)"]) + seatWatch("전부")) });
+    await settle();
+    expect(asked(p)).toEqual([5, 2]);
+    await p.stop();
+  });
+
+  it("seats로 줄인 호출 수가 상한 이하면 상품이 100개를 넘어도 조회한다", async () => {
+    const seats = Array.from({ length: 5 }, (_, i) => `야영데크(${i + 1})`);
+    const { p } = run({ server: { intercept: manyGoods(101) }, yaml: configWith(seatWatch("좁힘", seats)) });
+    await settle();
+    expect(asked(p)).toEqual([5]);
+    expect(p.sent).toHaveLength(0);
+    await p.stop();
+  });
+});
+
+describe("숲나들e 낡은 목록 재조회와 호출 상한", () => {
+  it("낡은 목록을 다시 받은 뒤 다시 읽으면 상한을 넘을 때는 다시 읽지 않고 한 번만 알린다", async () => {
+    let armed = false;
+    const intercept: ForestOptions["intercept"] = (req) => {
+      if (pathOf(req) === GOODS) return manyGoods(100)!(req, undefined as never);
+      if (pathOf(req) === AVAIL) {
+        const ids = bodyOf(req).goodsIdList as string[];
+        const rows: Record<string, unknown>[] = ids.map((goodsId) => ({ goodsId, useDt: "20261120", rsrvtAvail: "Y", rsrvtCnt: 1 }));
+        if (armed) rows.push({ goodsId: "G-NEW", useDt: "20261120", rsrvtAvail: "Y", rsrvtCnt: 1 });
+        return json({ rsrvtAvailInfoList: rows });
+      }
+      return undefined;
+    };
+    const { p } = run({ server: { intercept } });
+    await settle();
+    expect(p.allRequests.filter((r) => pathOf(r) === AVAIL)).toHaveLength(20);
+    armed = true;
+    await p.clock.advance(600_000);
+    await settle();
+    expect(p.allRequests.filter((r) => pathOf(r) === AVAIL)).toHaveLength(40); // 둘째 바퀴 20번
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("20번");
+    await p.stop();
+  });
+});
+
 describe("숲나들e 상품 목록 캐시", () => {
   const goodsRequests = (p: ReturnType<typeof run>["p"]) => p.allRequests.filter((r) => pathOf(r) === GOODS);
 

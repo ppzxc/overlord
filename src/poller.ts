@@ -2,7 +2,7 @@ import type { Config } from "./config.js";
 import { resolveFacility } from "./facility.js";
 import { ProviderHealth, worstFailure, type Failure } from "./health.js";
 import { LOOP_TURN, type Liveness } from "./liveness.js";
-import { createHttpClient } from "./http.js";
+import { createHttpClient, secretsOf } from "./http.js";
 import { createShared, errMessage, notifierNamesOf, pollIntervalMs, recordRound, type DayStats, type ProviderStat, type Shared } from "./notify.js";
 import { addDays, expandWatch, HOUR_MS, isExpired, isQuiet, kstDate, kstHourKey, msUntilRushEnd, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
@@ -114,7 +114,7 @@ async function runProvider(
 
   const rush = config.providers[providerId]?.openingRush ?? info.openingRush;
 
-  const secrets = Object.fromEntries((info.secrets ?? []).flatMap((name) => (deps.env?.[name] ? [[name, deps.env[name]!]] : [])));
+  const secrets = secretsOf(info, deps.env);
   const ctx: AdapterContext = {
     clock,
     signal,
@@ -205,8 +205,10 @@ async function runProvider(
       for (const q of units) {
         if (adapter.isQueryable && !adapter.isQueryable(q, now)) continue; // 아직 조회할 수 없는 날짜는 조회 단위에 넣지 않는다.
         const key = unitKey(q);
-        const seats = [...new Set([...(queries.get(key)?.seats ?? []), ...(watch.seats ?? [])])];
-        queries.set(key, seats.length > 0 ? { ...q, seats } : q);
+        const prev = queries.get(key);
+        const seats = [...new Set([...(prev?.seats ?? []), ...(watch.seats ?? [])])];
+        const unfiltered = prev?.unfiltered === true || !watch.seats;
+        queries.set(key, { ...q, ...(seats.length > 0 ? { seats } : {}), ...(unfiltered ? { unfiltered: true as const } : {}) });
       }
     }
     const skipped = new Map<string, UnitSkipped>();
@@ -274,7 +276,7 @@ async function runProvider(
         const skip = skipped.get(unitKey(q));
         if (!skip) continue;
         for (const name of watch.notify) {
-          const key = `${watch.name}|${name}|${q.facility}`;
+          const key = `${watch.name}|${name}|${q.facility}|${skip.dedupe ?? ""}`;
           if (skippedSent.has(key)) continue;
           const ok = await shared.send(name, watch.name, (chatId) => renderUnitSkipped({ chatId, watchName: watch.name, reason: skip.reason }));
           if (ok) skippedSent.add(key);

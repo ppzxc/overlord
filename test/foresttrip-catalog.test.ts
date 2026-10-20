@@ -154,6 +154,28 @@ describe("catalog foresttrip", () => {
       expect(narrowed.out).toContain("합계 20번 (상한 20번)");
     });
 
+    it("월별 시설은 보는 달 수만큼 곱해 예상 호출 수를 센다", async () => {
+      const monthly: ForestOptions["policy"] = (base) => ({ ...base, rsrvtPolcy: { rsrvtCycleTpeCd: "MON", rsrvtBgnTm: "0900", weekLastDay: "", monthLastDay: "20261130" } });
+      const t = setup({ goods: matching, server: { policy: monthly } });
+      const r = await t.run(["yumyeongsan", "--live", "--zones", "02002"]);
+      expect(r.out).toContain("합계 4번 (상한 20번)"); // 상품 7개 = 2번 × 2달(10월, 11월)
+    });
+
+    it("정책 읽기가 세션 끊김(-5)이면 재로그인 한 번 뒤 다시 읽는다", async () => {
+      let dropped = false;
+      const server: ForestOptions = {
+        intercept: (req) => {
+          if (new URL(req.url).pathname !== "/rep/or/selectSthngListForMonthRsrvt.do" || dropped) return undefined;
+          dropped = true;
+          return { status: 401, body: '<script>var loginErrorCode = "-5";</script>' };
+        },
+      };
+      const t = setup({ goods: matching, server });
+      const r = await t.run(["yumyeongsan", "--live", "--zones", "02002"]);
+      expect(r.code).toBe(0);
+      expect(t.server.state.logins).toBe(2);
+    });
+
     it("예약 개시 시각 5분 전부터 30분 후까지는 상품 목록을 조회하지 않는다", async () => {
       // 유명산 개시 시각은 0900. 08:55~09:30이 오픈 경쟁 시간이다.
       for (const [now, blocked] of [["2026-10-20T08:54:59+09:00", false], ["2026-10-20T08:55:00+09:00", true], ["2026-10-20T09:29:59+09:00", true], ["2026-10-20T09:30:00+09:00", false]] as const) {

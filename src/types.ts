@@ -145,6 +145,8 @@ export interface AvailabilityQuery {
   nights: number;
   /** 이 조회 단위를 쓰는 감시 조건들이 `seats:`로 고른 자리 필터(토큰) 합집합. 어댑터가 관심 자리가 응답에서 사라졌는지 알아보는 데만 쓴다. 필터가 없으면 생략한다. */
   seats?: string[];
+  /** 이 조회 단위를 쓰는 감시 조건 중에 `seats:` 필터가 없는 것이 있다. 그러면 어댑터는 자리를 줄여 조회하면 안 된다. */
+  unfiltered?: true;
 }
 
 export interface AvailableSite {
@@ -196,7 +198,8 @@ export class AdapterError extends Error {
  * 코어가 그 단위를 쓰는 감시 조건·시설마다 한 번 알린다. 예약처 상태와 바퀴의 성공·실패 기록에는 영향이 없다.
  */
 export class UnitSkipped {
-  constructor(readonly reason: string) {}
+  /** `dedupe`: 같은 시설 안에서 알림을 가르는 키. 생략하면 시설마다 한 번이다. */
+  constructor(readonly reason: string, readonly dedupe?: string) {}
 }
 
 export interface ProviderAdapter {

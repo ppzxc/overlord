@@ -85,16 +85,19 @@ describe("숲나들e 월별 시설", () => {
 });
 
 describe("숲나들e 최대 연박", () => {
-  it("시설의 최대 연박(응답 mxmmStngDayCnt)을 넘는 조건은 알리지 않고 조건마다 한 번만 로그로 알린다", async () => {
+  it("시설의 최대 연박(응답 mxmmStngDayCnt)을 넘는 조건은 빈자리를 알리지 않고 조건마다 한 번만 사용자에게 알린다", async () => {
     const { p, server } = run("2026-10-24", 4, { status: () => OPEN });
     await settle();
-    expect(p.sent).toHaveLength(0);
-    const over = p.logs.filter((l) => l.msg === "foresttrip nights over facility max");
-    expect(over).toHaveLength(1);
-    expect(over[0]!.fields).toMatchObject({ facility: "yumyeongsan", nights: 4, maxNights: 3 });
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]!.text).toContain("최대 연박");
+    expect(p.sent[0]!.text).toContain("3박");
+    expect(p.sent[0]!.text).not.toContain("야영데크(101)");
     expect(p.logs.filter((l) => l.msg === "query failed")).toEqual([]);
     // 모든 조건이 넘으면 첫 응답을 읽고 더 조회하지 않는다.
     expect(server.state.availCalls).toHaveLength(1);
+    await p.clock.advance(600_000);
+    await settle();
+    expect(p.sent).toHaveLength(1);
     await p.stop();
   });
 

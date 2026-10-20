@@ -8,7 +8,7 @@ import { CONFIG_YAML, ENV } from "./harness.js";
 import { FOREST_ENV, FOREST_SECRET_VALUES, foresttripServer, type ForestOptions } from "./foresttrip-server.js";
 
 // `catalog foresttrip`을 runCatalog의 출력으로 본다. --live는 가짜 숲나들e 서버(test/foresttrip-server.ts)로 돌린다.
-// 카탈로그의 유명산(0101)은 구역 네 곳(02002 야영데크, 01002 휴양관, 01001 숲속의집, 01003 연립동)이다.
+// 카탈로그의 유명산(0101)은 생성한 카탈로그의 구역 여덟 곳(01001 숲속의집, 01002 휴양관, 01003 연립동, 01004 숲속수련장, 02002 야영데크, 02005 오토캠핑장, 02007 캠핑카야영장, 02009 데크텐트)이다.
 const NOON = "2026-10-20T12:00:00+09:00";
 
 interface FakeGoods {
@@ -63,17 +63,20 @@ const setup = (opts: { server?: ForestOptions; goods?: Goods; now?: string; env?
   return { run, requests, paths, server };
 };
 
-/** 카탈로그와 같은 구역 네 곳을 응답한다. */
-const matching: Goods = (upper) => (upper === "02" ? goodsOf("02002", "야영데크", 7) : [...goodsOf("01002", "휴양관", 2, "고라니"), ...goodsOf("01001", "숲속의집", 3, "숲속"), ...goodsOf("01003", "연립동", 4, "연립")]);
+/** 카탈로그와 같은 구역 여덟 곳을 응답한다. 앞의 네 곳이 자리가 여럿이고 나머지는 하나다. */
+const matching: Goods = (upper) =>
+  upper === "02"
+    ? [...goodsOf("02002", "야영데크", 7), ...goodsOf("02005", "오토캠핑장", 1), ...goodsOf("02007", "캠핑카야영장", 1), ...goodsOf("02009", "데크텐트", 1)]
+    : [...goodsOf("01002", "휴양관", 2, "고라니"), ...goodsOf("01001", "숲속의집", 3, "숲속"), ...goodsOf("01003", "연립동", 4, "연립"), ...goodsOf("01004", "숲속수련장", 1)];
 
 describe("catalog foresttrip", () => {
   it("시설 목록과 구역 표를 카탈로그대로 보이고 요청은 보내지 않는다", async () => {
     const t = setup();
     const list = await t.run([]);
-    expect(list.out).toMatch(/^yumyeongsan\s+유명산자연휴양림\s+4곳$/m);
+    expect(list.out).toMatch(/^yumyeongsan\s+유명산자연휴양림\s+8곳$/m);
     const one = await t.run(["yumyeongsan"]);
     expect(one.out).toMatch(/^구역 코드\s+라벨\s+상품 수$/m);
-    for (const [code, label] of [["02002", "야영데크"], ["01002", "휴양관"], ["01001", "숲속의집"], ["01003", "연립동"]]) expect(one.out).toMatch(new RegExp(`^${code}\\s+${label}\\s+-$`, "m"));
+    for (const [code, label] of [["02002", "야영데크"], ["01002", "휴양관"], ["01001", "숲속의집"], ["01003", "연립동"], ["01004", "숲속수련장"], ["02005", "오토캠핑장"], ["02007", "캠핑카야영장"], ["02009", "데크텐트"]]) expect(one.out).toMatch(new RegExp(`^${code}\\s+${label}\\s+-$`, "m"));
     expect(one.out).toContain("insttId 0101");
     expect(t.requests).toEqual([]);
   });
@@ -97,9 +100,9 @@ describe("catalog foresttrip", () => {
       expect(r.out).toMatch(/^01003\s+연립동\s+4\s+일치$/m);
       expect(r.out).toContain("차이 없음");
       expect(r.out).toContain("02002 야영데크: 7개 야영데크(101), 야영데크(102)");
-      // 구역마다 상품 5개씩: 야영데크 2번, 휴양관 1번, 숲속의집 1번, 연립동 1번.
+      // 구역마다 상품 5개씩: 야영데크 2번, 나머지 일곱 구역은 1번씩.
       expect(r.out).toMatch(/^02002\s+야영데크\s+7\s+2번$/m);
-      expect(r.out).toContain("합계 5번 (상한 20번)");
+      expect(r.out).toContain("합계 9번 (상한 20번)");
     });
 
     it("insttId로 조회하고 로그인한 응답에서만 읽으며 예약·회원정보 경로로는 나가지 않는다", async () => {
@@ -113,21 +116,22 @@ describe("catalog foresttrip", () => {
 
     it("예약처에서 사라진 구역과 새로 생긴 구역, 라벨이 바뀐 구역을 보고한다", async () => {
       const t = setup({
-        goods: (upper) => (upper === "02" ? [...goodsOf("02002", "오토캠핑", 7), ...goodsOf("02007", "캐러밴", 10)] : goodsOf("01002", "휴양관", 2)),
+        goods: (upper) => (upper === "02" ? [...goodsOf("02002", "오토캠핑", 7), ...goodsOf("02010", "캐러밴", 10), ...goodsOf("02005", "오토캠핑장", 1), ...goodsOf("02007", "캠핑카야영장", 1), ...goodsOf("02009", "데크텐트", 1)] : goodsOf("01002", "휴양관", 2)),
       });
       const r = await t.run(["yumyeongsan", "--live"]);
       expect(r.code).toBe(0);
       expect(r.out).toMatch(/^01001\s+숲속의집\s+-\s+예약처에서 사라진 구역$/m);
       expect(r.out).toMatch(/^01003\s+연립동\s+-\s+예약처에서 사라진 구역$/m);
-      expect(r.out).toMatch(/^02007\s+캐러밴\s+10\s+예약처에 새로 생긴 구역$/m);
+      expect(r.out).toMatch(/^01004\s+숲속수련장\s+-\s+예약처에서 사라진 구역$/m);
+      expect(r.out).toMatch(/^02010\s+캐러밴\s+10\s+예약처에 새로 생긴 구역$/m);
       expect(r.out).toMatch(/^02002\s+오토캠핑\s+7\s+라벨이 다르다\(카탈로그 야영데크\)$/m);
-      expect(r.out).toContain("차이 있는 구역 4곳");
+      expect(r.out).toContain("차이 있는 구역 5곳");
     });
 
     it("예상 호출 수가 구역과 자리 필터에 따라 달라진다", async () => {
       const t = setup({ goods: matching });
       const all = await t.run(["yumyeongsan", "--live"]);
-      expect(all.out).toContain("합계 5번");
+      expect(all.out).toContain("합계 9번");
       const zone = await t.run(["yumyeongsan", "--live", "--zones", "02002"]);
       expect(zone.out).toContain("합계 2번");
       expect(zone.out).not.toMatch(/^01002\s+휴양관\s+2\s+1번$/m);

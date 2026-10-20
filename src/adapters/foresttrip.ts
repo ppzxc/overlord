@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { AdapterError, type AdapterContext, type AvailabilityQuery, type AvailableSite, type HttpClient, type ProviderAdapter, type ProviderInfo, type TransportResponse } from "../types.js";
+import { AdapterError, UnitSkipped, type AdapterContext, type AvailabilityQuery, type AvailableSite, type HttpClient, type ProviderAdapter, type ProviderInfo, type TransportResponse } from "../types.js";
 import { facilities } from "../catalogs/foresttrip.js";
 import { fieldsRef } from "../facility.js";
 import { BOT_DETECTION, ConnectionFailure, assertOk, send } from "../adapter-signals.js";
@@ -11,7 +11,7 @@ import { kstDate } from "../schedule.js";
  * 흐름(research/forest-login-probe.md): 로그인 화면(`_csrf`) → `crawlingCheck.do`(`param=noData`) → 로그인 POST(302면 성공, 변경 화면은 따라가지 않는다)
  * → 월별 현황 화면(NetFunnel `action3`, 화면의 `_csrf`가 AJAX의 `X-CSRF-TOKEN`) → 시설 정책 → 상품 목록(NetFunnel `action8`) → 잔여(상품 5개씩).
  * 빈자리는 상태가 `Y`이고 `rsrvtCnt`가 0인 칸이다. 지난 날짜·기간 밖·마감·대기·공사·휴무·추첨·우선예약과 모르는 상태는 빈자리가 아니다.
- * 이 티켓은 1박, 주별(`WEEK`) 시설, 구역의 모든 상품만 읽는다. 자리 이름 필터, 연박, 월별 시설, 상품 목록 캐시, 재로그인(`-5`), 로그인 실패 파일 기록, 시설별 오픈 경쟁 시간, `catalog --live`는 후속 티켓이다.
+ * 이 티켓은 1박, 주별(`WEEK`) 시설, 구역의 모든 상품만 읽는다. 자리 이름 필터, 연박, 월별 시설, 재로그인(`-5`), 로그인 실패 파일 기록, 시설별 오픈 경쟁 시간, `catalog --live`는 후속 티켓이다.
  * 잔여 응답의 목록 키(`rsrvtAvailInfoList`)와 `goodsIdList` 형식(배열)은 스파이크 문서가 적지 않아 가정한 값이다. 모양이 다르면 `unrecognized`로 멈춘다.
  */
 const ORIGIN = "https://www.foresttrip.go.kr";
@@ -23,6 +23,11 @@ const GOODS_QUEUE: NetFunnelQueue = { ...QUEUE_BASE, aid: "action8" };
 const JSON_TYPE = "application/json; charset=UTF-8";
 /** 서버가 잔여 호출 한 번에 돌려주는 상품 수 상한. */
 const GOODS_PER_CALL = 5;
+/** 한 시설이 한 바퀴에 보낼 수 있는 잔여 호출 수 상한(상품 100개). 넘으면 조회하지 않고 알린다(Decision-9). */
+const MAX_CALLS_PER_FACILITY = 20;
+/** 상품 목록 캐시 수명. 시작 때 한 번 받고, 이 시간이 지나거나 잔여 응답이 목록과 어긋나면 다시 받는다. */
+const GOODS_TTL_MS = 24 * 60 * 60 * 1000;
+const callsFor = (goodsCount: number): number => Math.ceil(goodsCount / GOODS_PER_CALL);
 
 const USERNAME = "FORESTTRIP_USERNAME";
 const PASSWORD = "FORESTTRIP_PASSWORD";
@@ -211,7 +216,13 @@ const KNOWN_STATUS = new Set(["Y", "PRIOR", "DRLTS", "WEEKEND_DRLTS", "REPAIR", 
 /** 빈자리로 치지 않되 로그에 남기는 상태: 추첨·우선예약(표본에 없어 방법을 정하지 않았다)과 모르는 값. */
 const LOGGED_STATUS = new Set(["PRIOR", "DRLTS", "WEEKEND_DRLTS"]);
 
-/** 구역 상품의 날짜별 빈자리 여부(`goodsId` → 날짜 YYYY-MM-DD → 빈자리). 상품 5개씩 묶어 호출한다. */
+/** 잔여 읽기 결과. `stale`은 응답이 상품 목록과 어긋났다는 뜻이다(모르는 `goodsId`가 보이거나 요청한 `goodsId`가 빠졌다). */
+interface Availability {
+  open: Map<string, Map<string, boolean>>;
+  stale: boolean;
+}
+
+/** 구역 상품의 날짜별 빈자리 여부(`goodsId` → 날짜 YYYY-MM-DD → 빈자리). 상품 5개씩 묶어 호출한다. `fresh`는 목록을 방금 받았다는 뜻이다. */
 async function availabilityOf(
   ctx: AdapterContext,
   session: Session,
@@ -220,9 +231,12 @@ async function availabilityOf(
   goods: Goods[],
   today: string,
   lastDay: string,
-): Promise<Map<string, Map<string, boolean>>> {
+  fresh: boolean,
+): Promise<Availability> {
   const where = "잔여";
   const out = new Map<string, Map<string, boolean>>();
+  const known = new Set(goods.map((g) => g.id));
+  let stale = false;
   const noted = new Map<string, number>();
   for (let i = 0; i < goods.length; i += GOODS_PER_CALL) {
     const chunk = goods.slice(i, i + GOODS_PER_CALL);
@@ -234,7 +248,10 @@ async function availabilityOf(
       where,
     );
     const rows = listOf(body, "rsrvtAvailInfoList", where);
-    if (rows.length === 0) throw unrecognized(`${where}: 요청한 상품의 잔여 행이 하나도 없다`);
+    // 방금 받은 목록인데도 잔여 행이 하나도 없으면 구조 변경이다. 캐시한 목록이면 목록이 낡았을 수 있어 다시 받게 한다.
+    if (rows.length === 0 && fresh) throw unrecognized(`${where}: 요청한 상품의 잔여 행이 하나도 없다`);
+    const seen = new Set(rows.map((r) => str(r.goodsId)));
+    if (chunk.some((g) => !seen.has(g.id)) || [...seen].some((id) => id !== undefined && !known.has(id))) stale = true;
     for (const row of rows) {
       const goodsId = str(row.goodsId);
       const useDt = str(row.useDt)?.replaceAll("-", "");
@@ -251,7 +268,33 @@ async function availabilityOf(
   for (const [status, count] of noted) {
     ctx.log?.(KNOWN_STATUS.has(status) ? "foresttrip status not treated as opening" : "foresttrip unknown status", { zone, status, count });
   }
-  return out;
+  return { open: out, stale };
+}
+
+/** 세션(HttpClient)마다 구역의 상품 목록 캐시. 재시작하면 비고, 세션 사이로 옮기지 않는다. */
+const goodsCaches = new WeakMap<HttpClient, Map<string, { at: number; goods: Goods[] }>>();
+
+/** 구역의 상품 목록. 캐시가 24시간 안이면 그대로 쓰고(대기열 키도 받지 않는다), 아니면 받는다. `force`면 캐시를 버리고 받는다. */
+async function cachedGoods(ctx: AdapterContext, session: Session, insttId: string, zone: string, today: string, lastDay: string, force = false): Promise<{ goods: Goods[]; fresh: boolean }> {
+  const caches = goodsCaches.get(ctx.http) ?? new Map<string, { at: number; goods: Goods[] }>();
+  goodsCaches.set(ctx.http, caches);
+  const key = `${insttId}|${zone}`;
+  const now = ctx.clock.now().getTime();
+  const hit = caches.get(key);
+  if (!force && hit && now - hit.at < GOODS_TTL_MS) return { goods: hit.goods, fresh: false };
+  const goods = await goodsOf(ctx, session, insttId, zone, today, lastDay);
+  caches.set(key, { at: now, goods });
+  return { goods, fresh: true };
+}
+
+const totalCalls = (lists: Map<string, { goods: Goods[] }>): number => [...lists.values()].reduce((sum, l) => sum + callsFor(l.goods.length), 0);
+
+/** 상한을 넘어 조회하지 않을 때 알리는 문구. 필요한 호출 수와 줄이는 방법을 싣는다. */
+function budgetNotice(facility: string, perZone: { zone: string; calls: number }[]): string {
+  const name = facilities.find((f) => f.code === facility)?.name ?? facility;
+  const total = perZone.reduce((sum, z) => sum + z.calls, 0);
+  const detail = perZone.map((z) => `${z.zone} ${z.calls}번`).join(", ");
+  return `${name}: 한 바퀴에 잔여 호출이 ${total}번(${detail}) 필요해 상한 ${MAX_CALLS_PER_FACILITY}번을 넘으므로 이 시설은 조회하지 않는다. 줄이려면 자리 필터(seats)를 추가하거나 구역(zones)을 줄여라.`;
 }
 
 /** 키별로 묶는다. 처음 나온 순서를 지킨다. */
@@ -272,8 +315,8 @@ function redacted(e: AdapterError, ctx: AdapterContext, seen: string[]): Adapter
   return message === e.message ? e : new AdapterError(e.kind, message, { cause: e.cause });
 }
 
-async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>> {
-  const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
+async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError | UnitSkipped>> {
+  const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError | UnitSkipped>();
   let session = sessions.get(ctx.http);
   const seen: string[] = []; // 이번 바퀴에 본 `_csrf` 값. 오류 문구에서 가린다.
   try {
@@ -285,9 +328,33 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
       const insttId = insttIdOf(facility);
       const { lastDay } = await policyOf(ctx, session, insttId);
       const lastDate = `${lastDay.slice(0, 4)}-${lastDay.slice(4, 6)}-${lastDay.slice(6)}`;
-      for (const [zone, zoneUnits] of groupBy(facilityUnits, (q) => q.zone)) {
-        const goods = await goodsOf(ctx, session, insttId, zone, compact(today), lastDay);
-        const open = goods.length > 0 ? await availabilityOf(ctx, session, insttId, zone, goods, compact(today), lastDay) : new Map<string, Map<string, boolean>>();
+      const zones = [...groupBy(facilityUnits, (q) => q.zone)];
+      // 호출 수를 알려면 구역의 상품 목록이 모두 필요하다. 먼저 목록을 모으고(캐시를 쓴다) 상한 안일 때만 잔여를 묻는다.
+      const lists = new Map<string, { goods: Goods[]; fresh: boolean }>();
+      for (const [zone] of zones) lists.set(zone, await cachedGoods(ctx, session, insttId, zone, compact(today), lastDay));
+      const skip = (): void => {
+        const reason = budgetNotice(facility, [...lists].map(([zone, l]) => ({ zone, calls: callsFor(l.goods.length) })));
+        for (const q of facilityUnits) results.set(q, new UnitSkipped(reason));
+      };
+      if (totalCalls(lists) > MAX_CALLS_PER_FACILITY) {
+        skip();
+        continue;
+      }
+      for (const [zone, zoneUnits] of zones) {
+        let list = lists.get(zone)!;
+        let read = list.goods.length > 0 ? await availabilityOf(ctx, session, insttId, zone, list.goods, compact(today), lastDay, list.fresh) : undefined;
+        if (read?.stale && !list.fresh) {
+          // 모르는 `goodsId`가 보이거나 감시하던 `goodsId`가 빠졌다. 목록을 바로 다시 받고 한 번 더 읽는다.
+          list = await cachedGoods(ctx, session, insttId, zone, compact(today), lastDay, true);
+          lists.set(zone, list);
+          if (totalCalls(lists) > MAX_CALLS_PER_FACILITY) {
+            for (const q of zoneUnits) results.set(q, new UnitSkipped(budgetNotice(facility, [...lists].map(([z, l]) => ({ zone: z, calls: callsFor(l.goods.length) })))));
+            continue;
+          }
+          read = list.goods.length > 0 ? await availabilityOf(ctx, session, insttId, zone, list.goods, compact(today), lastDay, true) : undefined;
+        }
+        const goods = list.goods;
+        const open = read?.open ?? new Map<string, Map<string, boolean>>();
         for (const q of zoneUnits) {
           // 마지막 날 밖과 지난 날짜는 빈자리가 아니다. 박수는 1박만 받는다.
           const sites = q.checkIn > lastDate || q.checkIn < today ? [] : goods.filter((g) => open.get(g.id)?.get(q.checkIn) === true);

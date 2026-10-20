@@ -218,11 +218,9 @@ describe("숲나들e 폴러", () => {
       const first = p.allRequests.length;
       await p.clock.advance(600_000);
       await settle();
+      // 상품 목록은 24시간 캐시라 다시 받지 않는다(Ticket-5).
       expect(p.allRequests.slice(first).map(label)).toEqual([
         "POST /rep/or/selectSthngListForMonthRsrvt.do",
-        "NF 5101 action8",
-        "POST /rep/or/sssn/selectRsrvtGoodsListForMonthRsrvt.do",
-        "NF 5004 action8",
         "POST /rep/or/selectRsrvtAvailInfoListForMonthRsrvt.do",
         "POST /rep/or/selectRsrvtAvailInfoListForMonthRsrvt.do",
       ]);

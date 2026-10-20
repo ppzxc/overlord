@@ -139,6 +139,7 @@ await runPoller(
     version: pkg.version,
     liveness,
     log,
+    notifyStartup: true,
   },
   controller.signal,
 );

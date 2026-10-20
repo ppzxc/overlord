@@ -973,6 +973,21 @@ describe("quietHours, 일일 요약, dead-man ping", () => {
     await none.stop();
   });
 
+  it("notifyStartup이면 시작할 때 무음 기동 알림이 한 건 나가고, 꺼 두면 나가지 않는다", async () => {
+    const on = startPoller(() => soldOut(), { notifyStartup: true });
+    await settle();
+    const starts = on.sent.filter((m) => m.text.includes("overlord 시작"));
+    expect(starts).toHaveLength(1);
+    expect(starts[0]!.disable_notification).toBe(true);
+    expect(starts[0]!.text).toContain("goraebul");
+    expect(starts[0]!.text).toContain("감시 조건 1건");
+    await on.stop();
+    const off = startPoller(() => soldOut());
+    await settle();
+    expect(off.sent.filter((m) => m.text.includes("overlord 시작"))).toHaveLength(0);
+    await off.stop();
+  });
+
   it("일일 요약은 설정한 시각에 무음으로 한 건 나가고 전날 바퀴 수와 실패 수를 담는다", async () => {
     let fail = true;
     const p = startPoller(() => (fail ? { status: 503, body: "" } : soldOut()), {

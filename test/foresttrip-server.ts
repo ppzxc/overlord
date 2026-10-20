@@ -45,7 +45,9 @@ export interface ForestOptions {
   /** crawlingCheck.do의 응답 본문. 기본은 `true`다. */
   crawling?: string;
   /** 시설 정책 JSON을 바꾼다. */
-  policy?: (base: Record<string, unknown>) => Record<string, unknown>;
+  policy?: (base: Record<string, unknown>, insttId?: string) => Record<string, unknown>;
+  /** 유명산(0101) 밖에 응답할 시설 id. 응답은 유명산과 같은 모양이고 정책만 `policy`의 두 번째 인자로 가를 수 있다. */
+  extraInstts?: string[];
   /** 모든 요청에 앞서 응답을 가로챈다. */
   intercept?: (req: TransportRequest, state: ForestState) => TransportResponse | undefined;
   /** 잔여 호출 응답을 바꾼다(인자는 기본 응답). */
@@ -78,9 +80,9 @@ export function foresttripServer(opts: ForestOptions = {}) {
     return value;
   };
   const cookieOf = (req: TransportRequest, name: string) => new RegExp(`(?:^|; )${name}=([^;]*)`).exec(req.headers.Cookie ?? "")?.[1];
-  const policyBody = () => {
+  const policyBody = (insttId?: string) => {
     const base = JSON.parse(fixture("foresttrip/policy-yumyeongsan.json")) as Record<string, unknown>;
-    return opts.policy ? opts.policy(base) : base;
+    return opts.policy ? opts.policy(base, insttId) : base;
   };
   const lastDay = () => {
     const p = policyBody().rsrvtPolcy as { weekLastDay?: string } | undefined;
@@ -140,9 +142,9 @@ export function foresttripServer(opts: ForestOptions = {}) {
     if (!(req.headers["Content-Type"] ?? "").startsWith("application/json")) return { status: 415, body: "" };
     if (!ajaxCsrf || req.headers["X-CSRF-TOKEN"] !== ajaxCsrf) return { status: 403, body: "" };
     const body = JSON.parse(req.body ?? "{}") as Record<string, unknown>;
-    if (body.insttId !== "0101") return { status: 404, body: "" };
+    if (body.insttId !== "0101" && !opts.extraInstts?.includes(String(body.insttId))) return { status: 404, body: "" };
 
-    if (path === "/rep/or/selectSthngListForMonthRsrvt.do") return json(policyBody());
+    if (path === "/rep/or/selectSthngListForMonthRsrvt.do") return json(policyBody(String(body.insttId)));
     if (path === "/rep/or/sssn/selectRsrvtGoodsListForMonthRsrvt.do") {
       const key = String(body.netfunnelKey ?? "");
       const issued = state.keys.find((k) => k.key === key && k.aid === "action8");

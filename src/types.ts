@@ -219,6 +219,11 @@ export interface ProviderAdapter {
    * 코어가 조회 뒤에 감시 조건의 `seats:`가 실제 자리와 맞는지 이것으로 확인한다.
    */
   seatNames?(facility: string, zone: string, ctx: AdapterContext): string[] | undefined;
+  /**
+   * 시설마다 오픈 경쟁 시간이 다른 어댑터가 구현한다. 바퀴 시작 때 감시 중인 시설마다 한 번 불러 그 시설의 구간을 받는다. 없음(undefined)이면 쉬지 않는다.
+   * 설정의 `providers.<id>.openingRush`가 있으면 코어가 이 메서드를 부르지 않고 설정 값을 모든 시설에 쓴다. 던지면 코어가 그 시설의 조회 단위를 이번 바퀴 실패로 친다.
+   */
+  facilityOpeningRush?(facility: string, ctx: AdapterContext): Promise<OpeningRush | undefined>;
   /** 예약처 루프가 끝날 때(프로세스 종료) 한 번 부른다. 들고 있던 세션을 마무리한다. 실패는 무시된다. */
   close?(ctx: AdapterContext): Promise<void>;
   /**

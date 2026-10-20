@@ -214,20 +214,43 @@ async function runProvider(
       failures.push({ kind, message: errMessage(err) });
       log("query failed", { kind, unit: key, message: errMessage(err) });
     };
-    if (adapter.queryAvailabilityBatch && queries.size > 0 && !signal.aborted) {
+    // 시설별 오픈 경쟁 시간: 설정의 openingRush가 없으면 어댑터가 시설마다 알려 주는 구간 안의 시설은 이번 바퀴에서 뺀다.
+    let restWait = Infinity;
+    if (adapter.facilityOpeningRush && !config.providers[providerId]?.openingRush && queries.size > 0 && !signal.aborted) {
+      for (const facility of new Set([...queries.values()].map((q) => q.facility))) {
+        const keysOf = [...queries].filter(([, q]) => q.facility === facility).map(([key]) => key);
+        try {
+          const wait = msUntilRushEnd(clock.now(), await adapter.facilityOpeningRush(facility, ctx));
+          if (wait <= 0) continue;
+          log("opening rush wait", { provider: providerId, facility, waitMs: wait });
+          restWait = Math.min(restWait, wait);
+          for (const key of keysOf) queries.delete(key);
+        } catch (err) {
+          for (const key of keysOf) fail(key, err);
+        }
+      }
+      if (queries.size === 0 && restWait < Infinity && !signal.aborted) {
+        // 감시 중인 시설이 모두 쉰다. 구간 끝(또는 폴링 간격)까지 쉬되 살아있음 신호는 끊지 않는다.
+        await sleep(Math.min(restWait, intervalMs));
+        if (!signal.aborted && shared.channelOk()) await shared.pingDeadMan();
+        continue;
+      }
+    }
+    const toQuery = [...queries].filter(([key]) => !results.has(key));
+    if (adapter.queryAvailabilityBatch && toQuery.length > 0 && !signal.aborted) {
       try {
-        const batch = await adapter.queryAvailabilityBatch([...queries.values()], ctx);
-        for (const [key, q] of queries) {
+        const batch = await adapter.queryAvailabilityBatch(toQuery.map(([, q]) => q), ctx);
+        for (const [key, q] of toQuery) {
           const found = batch.get(q);
           if (found instanceof Error) fail(key, found);
           else if (found) results.set(key, found);
           else fail(key, new Error("일괄 조회 결과에 조회 단위가 없다"));
         }
       } catch (err) {
-        for (const key of queries.keys()) fail(key, err);
+        for (const [key] of toQuery) fail(key, err);
       }
     } else {
-      for (const [key, q] of queries) {
+      for (const [key, q] of toQuery) {
         if (signal.aborted) break;
         try {
           results.set(key, await queryOne(adapter, q, ctx));

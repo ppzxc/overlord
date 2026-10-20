@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import * as cheerio from "cheerio";
 import {
   AdapterError,
+  UnitSkipped,
   type AdapterContext,
   type AvailabilityQuery,
   type AvailableSite,
@@ -38,7 +39,7 @@ import { kstDate, nightsOf } from "../schedule.js";
  * 시설의 최대 연박은 잔여 응답의 `mxmmStngDayCnt`이고, 조건의 박 수가 넘으면 그 조건은 더 조회하지 않고 조건·시설마다 한 번 로그로 알린다(`ctx.log`; 알림 채널이 따로 없다).
  * 로그인 운영 정책(#144): 바퀴 시작에 세션이 없으면 로그인하고, 조회 중 `-5`면 재로그인 1회 뒤 그 호출을 다시 보낸다(선제 갱신 없음). 재로그인 직후 호출이 또 `-5`이거나 1시간에 재로그인이 3회를 넘으면 멈춘다.
  * 로그인 실패 코드(`-6`·`-8`·`-9`·`-10`)는 재시도 없이 멈추고 자격증명 지문을 파일에 남겨, 같은 자격증명이면 재시작해도 로그인하지 않는다.
- * 구역의 모든 상품만 읽는다. 자리 이름 필터, 호출 수 줄이기, 상품 목록 캐시, 재로그인(`-5`), 로그인 실패 파일 기록, 시설별 오픈 경쟁 시간, `catalog --live`는 후속 티켓이다.
+ * 구역의 모든 상품만 읽는다. 상품 목록은 24시간 캐시하고 한 시설의 한 바퀴 잔여 호출이 20번을 넘으면 조회하지 않고 알린다(`UnitSkipped`). 자리 이름 필터, `catalog --live`의 세부는 각 티켓을 따른다.
  * 잔여 응답의 목록 키(`rsrvtAvailInfoList`)와 `goodsIdList` 형식(배열)은 스파이크 문서가 적지 않아 가정한 값이다. 모양이 다르면 `unrecognized`로 멈춘다.
  */
 const ORIGIN = "https://www.foresttrip.go.kr";
@@ -53,6 +54,10 @@ const GOODS_QUEUE: NetFunnelQueue = { ...QUEUE_BASE, aid: "action8" };
 const JSON_TYPE = "application/json; charset=UTF-8";
 /** 서버가 잔여 호출 한 번에 돌려주는 상품 수 상한. */
 export const GOODS_PER_CALL = 5;
+/** 한 시설이 한 바퀴에 보낼 수 있는 잔여 호출 수 상한(상품 100개). 넘으면 조회하지 않고 알린다(Decision-9). */
+const MAX_CALLS_PER_FACILITY = 20;
+/** 상품 목록 캐시 수명. 시작 때 한 번 받고, 이 시간이 지나거나 잔여 응답이 목록과 어긋나면 다시 받는다. */
+const GOODS_TTL_MS = 24 * 60 * 60 * 1000;
 
 const USERNAME = "FORESTTRIP_USERNAME";
 const PASSWORD = "FORESTTRIP_PASSWORD";
@@ -608,9 +613,16 @@ const KNOWN_STATUS = new Set([
 /** 빈자리로 치지 않되 로그에 남기는 상태: 추첨·우선예약(표본에 없어 방법을 정하지 않았다)과 모르는 값. */
 const LOGGED_STATUS = new Set(["PRIOR", "DRLTS", "WEEKEND_DRLTS"]);
 
+/** 잔여 읽기 결과. `stale`은 응답이 상품 목록과 어긋났다는 뜻이다(모르는 `goodsId`가 보이거나 요청한 `goodsId`가 빠졌다). */
+interface Availability {
+  open: Map<string, Map<string, boolean>>;
+  maxStay?: number;
+  stale: boolean;
+}
+
 /**
  * 구역 상품의 날짜별 빈자리 여부(`goodsId` → 날짜 YYYY-MM-DD → 빈자리). 상품 5개씩 묶어 호출하고 월별 시설은 달마다 이어 붙인다.
- * 첫 응답에서 시설의 최대 연박(`maxStay`)을 읽고, 모든 조건이 넘으면(`minNights` 초과) 더 조회하지 않는다.
+ * 첫 응답에서 시설의 최대 연박(`maxStay`)을 읽고, 모든 조건이 넘으면(`minNights` 초과) 더 조회하지 않는다. `fresh`는 목록을 방금 받았다는 뜻이다.
  */
 async function availabilityOf(
   ctx: AdapterContext,
@@ -621,9 +633,12 @@ async function availabilityOf(
   views: View[],
   lastDay: string,
   minNights: number,
-): Promise<{ open: Map<string, Map<string, boolean>>; maxStay?: number }> {
+  fresh: boolean,
+): Promise<Availability> {
   const where = "잔여";
   const out = new Map<string, Map<string, boolean>>();
+  const known = new Set(goods.map((g) => g.id));
+  let stale = false;
   const noted = new Map<string, number>();
   let maxStay: number | undefined;
   const calls = views.flatMap((view) =>
@@ -652,8 +667,10 @@ async function availabilityOf(
       ),
     );
     const rows = listOf(body, "rsrvtAvailInfoList", where);
-    if (rows.length === 0)
-      throw unrecognized(`${where}: 요청한 상품의 잔여 행이 하나도 없다`);
+    // 방금 받은 목록인데도 잔여 행이 하나도 없으면 구조 변경이다. 캐시한 목록이면 목록이 낡았을 수 있어 다시 받게 한다.
+    if (rows.length === 0 && fresh) throw unrecognized(`${where}: 요청한 상품의 잔여 행이 하나도 없다`);
+    const seen = new Set(rows.map((r) => str(r.goodsId)));
+    if (chunk.some((g) => !seen.has(g.id)) || [...seen].some((id) => id !== undefined && !known.has(id))) stale = true;
     for (const row of rows) {
       const goodsId = str(row.goodsId);
       const useDt = str(row.useDt)?.replaceAll("-", "");
@@ -684,7 +701,34 @@ async function availabilityOf(
       { zone, status, count },
     );
   }
-  return { open: out, maxStay };
+  return { open: out, maxStay, stale };
+}
+
+/** 세션(HttpClient)마다 구역의 상품 목록 캐시. 재시작하면 비고, 세션 사이로 옮기지 않는다. */
+const goodsCaches = new WeakMap<HttpClient, Map<string, { at: number; goods: Goods[] }>>();
+
+/** 구역의 상품 목록. 캐시가 24시간 안이면 그대로 쓰고(대기열 키도 받지 않는다), 아니면 받는다. `force`면 캐시를 버리고 받는다. */
+async function cachedGoods(ctx: AdapterContext, session: Session, insttId: string, zone: string, view: View, lastDay: string, force = false): Promise<{ goods: Goods[]; fresh: boolean }> {
+  const caches = goodsCaches.get(ctx.http) ?? new Map<string, { at: number; goods: Goods[] }>();
+  goodsCaches.set(ctx.http, caches);
+  const key = `${insttId}|${zone}`;
+  const now = ctx.clock.now().getTime();
+  const hit = caches.get(key);
+  if (!force && hit && now - hit.at < GOODS_TTL_MS) return { goods: hit.goods, fresh: false };
+  const goods = await goodsOf(ctx, session, insttId, zone, view, lastDay);
+  caches.set(key, { at: now, goods });
+  return { goods, fresh: true };
+}
+
+/** 한 구역의 잔여 호출 수: 보는 달 수 × 상품 5개 묶음 수. */
+const callsFor = (goodsCount: number, views: number): number => views * Math.ceil(goodsCount / GOODS_PER_CALL);
+
+/** 상한을 넘어 조회하지 않을 때 알리는 문구. 필요한 호출 수와 줄이는 방법을 싣는다. */
+function budgetNotice(facility: string, perZone: { zone: string; calls: number }[]): string {
+  const name = facilities.find((f) => f.code === facility)?.name ?? facility;
+  const total = perZone.reduce((sum, z) => sum + z.calls, 0);
+  const detail = perZone.map((z) => `${z.zone} ${z.calls}번`).join(", ");
+  return `${name}: 한 바퀴에 잔여 호출이 ${total}번(${detail}) 필요해 상한 ${MAX_CALLS_PER_FACILITY}번을 넘으므로 이 시설은 조회하지 않는다. 줄이려면 자리 필터(seats)를 추가하거나 구역(zones)을 줄여라.`;
 }
 
 /** 키별로 묶는다. 처음 나온 순서를 지킨다. */
@@ -756,11 +800,8 @@ async function facilityOpeningRush(
   }
 }
 
-async function runBatch(
-  units: AvailabilityQuery[],
-  ctx: AdapterContext,
-): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>> {
-  const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
+async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError | UnitSkipped>> {
+  const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError | UnitSkipped>();
   let session: Session;
   const seen: string[] = []; // 이번 바퀴에 본 `_csrf` 값. 오류 문구에서 가린다.
   try {
@@ -773,32 +814,42 @@ async function runBatch(
       const { cycle, lastDay } = await policyOf(ctx, session, insttId);
       const lastDate = `${lastDay.slice(0, 4)}-${lastDay.slice(4, 6)}-${lastDay.slice(6)}`;
       const views = viewsOf(cycle, compact(today), lastDay);
-      for (const [zone, zoneUnits] of groupBy(facilityUnits, (q) => q.zone)) {
-        const goods = await goodsOf(
-          ctx,
-          session,
-          insttId,
-          zone,
-          views[0]!,
-          lastDay,
-        );
-        rememberSeatNames(ctx.http, facility, zone, goods);
-        const { open, maxStay } =
-          goods.length > 0
-            ? await availabilityOf(
-                ctx,
-                session,
-                insttId,
-                zone,
-                goods,
-                views,
-                lastDay,
-                Math.min(...zoneUnits.map((q) => q.nights)),
-              )
-            : {
-                open: new Map<string, Map<string, boolean>>(),
-                maxStay: undefined,
-              };
+      const zones = [...groupBy(facilityUnits, (q) => q.zone)];
+      // 호출 수를 알려면 구역의 상품 목록이 모두 필요하다. 먼저 목록을 모으고(캐시를 쓴다) 상한 안일 때만 잔여를 묻는다.
+      const lists = new Map<string, { goods: Goods[]; fresh: boolean }>();
+      const budget = (): { zone: string; calls: number }[] => [...lists].map(([zone, l]) => ({ zone, calls: callsFor(l.goods.length, views.length) }));
+      const over = (): boolean => budget().reduce((sum, z) => sum + z.calls, 0) > MAX_CALLS_PER_FACILITY;
+      for (const [zone] of zones) {
+        const list = await cachedGoods(ctx, session, insttId, zone, views[0]!, lastDay);
+        lists.set(zone, list);
+        rememberSeatNames(ctx.http, facility, zone, list.goods);
+      }
+      if (over()) {
+        const reason = budgetNotice(facility, budget());
+        for (const q of facilityUnits) results.set(q, new UnitSkipped(reason));
+        continue;
+      }
+      for (const [zone, zoneUnits] of zones) {
+        let list = lists.get(zone)!;
+        const minNights = Math.min(...zoneUnits.map((q) => q.nights));
+        const read = (l: { goods: Goods[]; fresh: boolean }): Promise<Availability | undefined> =>
+          l.goods.length > 0 ? availabilityOf(ctx, session, insttId, zone, l.goods, views, lastDay, minNights, l.fresh) : Promise.resolve(undefined);
+        let got = await read(list);
+        if (got?.stale && !list.fresh) {
+          // 모르는 `goodsId`가 보이거나 감시하던 `goodsId`가 빠졌다. 목록을 바로 다시 받고 한 번 더 읽는다.
+          list = await cachedGoods(ctx, session, insttId, zone, views[0]!, lastDay, true);
+          lists.set(zone, list);
+          rememberSeatNames(ctx.http, facility, zone, list.goods);
+          if (over()) {
+            const reason = budgetNotice(facility, budget());
+            for (const q of zoneUnits) results.set(q, new UnitSkipped(reason));
+            continue;
+          }
+          got = await read(list);
+        }
+        const goods = list.goods;
+        const open = got?.open ?? new Map<string, Map<string, boolean>>();
+        const maxStay = got?.maxStay;
         for (const q of zoneUnits) {
           if (maxStay !== undefined && q.nights > maxStay) {
             const key = `${facility}|${zone}|${q.nights}`;

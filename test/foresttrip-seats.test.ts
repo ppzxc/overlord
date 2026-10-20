@@ -7,8 +7,9 @@ import { FOREST_ENV, foresttripServer, type ForestOptions } from "./foresttrip-s
 // 숲나들e `seats:`는 화면에 보이는 상품 이름 정확 일치다(Spec #142 / Ticket-3, Decision-11).
 // 유명산 상품(가짜 서버): 야영데크(101)~(107)(02002), 고라니·꾀꼬리(01002).
 const NOW = "2026-10-20T14:00:00+09:00";
-const DAY = "2026-10-24";
-const LOOP = 600_000;
+const DAY = "2026-11-20";
+// 상품 목록은 24시간 캐시라(Ticket-5) 목록이 바뀌는 갱신을 보려면 한 바퀴를 하루로 넘긴다.
+const LOOP = 86_400_000;
 
 const watch = (zones: string[], seats?: string[], name = "유명산 감시") => `
   - name: ${name}

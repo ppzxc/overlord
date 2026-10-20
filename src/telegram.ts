@@ -222,6 +222,11 @@ export function renderSeatMismatch(opts: { chatId: string; watchName: string; mi
   return { chatId: opts.chatId, text, parse_mode: "HTML" };
 }
 
+export function renderUnitSkipped(opts: { chatId: string; watchName: string; reason: string }): TelegramMessage {
+  const text = ["⏭ 조회하지 않는 감시 조건", `<b>${escapeHtml(opts.watchName)}</b>`, escapeHtml(opts.reason)].join("\n");
+  return { chatId: opts.chatId, text, parse_mode: "HTML" };
+}
+
 const HEALTH_TITLES: Record<NoticeStatus, string> = {
   blocked: "🚫 예약처가 폴러를 차단했다",
   unrecognized: "🧩 예약처 화면 구조가 바뀌었다",

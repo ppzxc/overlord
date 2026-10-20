@@ -191,6 +191,14 @@ export class AdapterError extends Error {
   }
 }
 
+/**
+ * 조회 단위를 이번 바퀴에 조회하지 않기로 했다는 결과(실패가 아니다). 사용자가 조치해야 하는 이유(예: 호출 수 상한 초과)를 `reason`에 적으며,
+ * 코어가 그 단위를 쓰는 감시 조건·시설마다 한 번 알린다. 예약처 상태와 바퀴의 성공·실패 기록에는 영향이 없다.
+ */
+export class UnitSkipped {
+  constructor(readonly reason: string) {}
+}
+
 export interface ProviderAdapter {
   readonly id: string;
   describe(): ProviderInfo;
@@ -201,12 +209,13 @@ export interface ProviderAdapter {
    * 결과 키는 넘겨받은 조회 단위 객체다. 실패는 두 방식 가운데 어댑터가 고른다.
    * 단위별 값에 AdapterError를 담아 돌려주면 코어가 그 단위만 실패로 치고 나머지 결과는 쓴다(울주는 차단도 이렇게 값으로 돌려준다).
    * 던지면 코어가 모든 단위를 그 오류로 실패 처리한다(고래불은 차단을 던진다).
+   * 조회하지 않기로 한 단위는 UnitSkipped를 담는다. 실패로 치지 않고 감시 조건·시설마다 한 번 알린다.
    * 어느 쪽이든 바퀴의 실패 종류는 가장 무거운 오류로 정해진다. 어댑터마다 다르니 차단이 던져진다고 가정하지 않는다.
    */
   queryAvailabilityBatch?(
     units: AvailabilityQuery[],
     ctx: AdapterContext,
-  ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError>>;
+  ): Promise<Map<AvailabilityQuery, AvailableSite[] | AdapterError | UnitSkipped>>;
   /**
    * 조회 창이 날짜 규칙(openingRule로 쓸 수 없는 것)으로 정해지는 어댑터가 구현한다. false인 조회 단위는 코어가 이번 바퀴에서 빼서
    * 어댑터에 넘기지 않는다. 열리지 않은 날짜를 openingRule이 거르는 것과 같게, 단위가 하나도 남지 않아 요청이 없는 바퀴는

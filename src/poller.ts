@@ -13,6 +13,7 @@ import {
   renderOpenings,
   renderSeatMismatch,
   renderStartup,
+  renderUnitSkipped,
   renderWatchExpired,
   type OpeningEntry,
   type TelegramSink,
@@ -25,6 +26,7 @@ import {
   type Clock,
   type ProviderAdapter,
   type Transport,
+  UnitSkipped,
 } from "./types.js";
 
 export interface PollerDeps {
@@ -131,6 +133,7 @@ async function runProvider(
   const notified = new Map<string, Map<string, Map<string, Set<string>>>>();
   // 만료 알림을 이미 보낸 (감시 조건, 알림 대상)
   const expiredSent = new Set<string>();
+  const skippedSent = new Set<string>(); // 조회하지 않는 사유를 알린 (감시 조건, 알림 대상, 시설)
   // 자리 이름 불일치: 감시 조건 이름 → 지금 불일치 상태(없는 이름들, 전부면 stopped), (감시 조건, 알림 대상) → 마지막으로 알린 상태.
   const seatState = new Map<string, { missing: string[]; stopped: boolean }>();
   const seatNoticeSent = new Map<string, string>();
@@ -206,6 +209,7 @@ async function runProvider(
         queries.set(key, seats.length > 0 ? { ...q, seats } : q);
       }
     }
+    const skipped = new Map<string, UnitSkipped>();
     const failures: Failure[] = [];
     const fail = (key: string, err: unknown) => {
       results.set(key, null);
@@ -242,7 +246,10 @@ async function runProvider(
         const batch = await adapter.queryAvailabilityBatch(toQuery.map(([, q]) => q), ctx);
         for (const [key, q] of toQuery) {
           const found = batch.get(q);
-          if (found instanceof Error) fail(key, found);
+          if (found instanceof UnitSkipped) {
+            results.set(key, null); // 실패가 아니다: 알림 상태를 건드리지 않고 바퀴 실패에도 넣지 않는다.
+            skipped.set(key, found);
+          } else if (found instanceof Error) fail(key, found);
           else if (found) results.set(key, found);
           else fail(key, new Error("일괄 조회 결과에 조회 단위가 없다"));
         }
@@ -257,6 +264,20 @@ async function runProvider(
         } catch (err) {
           fail(key, err);
           break; // 바퀴 도중 실패하면 그 바퀴를 중단한다. 이미 성공한 결과는 아래에서 반영한다.
+        }
+      }
+    }
+
+    // 어댑터가 조회하지 않기로 한 단위(예: 호출 수 상한 초과)는 감시 조건·알림 대상·시설마다 한 번 알린다.
+    for (const { watch, units } of plans) {
+      for (const q of units) {
+        const skip = skipped.get(unitKey(q));
+        if (!skip) continue;
+        for (const name of watch.notify) {
+          const key = `${watch.name}|${name}|${q.facility}`;
+          if (skippedSent.has(key)) continue;
+          const ok = await shared.send(name, watch.name, (chatId) => renderUnitSkipped({ chatId, watchName: watch.name, reason: skip.reason }));
+          if (ok) skippedSent.add(key);
         }
       }
     }

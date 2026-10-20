@@ -162,7 +162,8 @@ describe("숲나들e 시설별 오픈 경쟁 시간", () => {
     it("생략하면 600초마다 돈다", async () => {
       const { p } = run("2026-10-20T14:00:00+09:00", { yaml: ONE });
       await settle();
-      const logins = () => hits(p, "selectRsrvtGoodsListForMonthRsrvt.do").length;
+      // 상품 목록은 24시간 캐시라 바퀴마다 나가는 잔여 호출로 바퀴 수를 센다.
+      const logins = () => hits(p, "selectRsrvtAvailInfoListForMonthRsrvt.do").length;
       const first = logins();
       expect(first).toBeGreaterThan(0);
       await p.clock.advance(9 * MIN);

@@ -23,7 +23,7 @@ const seatsText = (z: ZoneInfo) => (z.seats ? `${z.seats.length}자리: ${compac
 const visualWidth = (text: string) => [...text].reduce((n, ch) => n + (/[가-힣]/.test(ch) ? 2 : 1), 0);
 
 /** 행들을 열마다 가장 넓은 칸에 맞춘다. 마지막 열은 패딩 없이 그대로 둔다. */
-function renderRows(rows: string[][]): string {
+export function renderRows(rows: string[][]): string {
   const last = rows[0]!.length - 1;
   const widths = Array.from({ length: last }, (_, c) => Math.max(...rows.map((r) => visualWidth(r[c]!))));
   return rows

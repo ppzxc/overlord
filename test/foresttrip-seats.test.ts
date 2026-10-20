@@ -95,6 +95,17 @@ describe("숲나들e seats 이름 필터", () => {
       await p.stop();
     });
 
+    it("상품 이름 끝의 공백은 무시하고 화면에 보이는 이름으로 맞춘다", async () => {
+      const s = shop();
+      s.ctl.extra.push({ id: "G0101020020000009102", name: "느티나무 ", clsscCd: "02002" });
+      const { p } = run(configWith(watch(["02002"], ["느티나무"])), s);
+      await settle();
+      expect(mismatches(p)).toEqual([]);
+      expect(p.sent).toHaveLength(1);
+      expect(p.sent[0]!.text).toContain("느티나무");
+      await p.stop();
+    });
+
     it("객실(숲속의집 등)도 이름으로 감시한다", async () => {
       const { p } = run(configWith(watch(["01002"], ["고라니"])));
       await settle();

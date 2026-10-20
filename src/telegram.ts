@@ -284,6 +284,17 @@ export function renderHourlySummary(opts: {
   return { chatId: opts.chatId, text: lines.join("\n"), parse_mode: "HTML", disable_notification: true };
 }
 
+/** 프로세스가 (재)시작했다는 무음 알림. */
+export function renderStartup(opts: { chatId: string; version: string; providers: string[]; watches: number; startedAt: Date }): TelegramMessage {
+  const lines = [
+    "🚀 overlord 시작",
+    `버전 ${escapeHtml(opts.version)} · 감시 조건 ${opts.watches}건`,
+    `예약처: ${opts.providers.map(escapeHtml).join(", ")}`,
+    `가동 시작 ${kstStamp(opts.startedAt)}`,
+  ];
+  return { chatId: opts.chatId, text: lines.join("\n"), parse_mode: "HTML", disable_notification: true };
+}
+
 export function renderSummary(opts: {
   chatId: string;
   /** 바퀴 수와 실패 수를 센 날짜(전날) */

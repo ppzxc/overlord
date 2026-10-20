@@ -3,7 +3,7 @@ import { resolveFacility } from "./facility.js";
 import { ProviderHealth, worstFailure, type Failure } from "./health.js";
 import { LOOP_TURN, type Liveness } from "./liveness.js";
 import { createHttpClient } from "./http.js";
-import { createShared, errMessage, pollIntervalMs, recordRound, type DayStats, type ProviderStat, type Shared } from "./notify.js";
+import { createShared, errMessage, notifierNamesOf, pollIntervalMs, recordRound, type DayStats, type ProviderStat, type Shared } from "./notify.js";
 import { addDays, expandWatch, HOUR_MS, isExpired, isQuiet, kstDate, kstHourKey, msUntilRushEnd, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
 import { runDailySummary, runHourlySummary } from "./summary.js";
@@ -11,6 +11,7 @@ import { queryOne } from "./query-one.js";
 import {
   renderHealth,
   renderOpenings,
+  renderStartup,
   renderWatchExpired,
   type OpeningEntry,
   type TelegramSink,
@@ -37,6 +38,8 @@ export interface PollerDeps {
   /** 예약처 루프가 살아 있는지 알리는 곳. 없으면 알리지 않는다. */
   liveness?: Liveness;
   log?: (msg: string, fields?: Record<string, unknown>) => void;
+  /** true면 시작할 때 무음 기동 알림을 한 번 보낸다. 기본은 보내지 않는다. */
+  notifyStartup?: boolean;
 }
 
 /** 예약처 사이에 첫 바퀴를 벌리는 간격. */
@@ -67,6 +70,7 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
   });
   for (const id of providers) deps.liveness?.beat(id, LOOP_TURN);
   await Promise.all([
+    deps.notifyStartup ? sendStartup(deps, providers, shared) : Promise.resolve(),
     ...providers.map(async (id, i) => {
       if (i > 0) {
         const wait = i * STAGGER_MS + random() * STAGGER_MS;
@@ -78,6 +82,15 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
     runDailySummary(deps, providers, shared, signal),
     runHourlySummary(deps, providers, shared, signal),
   ]);
+}
+
+/** 시작했다는 무음 알림을 알림 대상마다 한 건씩 보낸다. 실패해도 다시 시도하지 않는다. */
+async function sendStartup(deps: PollerDeps, providers: string[], shared: Shared): Promise<void> {
+  for (const name of notifierNamesOf(deps.config)) {
+    await shared.send(name, "startup", (chatId) =>
+      renderStartup({ chatId, version: deps.version, providers, watches: deps.config.watches.length, startedAt: shared.startedAt }),
+    );
+  }
 }
 
 async function runProvider(

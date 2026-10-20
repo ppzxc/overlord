@@ -108,6 +108,8 @@ export function startPoller(
     server?: (req: TransportRequest) => TransportResponse;
     /** 가짜 시계의 시작 시각(ISO). 기본은 2026-09-29 09:00 KST다. */
     now?: string;
+    /** true면 시작 알림을 보낸다. 기본은 보내지 않는다. */
+    notifyStartup?: boolean;
   } = {},
 ) {
   const respond = (req: TransportRequest) =>
@@ -148,6 +150,7 @@ export function startPoller(
       clock,
       sink,
       version: "0.1.0",
+      ...(opts.notifyStartup ? { notifyStartup: true } : {}),
       liveness,
       log: (msg, fields) => logs.push({ msg, fields }),
       random: opts.random ?? (() => 0.5), // 지터 0: 바퀴 간격 150초, 요청 간격 6.5초

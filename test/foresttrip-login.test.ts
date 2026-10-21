@@ -59,6 +59,21 @@ describe("숲나들e 로그인 운영 정책", () => {
       await p.stop();
     });
 
+    it("세션이 죽어 accessDenied.do로 302가 오면(실제 서버 동작) -5처럼 재로그인 1회 뒤 같은 호출을 이어 간다", async () => {
+      let policyCalls = 0;
+      const denied: TransportResponse = { status: 302, body: "", location: "https://www.foresttrip.go.kr/com/accessDenied.do" };
+      const { p, server } = run({
+        server: { status: oneOpen, intercept: (req) => (pathOf(req) === POLICY && ++policyCalls === 1 ? denied : undefined) },
+      });
+      await settle();
+      expect(server.state.logins).toBe(2);
+      expect(p.allRequests.filter((r) => pathOf(r) === POLICY)).toHaveLength(2);
+      expect(p.sent).toHaveLength(1);
+      expect(p.sent[0]!.text).toContain("야영데크(101)");
+      expect(p.sent[0]!.text).not.toContain("구조");
+      await p.stop();
+    });
+
     it("대기열 키가 걸린 상품 목록 호출도 재로그인 뒤 새 대기열 키로 다시 부른다", async () => {
       let goodsCalls = 0;
       const { p, server } = run({ server: { status: oneOpen, intercept: (req) => (pathOf(req) === GOODS && ++goodsCalls === 1 ? unauthorized : undefined) } });

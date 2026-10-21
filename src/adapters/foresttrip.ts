@@ -162,10 +162,10 @@ const LOGIN_STOP: Record<string, string> = {
     "비밀번호를 5회 틀려 계정이 잠겼다. 사이트에서 잠금을 푼 뒤 재시작한다",
 };
 
-/** 세션 끊김(`-5`). `retrying`이 받아 재로그인하고, 끝내 못 풀면 차단으로 멈춘다. */
+/** 세션 끊김(`-5` 또는 accessDenied.do 302). `retrying`이 받아 재로그인하고, 끝내 못 풀면 차단으로 멈춘다. */
 class SessionDropped extends AdapterError {
-  constructor(where: string) {
-    super("blocked", `${where}: 세션이 끊겼다(loginErrorCode -5, HTTP 401)`);
+  constructor(where: string, via = "loginErrorCode -5, HTTP 401") {
+    super("blocked", `${where}: 세션이 끊겼다(${via})`);
   }
 }
 
@@ -220,10 +220,21 @@ const credentials = (ctx: AdapterContext): { id: string; pw: string } => {
   return { id, pw };
 };
 
-/** 조회 응답을 판정한다. 401 `-5`(세션 끊김), 403·429, 5xx를 가르고 사유를 문구로 남긴다. 본문은 메시지에 싣지 않는다. */
+/** 조회 응답을 판정한다. 세션 끊김(401 `-5`, 또는 `accessDenied.do`로 가는 302), 403·429, 5xx를 가르고 사유를 문구로 남긴다. 본문은 메시지에 싣지 않는다. */
 function assertData(res: TransportResponse, where: string): void {
   if (res.status === 401 && loginErrorCodeOf(res.body) === "-5")
     throw new SessionDropped(where);
+  // 세션이 죽으면 실제 서버는 -5 대신 `/com/accessDenied.do`로 302를 보낸다. 따라가면 HTML이 와서 구조 변경으로 오인하므로 따라가지 않고 여기서 가른다.
+  if (res.status === 302 && /\/com\/accessDenied\.do(?:[?#]|$)/.test(res.location ?? ""))
+    throw new SessionDropped(where, "HTTP 302, accessDenied.do");
+  // 그 밖의 3xx는 따라가지 않는다. 접근 금지 경로로 가면 차단, 아니면 어디로 갔는지 남기고 구조 변경으로 멈춘다.
+  if (res.status >= 300 && res.status < 400 && res.location) {
+    const to = new URL(res.location, ORIGIN);
+    const lower = (to.pathname + to.search).toLowerCase();
+    if (INFO.blockedPaths.some((b) => lower.startsWith(b.toLowerCase())))
+      throw new AdapterError("blocked", `${where}: 로그인·접근 금지 경로로 보내졌다(${to.pathname})`);
+    throw unrecognized(`${where}: JSON 대신 리다이렉트가 왔다(HTTP ${res.status}, ${to.pathname})`);
+  }
   assertOk(res, where);
 }
 
@@ -416,7 +427,7 @@ async function retrying<T>(
     if (e instanceof SessionDropped)
       throw new AdapterError(
         "blocked",
-        `${e.message}. 재로그인 직후 호출도 -5라 멈춘다`,
+        `${e.message}. 재로그인 직후 호출도 세션이 끊겨 멈춘다`,
       );
     throw e;
   }
@@ -433,6 +444,7 @@ async function postJson(
   const res = await send(where, () =>
     ctx.http.post(`${ORIGIN}${path}`, JSON.stringify(payload), {
       contentType: JSON_TYPE,
+      followRedirects: false,
       headers: {
         "X-CSRF-TOKEN": session.csrf,
         Referer: `${ORIGIN}${SCREEN_PATH}`,

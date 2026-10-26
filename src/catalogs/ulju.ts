@@ -39,41 +39,43 @@
 //   `FACILITY_ID`는 시설 사이에 공유된다(`F0000001`은 별빛·등억·달빛 모두). 구역은 (시설, `FACILITY_ID`)로 가린다. 응답의 `FACILITY_NAME`은 `카라반(일반) `처럼 끝에 공백이 붙는 때가 있어 카탈로그는 다듬어 적는다.
 //   대운산하늘숲은 구역 이름이 크기(예 `7.2m × 7m`)라 구역 유형을 따로 알 수 없어 "크기별 구역"으로 적는다. 자리 이름은 `A1`~`A20` 꼴이다.
 //   추첨 기간 날짜: 이 기록에서는 즉시결제 데이터에 추첨 날짜가 `Y`로 나오는지 **미관찰, 해당 여부 미확정**이다(11/1~11/10에 관찰 가능). 어댑터는 다음 달 날짜를 11일 10:00 전에는 조회하지 않아 추첨 날짜를 알리지 않는다.
+// 구역 `capacity`(정원, 명): 공개 이용요금 화면 `/ujcamping/guide/guide1_2`(신불산군립공원야영장: 별빛·등억·달빛)와 `guide2_2`(대운산)의 "정원(최대)(명)" 칸이다(2026-10-26 확인).
+//   오토·야영데크 6, 일반카라반 4(6), 곤충카라반·캐빈하우스 6(8)이라 최대인 6, 8을 쓴다. 등억 `카라반(테마)`는 요금표에 같은 이름의 칸이 없어 곤충카라반으로 읽을 근거가 약하므로 비워 둔다.
 import type { FacilityInfo, ZoneInfo } from "../types.js";
 
 const jakcheonByeolbitZones: ZoneInfo[] = [
-  { code: "F0000001", name: "오토캠핑장", type: "오토캠핑장" },
-  { code: "F0000002", name: "야영데크(8*8)", type: "야영데크" },
-  { code: "F0000003", name: "야영데크(8*4)", type: "야영데크" },
-  { code: "F0000004", name: "야영데크(4*4)", type: "야영데크" },
-  { code: "F0000016", name: "야영데크(6*4)", type: "야영데크" },
-  { code: "F0000017", name: "야영데크(8*5)", type: "야영데크" },
-  { code: "F0000005", name: "캐빈하우스", type: "캐빈하우스" },
+  { code: "F0000001", name: "오토캠핑장", type: "오토캠핑장", capacity: 6 },
+  { code: "F0000002", name: "야영데크(8*8)", type: "야영데크", capacity: 6 },
+  { code: "F0000003", name: "야영데크(8*4)", type: "야영데크", capacity: 6 },
+  { code: "F0000004", name: "야영데크(4*4)", type: "야영데크", capacity: 6 },
+  { code: "F0000016", name: "야영데크(6*4)", type: "야영데크", capacity: 6 },
+  { code: "F0000017", name: "야영데크(8*5)", type: "야영데크", capacity: 6 },
+  { code: "F0000005", name: "캐빈하우스", type: "캐빈하우스", capacity: 8 },
 ];
 
 const deungeokZones: ZoneInfo[] = [
-  { code: "F0000001", name: "오토캠핑장", type: "오토캠핑장" },
-  { code: "F0000006", name: "카라반(일반)", type: "카라반" },
+  { code: "F0000001", name: "오토캠핑장", type: "오토캠핑장", capacity: 6 },
+  { code: "F0000006", name: "카라반(일반)", type: "카라반", capacity: 6 },
   { code: "F0000007", name: "카라반(테마)", type: "카라반" },
 ];
 
 const jakcheonDalbitZones: ZoneInfo[] = [
-  { code: "F0000001", name: "오토캠핑장", type: "오토캠핑장" },
-  { code: "F0000018", name: "야영데크(8.5*6.5)", type: "야영데크" },
+  { code: "F0000001", name: "오토캠핑장", type: "오토캠핑장", capacity: 6 },
+  { code: "F0000018", name: "야영데크(8.5*6.5)", type: "야영데크", capacity: 6 },
 ];
 
 /** `A5`~`A14`처럼 이어지는 자리 이름. 대운산하늘숲의 자리 이름은 `A1`~`A20` 꼴이라 `seats:` 필터 토큰(`A5`, `A5-A14`)으로 걸 수 있다. */
 const aSeats = (from: number, to = from) => Array.from({ length: to - from + 1 }, (_, i) => `A${from + i}`);
 
 const daeunsanZones: ZoneInfo[] = [
-  { code: "F0000015", name: "7.3m × 7m", type: "크기별 구역", seats: aSeats(5, 14) },
-  { code: "F0000008", name: "7.2m × 7m", type: "크기별 구역", seats: [...aSeats(1), ...aSeats(16, 18)] },
-  { code: "F0000009", name: "8m × 5.8m", type: "크기별 구역", seats: aSeats(2) },
-  { code: "F0000010", name: "7.1m × 7m", type: "크기별 구역", seats: aSeats(3) },
-  { code: "F0000011", name: "7.1m × 6.9m", type: "크기별 구역", seats: aSeats(4) },
-  { code: "F0000012", name: "2.5m × 12m, 8m × 8m", type: "크기별 구역", seats: aSeats(15) },
-  { code: "F0000013", name: "7.2m × 7.2m", type: "크기별 구역", seats: aSeats(19) },
-  { code: "F0000014", name: "7.2m × 6.9m", type: "크기별 구역", seats: aSeats(20) },
+  { code: "F0000015", name: "7.3m × 7m", type: "크기별 구역", capacity: 6, seats: aSeats(5, 14) },
+  { code: "F0000008", name: "7.2m × 7m", type: "크기별 구역", capacity: 6, seats: [...aSeats(1), ...aSeats(16, 18)] },
+  { code: "F0000009", name: "8m × 5.8m", type: "크기별 구역", capacity: 6, seats: aSeats(2) },
+  { code: "F0000010", name: "7.1m × 7m", type: "크기별 구역", capacity: 6, seats: aSeats(3) },
+  { code: "F0000011", name: "7.1m × 6.9m", type: "크기별 구역", capacity: 6, seats: aSeats(4) },
+  { code: "F0000012", name: "2.5m × 12m, 8m × 8m", type: "크기별 구역", capacity: 6, seats: aSeats(15) },
+  { code: "F0000013", name: "7.2m × 7.2m", type: "크기별 구역", capacity: 6, seats: aSeats(19) },
+  { code: "F0000014", name: "7.2m × 6.9m", type: "크기별 구역", capacity: 6, seats: aSeats(20) },
 ];
 
 export const facilities: FacilityInfo[] = [

@@ -45,40 +45,45 @@
 // - 강나루 오토캠핑장(`gangnaru`, 함안): 함안군(안전총괄과 하천관리담당)이 관리하는 공공 시설이다(함안군 문화관광포털 haman.go.kr/01834/01861/01917.web). 고캠핑에는 값이 없었지만 이 페이지의 "실시간예약" 링크에 값이 있다(`0ca2dbc4...`).
 //   `shop_name: 강나루오토캠핑장`, `book_days: 2`, `two_stay_days: 0`, `advance_ddays: 1`(함안군민 우선예약, 날짜별 `advance_yn`으로 걸러진다). 상품군 `0002` 1캠핑장(오토캠핑60면), `0003` 2캠핑장(오토캠핑77면).
 // - 없는 상품군 코드로 `GetBookProduct010001.json`을 보내면 `{"data":{"bookProductList":[]}}`이다(gangdong_GetBookProduct010001_9999). 정상 상품군은 자리 상태와 관계없이 모든 자리를 주므로 빈 목록을 상품군 소실로 본다.
+// 구역 `capacity`(정원, 명): 2026-10-26 각 시설 공개 안내 화면에서 읽었다. 값이 구역 안에서 갈리거나 못 읽은 구역은 비워 둔다.
+//   달서: 카라반은 4인·6인 기준이 섞여 비움. 오토·숲속·데크는 요금표 아래 "정원기준 8명, 정원초과 시 최대 10명"(dalseocamp.kr/html/information/charge.php)의 10.
+//   나정: njcamping.or.kr/camping_facility/facility_infomation.php, use_information.php. 카라반 기준 6명(추가 불가), 오토사이트 기준 6인에 초과 최대 2인이라 8.
+//   별빛카라반: 카라반은 4·6·8인용이 섞여 비움. 글램핑 4인, 캠핑사이트 성인2+아이2(reservation/charge.php, camping_facility/*.php).
+//   강동: seoul.go.kr/storyw/campingjang/gangdong.do "이용인원은 4인 기준". 앵봉산: angbong.do 데크 "이용정원 4인, 방문객 포함 최대 6인", 글램핑(4인). 강나루: haman.go.kr 사용료표 "오토캠핑 1개소(5인)".
 import type { FacilityInfo, ZoneInfo } from "../types.js";
 
 const dalseoZones: ZoneInfo[] = [
   { code: "0001", name: "카라반", type: "카라반" },
-  { code: "0002", name: "오토캠핑장", type: "오토캠핑장" },
-  { code: "0003", name: "숲속캠핑장", type: "숲속캠핑장" },
-  { code: "0004", name: "데크캠핑장", type: "데크캠핑장" },
+  { code: "0002", name: "오토캠핑장", type: "오토캠핑장", capacity: 10 },
+  { code: "0003", name: "숲속캠핑장", type: "숲속캠핑장", capacity: 10 },
+  { code: "0004", name: "데크캠핑장", type: "데크캠핑장", capacity: 10 },
 ];
 
 const najeongZones: ZoneInfo[] = [
-  { code: "0101", name: "카라반사이트", type: "카라반" },
-  { code: "0201", name: "오토사이트", type: "오토캠핑장" },
+  { code: "0101", name: "카라반사이트", type: "카라반", capacity: 6 },
+  { code: "0201", name: "오토사이트", type: "오토캠핑장", capacity: 8 },
 ];
 
 const gyeongjuCaravanZones: ZoneInfo[] = [
   { code: "0101", name: "카라반", type: "카라반" },
-  { code: "0401", name: "글램핑", type: "글램핑" },
-  { code: "0701", name: "캠핑사이트", type: "캠핑사이트" },
+  { code: "0401", name: "글램핑", type: "글램핑", capacity: 4 },
+  { code: "0701", name: "캠핑사이트", type: "캠핑사이트", capacity: 4 },
 ];
 
 const gangdongZones: ZoneInfo[] = [
-  { code: "0001", name: "가족캠핑장", type: "가족캠핑장" },
-  { code: "0002", name: "오토캠핑장", type: "오토캠핑장" },
-  { code: "0003", name: "매화나무캠핑장", type: "매화나무캠핑장" },
+  { code: "0001", name: "가족캠핑장", type: "가족캠핑장", capacity: 4 },
+  { code: "0002", name: "오토캠핑장", type: "오토캠핑장", capacity: 4 },
+  { code: "0003", name: "매화나무캠핑장", type: "매화나무캠핑장", capacity: 4 },
 ];
 
 const aengbongsanZones: ZoneInfo[] = [
-  { code: "0001", name: "데크캠핑장", type: "데크캠핑장" },
-  { code: "0002", name: "글램핑", type: "글램핑" },
+  { code: "0001", name: "데크캠핑장", type: "데크캠핑장", capacity: 6 },
+  { code: "0002", name: "글램핑", type: "글램핑", capacity: 4 },
 ];
 
 const gangnaruZones: ZoneInfo[] = [
-  { code: "0002", name: "1캠핑장(오토캠핑60면)", type: "오토캠핑장" },
-  { code: "0003", name: "2캠핑장(오토캠핑77면)", type: "오토캠핑장" },
+  { code: "0002", name: "1캠핑장(오토캠핑60면)", type: "오토캠핑장", capacity: 5 },
+  { code: "0003", name: "2캠핑장(오토캠핑77면)", type: "오토캠핑장", capacity: 5 },
 ];
 
 export const facilities: FacilityInfo[] = [

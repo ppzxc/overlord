@@ -20,15 +20,22 @@ export function defaultFacility(info: Pick<ProviderInfo, "facilities" | "facilit
   return info.facilities.length === 1 && !info.facilityRequired ? info.facilities[0] : undefined;
 }
 
+const findZone = (info: Pick<ProviderInfo, "facilities">, facilityCode: string, zoneCode: string) =>
+  info.facilities.find((f) => f.code === facilityCode)?.zones.find((z) => z.code === zoneCode);
+
 /** 메시지에 쓰는 구역 이름. 모르는 시설이나 구역이면 구역 코드를 그대로 쓴다. */
 export function zoneName(info: Pick<ProviderInfo, "facilities">, facilityCode: string, zoneCode: string): string {
-  const facility = info.facilities.find((f) => f.code === facilityCode);
-  return facility?.zones.find((z) => z.code === zoneCode)?.name ?? zoneCode;
+  return findZone(info, facilityCode, zoneCode)?.name ?? zoneCode;
+}
+
+/** 구역의 정원(카탈로그). 모르는 시설·구역이거나 정원을 확인하지 못한 구역이면 undefined다. */
+export function zoneCapacity(info: Pick<ProviderInfo, "facilities">, facilityCode: string, zoneCode: string): number | undefined {
+  return findZone(info, facilityCode, zoneCode)?.capacity;
 }
 
 /** 구역의 자리 목록(카탈로그). 모르는 시설·구역이거나 자리 목록이 없으면 undefined다. */
 export function zoneSeats(info: Pick<ProviderInfo, "facilities">, facilityCode: string, zoneCode: string): readonly string[] | undefined {
-  return info.facilities.find((f) => f.code === facilityCode)?.zones.find((z) => z.code === zoneCode)?.seats;
+  return findZone(info, facilityCode, zoneCode)?.seats;
 }
 
 /**

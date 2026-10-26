@@ -459,6 +459,8 @@ async function postJson(
 interface Goods {
   id: string;
   name: string;
+  /** 최대 인원(`mxmmAccptCnt`). 응답에 없거나 양의 정수가 아니면 없다. */
+  capacity?: number;
 }
 
 /** 시설 정책 응답의 `rsrvtPolcy`. 같은 바퀴에 오픈 경쟁 시간 확인과 조회가 두 번 읽지 않도록 잠깐 들고 있는다. */
@@ -608,7 +610,8 @@ async function goodsOf(
           const name = str(g.goodsNm)?.trim(); // 휴양림이 이름 끝에 공백을 넣기도 한다(화면에서는 안 보인다)
           if (!id || !name)
             throw unrecognized(`${where}: 상품에 goodsId·goodsNm이 없다`);
-          return { id, name };
+          const capacity = Number(g.mxmmAccptCnt);
+          return { id, name, ...(Number.isInteger(capacity) && capacity > 0 ? { capacity } : {}) };
         });
     } finally {
       await completeQueue(ctx, GOODS_QUEUE, pass.key);
@@ -913,7 +916,7 @@ async function runBatch(units: AvailabilityQuery[], ctx: AdapterContext): Promis
                 );
           results.set(
             q,
-            sites.map((g) => ({ id: g.name, name: g.name })),
+            sites.map((g) => ({ id: g.name, name: g.name, ...(g.capacity !== undefined ? { capacity: g.capacity } : {}) })),
           );
         }
       }

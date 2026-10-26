@@ -68,7 +68,7 @@ export interface ZoneInfo {
   name: string;
   /** 구역 유형. 예: 카라반, 숲속야영장 */
   type: string;
-  /** 정원(명). 예약처에서 확인하지 못한 구역은 없다. */
+  /** 정원(명). 예약처가 최대 인원을 밝히면 최대 인원, 기준 인원만 밝히면 기준 인원이다. 확인하지 못한 구역은 없다. 알림이 이름 옆에 `(N인)`으로 적는다. */
   capacity?: number;
   /** 구역 안의 모든 자리 id. 어댑터에 고정된 목록이며, 확인하지 못한 구역은 없다. */
   seats?: string[];
@@ -156,6 +156,8 @@ export interface AvailableSite {
   name: string;
   /** 구역 단위로만 잔여를 아는 예약처가 주는 남은 수. N박이면 밤마다의 최솟값이다. */
   remaining?: number;
+  /** 예약처 응답이 자리마다 주는 허용 인원(명). 없으면 알림이 구역의 `capacity`(카탈로그)를 쓴다. */
+  capacity?: number;
 }
 
 /** 예약처 응답에서 실제로 본 구역 이름과, 어댑터가 모르는 값을 준 구역. */

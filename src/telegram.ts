@@ -1,5 +1,5 @@
 import type { HealthStatus, NoticeStatus } from "./health.js";
-import { zoneName } from "./facility.js";
+import { zoneCapacity, zoneName } from "./facility.js";
 import type { AvailabilityQuery, AvailableSite, ProviderInfo } from "./types.js";
 
 export interface TelegramMessage {
@@ -53,6 +53,11 @@ const MAX_TEXT = 4096;
 /** 첫 줄에 "(10/12)" 같은 쪽 표시가 붙어 늘어나는 글자 수의 여유. */
 const PAGE_MARK_ROOM = 12;
 const MAX_BUTTONS = 8;
+/** 이름에 "4인" 같은 인원이 이미 있는가. "13인승" 같은 말은 인원이 아니다. */
+const hasHeadcount = (label: string): boolean => /\d+\s*인(?!승)/.test(label);
+/** 이름 옆에 `(N인)`을 붙인다. 인원을 모르거나 이름에 이미 있으면 그대로 둔다. */
+const labelWithCapacity = (label: string, capacity: number | undefined): string =>
+  capacity === undefined || hasHeadcount(label) ? label : `${label}(${capacity}인)`;
 /** 자리가 아주 많은 구역 한 곳이 메시지 한 건을 혼자 넘지 않도록 한 줄에 쓰는 자리 수의 상한. */
 const MAX_SITES_PER_LINE = 60;
 
@@ -84,6 +89,7 @@ export function renderOpenings<E extends OpeningEntry>(opts: {
     const q = entry.query;
     const facility = opts.info.facilities.find((f) => f.code === q.facility);
     const zone = zoneName(opts.info, q.facility, q.zone);
+    const zoneCap = zoneCapacity(opts.info, q.facility, q.zone);
     // 시설이 하나인 예약처의 메시지는 시설 이름 없이 그대로 둔다.
     const where = opts.info.facilities.length > 1 ? `${escapeHtml(facility?.name ?? q.facility)} · ` : "";
     for (let i = 0; i < entry.sites.length; i += MAX_SITES_PER_LINE) {
@@ -92,8 +98,10 @@ export function renderOpenings<E extends OpeningEntry>(opts: {
       const counted = chunkSites.every((s) => s.remaining !== undefined);
       const detail = counted
         ? `${q.nights > 1 ? "밤마다 남은 최소" : "남은"} ${chunkSites.map((s) => s.remaining).join(", ")}${q.nights > 1 ? " (같은 자리 연속 보장 없음)" : ""}`
-        : chunkSites.map((s) => escapeHtml(s.name)).join(", ");
-      const base = `${q.checkIn}(${weekday(q.checkIn)}) ${q.nights}박 · ${where}${escapeHtml(zone)} · ${detail}`;
+        : chunkSites.map((s) => escapeHtml(labelWithCapacity(s.name, s.capacity ?? zoneCap))).join(", ");
+      // 자리 이름을 보이지 않는 알림(남은 수)은 구역 이름 옆에 인원을 적는다.
+      const zoneLabel = counted ? labelWithCapacity(zone, zoneCap) : zone;
+      const base = `${q.checkIn}(${weekday(q.checkIn)}) ${q.nights}박 · ${where}${escapeHtml(zoneLabel)} · ${detail}`;
       const tryAdd = (p: Page) => {
         const linked = p.buttons.some((b) => b.url === entry.link);
         const room = linked || p.buttons.length < MAX_BUTTONS;

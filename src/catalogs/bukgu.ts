@@ -55,24 +55,26 @@ interface ZoneRow {
   code: string;
   name: string;
   type: "오토캠핑" | "카라반";
+  /** 정원(명). 이용요금 안내 화면(`Pgc030201.do`, `Pgc030202.do`)의 "정원" 칸이다. */
+  capacity: number;
 }
 
 /** 시설마다 구역 목록. 같은 색 클래스가 시설마다 다른 구역을 가리키므로(당사의 `line_yellow`는 강동과 다르다) 시설별로 둔다. */
 const ZONE_ROWS: Record<string, ZoneRow[]> = {
   gangdong: [
-    { cls: "line_yellow", code: "040100", name: "일반데크", type: "오토캠핑" },
-    { cls: "line_sky", code: "040200", name: "필로티", type: "오토캠핑" },
-    { cls: "line_pink", code: "040300", name: "카라반", type: "카라반" },
+    { cls: "line_yellow", code: "040100", name: "일반데크", type: "오토캠핑", capacity: 4 },
+    { cls: "line_sky", code: "040200", name: "필로티", type: "오토캠핑", capacity: 8 },
+    { cls: "line_pink", code: "040300", name: "카라반", type: "카라반", capacity: 4 },
   ],
   dangsa: [
-    { cls: "line_orange", code: "040400", name: "일반데크(단독형)", type: "오토캠핑" },
-    { cls: "line_yellow", code: "040500", name: "복층데크(단독형)", type: "오토캠핑" },
-    { cls: "line_pink", code: "040600", name: "일반데크(당사)", type: "오토캠핑" },
-    { cls: "line_sky", code: "040700", name: "복층데크(당사)", type: "오토캠핑" },
+    { cls: "line_orange", code: "040400", name: "일반데크(단독형)", type: "오토캠핑", capacity: 4 },
+    { cls: "line_yellow", code: "040500", name: "복층데크(단독형)", type: "오토캠핑", capacity: 4 },
+    { cls: "line_pink", code: "040600", name: "일반데크(당사)", type: "오토캠핑", capacity: 4 },
+    { cls: "line_sky", code: "040700", name: "복층데크(당사)", type: "오토캠핑", capacity: 4 },
   ],
 };
 
-const zonesOf = (facility: string): ZoneInfo[] => (ZONE_ROWS[facility] ?? []).map(({ code, name, type }): ZoneInfo => ({ code, name, type }));
+const zonesOf = (facility: string): ZoneInfo[] => (ZONE_ROWS[facility] ?? []).map(({ code, name, type, capacity }): ZoneInfo => ({ code, name, type, capacity }));
 
 export const facilities: FacilityInfo[] = [
   { code: "gangdong", name: "강동오토캠핑장", ref: { bid: "1", siteKindCode: "010100" }, zones: zonesOf("gangdong") },

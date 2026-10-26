@@ -38,7 +38,7 @@ describe("동해시 폴러", () => {
     const p = run(donghaeServer({ counts: (z) => (z === "자동차캠핑장" ? 20 : "예약완료") }));
     await settle();
     expect(p.sent).toHaveLength(1);
-    expect(p.sent[0]!.text).toContain("2026-10-03(토) 1박 · 자동차캠핑장 · 남은 20");
+    expect(p.sent[0]!.text).toContain("2026-10-03(토) 1박 · 자동차캠핑장(4인) · 남은 20");
     expect(JSON.stringify(p.sent[0]!.reply_markup)).toContain("/user/reservation/BD_reservation.do");
     await p.stop();
   });
@@ -253,7 +253,7 @@ describe("동해시 폴러", () => {
     const w = HEAD_WATCH().replace("nights: 1", "nights: 2");
     const p = run(donghaeServer({ counts: (z, d) => (z === "자동차캠핑장" ? (d === "2026-10-03" ? 9 : 4) : "예약완료") }), w);
     await settle();
-    expect(p.sent[0]!.text).toContain("2026-10-03(토) 2박 · 자동차캠핑장 · 밤마다 남은 최소 4 (같은 자리 연속 보장 없음)");
+    expect(p.sent[0]!.text).toContain("2026-10-03(토) 2박 · 자동차캠핑장(4인) · 밤마다 남은 최소 4 (같은 자리 연속 보장 없음)");
     await p.stop();
   });
 

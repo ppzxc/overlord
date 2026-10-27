@@ -34,8 +34,15 @@ const sanguiZones: ZoneInfo[] = [
   { code: "0202101", name: "특화야영장", type: "특화야영장", seats: nums("D", 1, 6) },
 ];
 
+// 덕유대3(B051006)은 구역 이름 하나에 구역 코드가 여럿(인원별)이라 앞의 코드를 쓴다. 구역은 이름으로 맞추므로 코드는 설정에서 고르는 이름표다. 하우스-9의 자리 이름은 응답이 중복·공백째로 준 값 그대로다.
+const deokyudae3Zones: ZoneInfo[] = [
+  { code: "0203201", name: "카라반", type: "카라반", seats: ["카라반 1호(4인)","카라반 2호(4인)","카라반 3호(4인)","카라반 4호(4인)","카라반 5호(6인)","카라반 6호(6인)","카라반 7호(6인)","카라반 8호(6인)","카라반 9호(6인)","카라반 10호(4인)","카라반 11호(8인)","카라반 12호(8인)","카라반 13호(8인)"] },
+  { code: "0202101", name: "특화야영장", type: "특화야영장", seats: ["하우스-1(4인)","하우스-2(4인)","하우스-3(4인)","하우스-4(4인)","하우스-5(4인)","하우스-6(4인)","하우스-7(4인)","하우스-8(4인)","하우스-9(4인, 무공해영지)\n                                                \n                                                    하우스-9(4인, 무공해영지)","하우스-10(4인)","하우스-11(4인)","하우스-12(4인)","하우스-13(원추리)(4인)","하우스-14(다래)(4인)","하우스-15(머루)(4인)","하우스-16(담비)(6인)","하우스-17(여우)(6인)","하우스-18(주목)(6인)"] },
+];
+
 export const facilities: FacilityInfo[] = [
   { code: "gatbawi", name: "팔공산 갓바위야영장", ref: { dept_id: "B252001", dept_name: "갓바위", parent_dept_name: "팔공산" }, zones: gatbawiZones },
   { code: "dohak", name: "팔공산 도학야영장", ref: { dept_id: "B251001", dept_name: "도학", parent_dept_name: "팔공산" }, zones: dohakZones },
   { code: "sangui", name: "주왕산 상의야영장", ref: { dept_id: "B071001", dept_name: "상의", parent_dept_name: "주왕산" }, zones: sanguiZones },
+  { code: "deokyudae3", name: "덕유산 덕유대3야영장", ref: { dept_id: "B051006", dept_name: "덕유대3", parent_dept_name: "덕유산" }, zones: deokyudae3Zones },
 ];

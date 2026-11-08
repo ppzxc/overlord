@@ -1,5 +1,6 @@
 import type { Config } from "./config.js";
 import { resolveFacility } from "./facility.js";
+import { isConnectionFailure } from "./adapter-signals.js";
 import { ProviderHealth, worstFailure, type Failure } from "./health.js";
 import { LOOP_TURN, type Liveness } from "./liveness.js";
 import { createHttpClient, secretsOf } from "./http.js";
@@ -141,6 +142,13 @@ async function runProvider(
   const health = new ProviderHealth();
   const stat: ProviderStat = { health, days: new Map<string, DayStats>(), hours: new Map<string, DayStats>() };
   shared.stats.set(providerId, stat);
+  // 예약처 상태 알림에 싣는 현재 폴링 간격. 설정이 덮어쓰지 않았으면 예약처 기본값이다.
+  const poll = {
+    seconds: intervalMs / 1000,
+    source: config.providers[providerId]?.pollIntervalSeconds !== undefined ? ("설정" as const) : ("예약처 기본값" as const),
+    ...(info.minPollIntervalSeconds !== undefined ? { minSeconds: info.minPollIntervalSeconds } : {}),
+  };
+  let probeQuery: AvailabilityQuery | undefined;
   const healthNotifiers = [...new Set(watches.flatMap((w) => w.notify))];
 
   /** 상태가 바뀌었거나 같은 장애가 24시간 이어졌으면 이 예약처의 알림 대상 모두에게 알린다. 하나라도 보내면 알린 것으로 친다. */
@@ -149,13 +157,34 @@ async function runProvider(
     if (!notice) return;
     let delivered = false;
     for (const name of healthNotifiers) {
-      const ok = await shared.send(name, providerId, (chatId) => renderHealth({ chatId, provider: providerId, ...notice }));
+      const ok = await shared.send(name, providerId, (chatId) => renderHealth({ chatId, provider: providerId, ...notice, poll }));
       delivered ||= ok;
     }
     if (delivered) {
       health.markAnnounced(clock.now().getTime());
       log("health notice sent", { provider: providerId, status: notice.status, reminder: notice.reminder });
     }
+  };
+
+  /**
+   * 연결이 안 되는 예약처에 요청 하나(허용된 달력 주소 GET)를 보내 도달 여부만 본다. 접속이 되면 조회는 재개하지 않고 알림만 보낸다.
+   * 간격을 늘린 설정으로 재시작해야 조회를 다시 시작한다(같은 간격으로 되돌아가면 다시 막힐 수 있다).
+   */
+  const probeReachability = async () => {
+    if (!probeQuery) return;
+    const at = clock.now().getTime();
+    let reachable = false;
+    let detail: string;
+    try {
+      const res = await ctx.http.get(adapter.deepLink(probeQuery));
+      reachable = res.status < 400;
+      detail = reachable ? `도달 시험: HTTP ${res.status}` : `도달 시험: 접속은 되나 HTTP ${res.status}`;
+    } catch (err) {
+      detail = `도달 시험 실패: ${errMessage(err)}`;
+    }
+    if (signal.aborted) return;
+    health.recordProbe(reachable, at, detail);
+    log(reachable ? "provider reachable again" : "provider still unreachable", { provider: providerId, detail });
   };
 
   const sleep = (ms: number) => {
@@ -169,6 +198,14 @@ async function runProvider(
     if (health.stopped) {
       await sleep(health.stoppedWaitMs(intervalMs, clock.now().getTime()));
       if (!signal.aborted) await announceHealth();
+      continue;
+    }
+    // 연결이 안 되는 예약처는 조회하지 않고 하루 두 번 도달 여부만 본다. 접속이 확인되면 시험도 멈춘다.
+    if (health.unreachable) {
+      await sleep(health.unreachableWaitMs());
+      if (signal.aborted) continue;
+      if (!health.reachableAgain) await probeReachability();
+      await announceHealth();
       continue;
     }
     // 오픈 경쟁 시간(시작·재개·다음 바퀴 예정 시각이 구간 안)에는 조회하지 않고 구간 끝까지 쉰다. 예약처 상태는 건드리지 않는다.
@@ -217,7 +254,7 @@ async function runProvider(
       results.set(key, null);
       if (signal.aborted) return; // 종료 중 끊긴 요청은 오류로 기록하지 않는다.
       const kind = err instanceof AdapterError ? err.kind : "error";
-      failures.push({ kind, message: errMessage(err) });
+      failures.push({ kind, message: errMessage(err), ...(isConnectionFailure(err) ? { connection: true as const } : {}) });
       log("query failed", { kind, unit: key, message: errMessage(err) });
     };
     // 시설별 오픈 경쟁 시간: 설정의 openingRush가 없으면 어댑터가 시설마다 알려 주는 구간 안의 시설은 이번 바퀴에서 뺀다.
@@ -242,6 +279,7 @@ async function runProvider(
         continue;
       }
     }
+    probeQuery ??= [...queries.values()][0];
     const toQuery = [...queries].filter(([key]) => !results.has(key));
     if (adapter.queryAvailabilityBatch && toQuery.length > 0 && !signal.aborted) {
       try {
@@ -362,7 +400,10 @@ async function runProvider(
     }
     if (!signal.aborted && queries.size > 0) {
       const at = clock.now();
-      health.record(worstFailure(failures), at.getTime());
+      // 성공한 조회가 하나도 없고 실패가 모두 연결 단계면 "연결 불가"로 센다.
+      const worst = worstFailure(failures);
+      const unreachableRound = failures.length > 0 && failures.every((f) => f.connection) && ![...results.values()].some((r) => r !== null);
+      health.record(worst && { ...worst, connection: unreachableRound }, at.getTime());
       const failed = failures.length > 0;
       const today = kstDate(at);
       // 요약이 읽는 것은 전날뿐이라 그 전 기록은 버린다.
@@ -373,7 +414,7 @@ async function runProvider(
       recordRound(stat.hours, kstHourKey(at), failed, (k) => k >= oldestHour);
       await announceHealth();
     }
-    if (health.stopped) continue;
+    if (health.stopped || health.unreachable) continue;
     // 바퀴가 끝났고 알림 채널이 정상일 때만 살아 있다고 알린다.
     if (!signal.aborted && shared.channelOk()) await shared.pingDeadMan();
     const quiet = isQuiet(clock.now(), config.quietHours) ? QUIET_INTERVAL_FACTOR : 1;

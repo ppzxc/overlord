@@ -1309,3 +1309,71 @@ describe("예약처별 기본 폴링 간격", () => {
     await p.stop();
   });
 });
+
+describe("연결 불가 예약처", () => {
+  const HOUR = 3600_000;
+  const connectTimeout = () => {
+    throw Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error("Connect Timeout Error"), { code: "UND_ERR_CONNECT_TIMEOUT" }) });
+  };
+  const texts = (p: { sent: { text: string }[] }) => p.sent.map((m) => m.text);
+
+  it("연결 실패만 6시간 이어지면 조회를 멈추고 현재 폴링 간격과 함께 알린다", async () => {
+    const p = startPoller(connectTimeout, { server: connectTimeout });
+    await settle();
+    for (let i = 0; i < 40 && !texts(p).some((t) => t.includes("연결할 수 없어")); i++) await p.clock.advance(1_800_000);
+    const notices = texts(p).filter((t) => t.includes("연결할 수 없어"));
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain("현재 폴링 간격");
+    expect(notices[0]).toContain("설정");
+    await p.stop();
+  });
+
+  it("멈춘 뒤에는 조회하지 않고 12시간마다 요청 하나로 도달 여부만 보고 무음으로 알린다", async () => {
+    const respond = () => connectTimeout();
+    const p = startPoller(respond, { server: respond });
+    await settle();
+    for (let i = 0; i < 40 && !texts(p).some((t) => t.includes("연결할 수 없어")); i++) await p.clock.advance(1_800_000);
+    const base = p.allRequests.length;
+    const sentBefore = p.sent.length;
+    await p.clock.advance(11 * HOUR);
+    expect(p.allRequests).toHaveLength(base); // 12시간 전에는 요청이 없다
+    await p.clock.advance(HOUR);
+    expect(p.allRequests).toHaveLength(base + 1); // 도달 시험 한 건
+    expect(p.sent).toHaveLength(sentBefore + 1);
+    expect(p.sent.at(-1)!.text).toContain("연결할 수 없어");
+    expect(p.sent.at(-1)!.disable_notification).toBe(true);
+    await p.stop();
+  });
+
+  it("접속이 확인되면 로그를 남기고 간격을 늘리라고 알리지만 조회는 재개하지 않는다", async () => {
+    let down = true;
+    const respond = () => {
+      if (down) return connectTimeout();
+      return { status: 200, body: "<html></html>" };
+    };
+    const p = startPoller(respond, { server: respond });
+    await settle();
+    for (let i = 0; i < 40 && !texts(p).some((t) => t.includes("연결할 수 없어")); i++) await p.clock.advance(1_800_000);
+    down = false;
+    await p.clock.advance(12 * HOUR);
+    expect(p.logs.some((l) => l.msg === "provider reachable again")).toBe(true);
+    const last = p.sent.at(-1)!;
+    expect(last.text).toContain("다시 접속");
+    expect(last.text).toContain("늘리는 걸 권한다");
+    expect(last.disable_notification).toBeUndefined();
+    const base = p.allRequests.length;
+    await p.clock.advance(48 * HOUR);
+    expect(p.allRequests).toHaveLength(base); // 시험도 조회도 더 없다
+    await p.stop();
+  });
+
+  it("일부라도 성공한 바퀴가 있거나 연결 실패가 아닌 오류가 섞이면 멈추지 않는다", async () => {
+    const respond = () => ({ status: 503, body: "" });
+    const p = startPoller(respond, { server: respond });
+    await settle();
+    for (let i = 0; i < 40; i++) await p.clock.advance(1_800_000);
+    expect(texts(p).some((t) => t.includes("연결할 수 없어"))).toBe(false);
+    expect(p.allRequests.length).toBeGreaterThan(5);
+    await p.stop();
+  });
+});

@@ -19,6 +19,18 @@ export class ConnectionFailure extends AdapterError {
   }
 }
 
+/** 연결 단계에서 막혔음을 가리키는 오류 코드(undici·Node가 `cause.code`에 싣는다). 로컬 네트워크 단절(ENETUNREACH)은 예약처 쪽 문제가 아니라 뺀다. */
+const CONNECT_CODE = /^(UND_ERR_CONNECT_TIMEOUT|ECONNREFUSED|EHOSTUNREACH|ETIMEDOUT)$/;
+
+/** 오류와 그 `cause` 사슬이 연결 단계 실패(서버가 TCP 연결을 받아 주지 않음)인가. */
+export function isConnectionFailure(e: unknown): boolean {
+  for (let cur = e, depth = 0; cur instanceof Error && depth < 5; cur = cur.cause, depth++) {
+    const code = (cur as { code?: unknown }).code;
+    if (typeof code === "string" && CONNECT_CODE.test(code)) return true;
+  }
+  return false;
+}
+
 /** 요청 하나를 보낸다. 접근 금지 경로(로그인으로 리다이렉트 포함)는 차단, 연결 실패·시간 초과는 일시 오류(`ConnectionFailure`)다. */
 export async function send<T extends TransportResponse>(where: string, request: () => Promise<T>): Promise<T> {
   try {

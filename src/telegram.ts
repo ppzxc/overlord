@@ -240,6 +240,8 @@ const HEALTH_TITLES: Record<NoticeStatus, string> = {
   unrecognized: "🧩 예약처 화면 구조가 바뀌었다",
   unavailable: "🛠 예약처가 점검 중이다",
   degraded: "⚠️ 예약처 조회가 계속 실패한다",
+  unreachable: "🔌 예약처에 연결할 수 없어 조회를 멈췄다",
+  reachable: "🟢 연결이 안 되던 예약처에 다시 접속된다",
   recovered: "✅ 예약처 조회가 회복됐다",
 };
 
@@ -248,6 +250,8 @@ const HEALTH_ACTIONS: Record<NoticeStatus, string> = {
   unrecognized: "빈자리 없음으로 착각하지 않도록 이 예약처의 조회를 멈췄다. 어댑터를 고친 뒤 폴러를 재시작해야 한다.",
   unavailable: "30분 간격으로 계속 확인한다. 같은 상태가 이어지는 동안은 24시간마다 한 번만 다시 알린다.",
   degraded: "간격을 늘려 계속 재시도한다. 회복되면 알린다.",
+  unreachable: "하루 두 번(12시간마다) 접속만 시험해 결과를 무음으로 알린다. 접속이 되어도 조회는 자동으로 재개하지 않는다.",
+  reachable: "조회는 멈춘 채다. 아래 폴링 간격을 늘린 설정으로 폴러를 재시작하면 조회를 다시 시작한다. 간격이 짧으면 다시 막힐 수 있다.",
   recovered: "정상으로 돌아왔다.",
 };
 
@@ -257,14 +261,22 @@ export function renderHealth(opts: {
   status: NoticeStatus;
   detail: string;
   reminder?: boolean;
+  /** 현재 폴링 간격(초)과 그 출처, 설정으로 낮출 수 있는 하한. 연결 불가·접속 확인 알림에 싣는다. */
+  poll?: { seconds: number; source: "설정" | "예약처 기본값"; minSeconds?: number };
 }): TelegramMessage {
   const lines = [
     `${opts.reminder ? "🔁 (계속) " : ""}${HEALTH_TITLES[opts.status]}`,
     `예약처: <b>${escapeHtml(opts.provider)}</b>`,
   ];
   if (opts.detail) lines.push(`상세: ${escapeHtml(opts.detail)}`);
+  if (opts.poll && (opts.status === "unreachable" || opts.status === "reachable")) {
+    const floor = opts.poll.minSeconds !== undefined ? `, 하한 ${opts.poll.minSeconds}초` : "";
+    lines.push(`현재 폴링 간격: ${opts.poll.seconds}초(${opts.poll.source}${floor}). 늘리는 걸 권한다(<code>providers.${escapeHtml(opts.provider)}.pollIntervalSeconds</code>).`);
+  }
   lines.push(HEALTH_ACTIONS[opts.status]);
-  return { chatId: opts.chatId, text: lines.join("\n"), parse_mode: "HTML" };
+  // 접속 안 됨이 이어지는 중의 시험 결과는 무음이다. 처음 알림과 접속 확인은 소리가 난다.
+  const silent = opts.status === "unreachable" && opts.reminder === true;
+  return { chatId: opts.chatId, text: lines.join("\n"), parse_mode: "HTML", ...(silent ? { disable_notification: true as const } : {}) };
 }
 
 /** 한국 시각 "MM-DD HH:mm". 요약 메시지에서 시각을 보여 줄 때 쓴다. */
@@ -285,6 +297,7 @@ const STATUS_LABELS: Record<HealthStatus, string> = {
   ok: "정상",
   degraded: "일시 오류 지속",
   unavailable: "점검 중",
+  unreachable: "연결 불가로 멈춤",
   stopped: "멈춤",
 };
 

@@ -46,43 +46,57 @@ const watchYaml = ({ facility, zones }: (typeof WATCHES)[number]) => `
     nights: 1
     notify: [default]`;
 
-/** 구역마다 상품 9개. 잔여는 모두 마감이다. */
+/** 구역마다 상품 수. 잔여 호출은 한 번에 5개씩 묻는다(가짜 서버도 앞의 5개만 답한다). 잔여는 모두 마감이다. */
+const GOODS_PER_ZONE = 9;
+const AVAIL_PAGE = 5;
 const intercept = (req: TransportRequest): TransportResponse | undefined => {
   if (pathOf(req) === GOODS) {
     const zone = String(bodyOf(req).goodsClsscCd ?? bodyOf(req).upperGoodsClsscCd);
-    return json({ rsrvtGoodsList: Array.from({ length: 9 }, (_, i) => ({ goodsId: `${zone}-${i + 1}`, goodsNm: `${zone} ${i + 1}`, goodsClsscCd: zone })), rsrvtPssblDtList: [], hldtInfoList: [] });
+    return json({ rsrvtGoodsList: Array.from({ length: GOODS_PER_ZONE }, (_, i) => ({ goodsId: `${zone}-${i + 1}`, goodsNm: `${zone} ${i + 1}`, goodsClsscCd: zone })), rsrvtPssblDtList: [], hldtInfoList: [] });
   }
   if (pathOf(req) === AVAIL) {
-    return json({ rsrvtAvailInfoList: (bodyOf(req).goodsIdList as string[]).slice(0, 5).map((goodsId) => ({ goodsId, useDt: "20261121", rsrvtAvail: "Y", rsrvtCnt: 1 })) });
+    return json({ rsrvtAvailInfoList: (bodyOf(req).goodsIdList as string[]).slice(0, AVAIL_PAGE).map((goodsId) => ({ goodsId, useDt: "20261121", rsrvtAvail: "Y", rsrvtCnt: 1 })) });
   }
   return undefined;
 };
 
-/** 요청 하나가 응답하는 데 걸리는 시간. 가짜 서버는 0이다. 운영 응답 시간은 재 본 적이 없어 1.2초 남짓을 넘기는 값으로 둔다. */
+/**
+ * 요청 하나가 응답하는 데 걸리는 시간. 가짜 서버는 0이다. 운영 응답 시간은 재 본 적이 없다.
+ * 이 시나리오에서 요청당 1초면 첫 바퀴가 14.5분이라 유예에 못 미치고 2초면 16.5분이다. 유예를 넘기는 값으로 2초를 둔다.
+ */
 const NORMAL_LATENCY_MS = 2_000;
+/** 걸린 요청 시나리오: 앞의 요청들은 2분씩(합이 유예를 넘는다) 걸리고 이 번호의 요청이 유예보다 오래 걸린다. */
+const SLOW_LATENCY_MS = 2 * 60_000;
+const HUNG_REQUEST = 10;
 
 /**
  * 감시 16건의 첫 바퀴를 끝까지 돌린다. `latencyOf(n)`은 n번째 요청이 걸리는 시간이다.
- * 요청이 도는 동안 워치독이 보았을 멈춤(`stalled`)을 처음 본 것만 `seen`에 남긴다. 운영 워치독은 60초마다 이것을 보고 멈춤이면 프로세스를 끝낸다.
+ * 요청이 도는 동안 워치독이 보았을 멈춤(`stalled`)과, 그것을 처음 본 요청 번호(`seenAt`)를 남긴다. 운영 워치독은 60초마다 이것을 보고 멈춤이면 프로세스를 끝낸다.
  */
 async function runFirstCycle(latencyOf: (n: number) => number) {
   const insttIds = WATCHES.map(({ facility }) => (facilities.find((x) => x.code === facility)!.ref as { insttId: string }).insttId);
   const ref: { poller?: ReturnType<typeof startPoller> } = {};
   let requests = 0;
   let seen: string[] = [];
+  let seenAt: number | undefined;
+  const live = () => ref.poller!;
   const server = foresttripServer({
     today: "2026-11-16",
     extraInstts: insttIds,
     intercept: (req) => {
-      const clock = ref.poller!.clock;
+      const { clock, liveness } = live();
       const ms = latencyOf(++requests);
       if (ms <= MAX_REQUEST_WAIT_MS) void clock.sleep(ms); // 가짜 시계가 요청 사이의 짧은 대기를 바로 지난 것으로 치는 범위
       else {
         clock.freezeTimers = true; // 이 요청이 걸려 있는 동안 시각만 흐르고 다른 타이머는 깨우지 않는다.
         void clock.advance(ms);
+        clock.freezeTimers = false;
       }
-      const stalled = ref.poller!.liveness.stalled();
-      if (stalled.length > 0 && seen.length === 0) seen = stalled;
+      const stalled = liveness.stalled();
+      if (stalled.length > 0 && seen.length === 0) {
+        seen = stalled;
+        seenAt = requests;
+      }
       return intercept(req);
     },
   });
@@ -96,6 +110,7 @@ async function runFirstCycle(latencyOf: (n: number) => number) {
     }
     return {
       seen,
+      seenAt,
       elapsedMs: poller.clock.now().getTime() - started,
       cycleDone: poller.logs.some((l) => l.msg === "cycle done" && l.fields?.provider === "foresttrip"),
     };
@@ -112,8 +127,10 @@ describe("숲나들e 첫 바퀴와 살아있음 신호", () => {
     expect(run.seen).toEqual([]); // 운영에서는 이 순간 process.exit(1)이 불린다.
   });
 
-  it("요청 하나가 유예보다 오래 걸려 있으면 여전히 멈춘 것으로 본다", async () => {
-    const run = await runFirstCycle((n) => (n === 10 ? LIVENESS_GRACE_MS + 60_000 : 0));
+  it("앞선 요청들이 신호를 보냈어도 요청 하나가 유예보다 오래 걸려 있으면 그 요청에서 멈춘 것으로 본다", async () => {
+    const run = await runFirstCycle((n) => (n < HUNG_REQUEST ? SLOW_LATENCY_MS : n === HUNG_REQUEST ? LIVENESS_GRACE_MS + 60_000 : 0));
+    // 앞의 9번이 합쳐서 유예를 넘었는데도 걸린 요청 전까지는 멈춘 것이 아니다. 요청마다 신호를 보내지 않으면 그 전에 잡힌다.
     expect(run.seen).toEqual(["foresttrip"]);
+    expect(run.seenAt).toBe(HUNG_REQUEST);
   });
 });

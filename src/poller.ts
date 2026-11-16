@@ -118,6 +118,7 @@ async function runProvider(
   const rush = config.providers[providerId]?.openingRush ?? info.openingRush;
 
   const secrets = secretsOf(info, deps.env);
+  const beatTurn = () => deps.liveness?.beat(providerId, LOOP_TURN);
   const ctx: AdapterContext = {
     clock,
     signal,
@@ -129,7 +130,8 @@ async function runProvider(
       userAgentSuffix: config.userAgentSuffix,
       blockedPaths: info.blockedPaths,
       cookieSession: info.cookieSession,
-      pacing: { clock, random, signal },
+      // 요청 수가 많아 바퀴가 길어도 진행 중이면 멈춘 것이 아니다. 요청 하나가 걸려 있으면 신호가 끊겨 멈춘 것으로 본다.
+      pacing: { clock, random, signal, onRequestDone: beatTurn },
     }),
   };
   // "알렸음" 상태(영속하지 않는다): 감시 조건 이름 → 알림 대상 이름 → 조회 단위 키 → 이미 알린 자리 이름.
@@ -195,7 +197,7 @@ async function runProvider(
   };
 
   while (!signal.aborted) {
-    deps.liveness?.beat(providerId, LOOP_TURN); // 바퀴 시작. 쉬는 동안은 sleep이 예정 시각을 알린다.
+    beatTurn(); // 바퀴 시작. 쉬는 동안은 sleep이 예정 시각을 알린다.
     // 멈춘 예약처는 조회하지 않고, 같은 상태가 이어지면 24시간마다 리마인드만 한다.
     if (health.stopped) {
       await sleep(health.stoppedWaitMs(intervalMs, clock.now().getTime()));

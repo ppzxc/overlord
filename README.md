@@ -23,6 +23,7 @@ docker compose up -d --build
 - `quietHours`: 알림을 무음으로 보내고 바퀴 간격을 3배로 늘리는 시간대.
 - `dailySummary`: 일일 요약 시각. 예약처별 마지막 성공 시각과 프로세스 가동 시작 시각도 적는다.
 - `hourlySummary`: 시간별 요약(기본 꺼짐). `everyHours`는 24의 약수이고 KST 정각에 맞춰 보낸다.
+- `forestLotteryReminder`: 숲나들e 추첨 접수 기간에 매일 한 번 알림(기본 꺼짐). `enabled: true`로 켜면 국립 주말(매월 4~9일)과 다자녀 우선예약(4~8일)을 기본으로 알린다. `types`로 유형을 고르고 `notify`로 수신처를 고른다. `at`은 KST 09:00 이상 18:00 미만이며 기본 10:00이다. 월·성수기 추첨은 공고마다 달라 `periods`에 이름과 접수 시작·종료일을 직접 입력한다(`config.example.yaml` 참고). 공고 변경과 개별 시설의 접수 시각은 직접 확인해야 한다. 프로세스가 꺼진 동안의 알림은 소급하지 않는다.
 - `deadManPingUrl`: 바퀴가 끝날 때마다 GET을 보낼 URL.
 - `watches`: 감시 조건. 시설, 구역, 날짜 범위, 박수, 알림 대상을 정한다.
 

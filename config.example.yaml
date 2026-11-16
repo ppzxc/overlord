@@ -6,6 +6,15 @@ dailySummary: { enabled: true, at: "09:00" }
 # hourlySummary는 KST 정각마다 예약처 상태를 무음으로 보낸다(기본 꺼짐). everyHours는 24의 약수(1, 2, 3, 4, 6, 8, 12, 24).
 # quietHours 동안과 일일 요약과 같은 시각에는 보내지 않는다.
 hourlySummary: { enabled: false, everyHours: 1 }
+# 숲나들e 추첨 접수 기간에 매일 한 번 알림(KST, 기본 꺼짐). 주말·다자녀는 국립의 매월 일정이다.
+# 월 추첨과 성수기 추첨은 공고를 확인해 periods에 직접 입력한다. 종료일에도 지정 시각에 접수 중인지 확인한다.
+# forestLotteryReminder:
+#   enabled: true
+#   at: "10:00" # 09:00 이상 18:00 미만
+#   types: [weekend, multiChild] # 필요 없는 유형은 뺀다
+#   notify: [default]
+#   periods:
+#     - { name: "안면도 월 추첨", from: "2027-01-01", to: "2027-01-03" } # 예시 날짜, 실제 공고 확인
 # deadManPingUrl에 URL을 넣으면 dead-man ping을 보낸다. 환경 변수는 주석 안에서도 치환되니 쓰지 않는 값은 아예 지운다.
 healthz: { bind: "127.0.0.1:8080" }
 providers:

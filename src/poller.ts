@@ -8,6 +8,7 @@ import { createShared, errMessage, notifierNamesOf, pollIntervalMs, recordRound,
 import { addDays, expandWatch, HOUR_MS, isExpired, isQuiet, kstDate, kstHourKey, msUntilRushEnd, unitKey } from "./schedule.js";
 import { filterSeats } from "./seats.js";
 import { runDailySummary, runHourlySummary } from "./summary.js";
+import { runForestLotteryReminder } from "./forest-lottery-reminder.js";
 import { queryOne } from "./query-one.js";
 import {
   renderHealth,
@@ -87,6 +88,7 @@ export async function runPoller(deps: PollerDeps, signal: AbortSignal): Promise<
     }),
     runDailySummary(deps, providers, shared, signal),
     runHourlySummary(deps, providers, shared, signal),
+    runForestLotteryReminder(deps, shared, signal),
   ]);
 }
 

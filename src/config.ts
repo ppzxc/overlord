@@ -27,6 +27,17 @@ const configSchema = z.strictObject({
         .default(1),
     })
     .default({ enabled: false, everyHours: 1 }),
+  forestLotteryReminder: z.strictObject({
+    enabled: z.boolean().default(false),
+    at: hhmm.refine((v) => v >= "09:00" && v < "18:00", "09:00 이상 18:00 미만이어야 한다").default("10:00"),
+    types: z.array(z.enum(["weekend", "multiChild"])).default(["weekend", "multiChild"]),
+    periods: z.array(z.strictObject({
+      name: z.string().min(1),
+      from: date,
+      to: date,
+    }).refine((p) => p.from <= p.to, "from은 to보다 늦을 수 없다")).default([]),
+    notify: z.array(z.string()).min(1).default(["default"]),
+  }).default({ enabled: false, at: "10:00", types: ["weekend", "multiChild"], periods: [], notify: ["default"] }),
   deadManPingUrl: z.url("URL이어야 한다").optional(),
   healthz: z
     .strictObject({
@@ -110,13 +121,17 @@ export class ConfigError extends Error {
 
 function checkNotifiers(config: Config): Problem[] {
   const names = Object.keys(config.notifiers);
-  return config.watches.flatMap((w, i) =>
+  const watchProblems = config.watches.flatMap((w, i) =>
     w.notify.flatMap((n, j) =>
       names.includes(n)
         ? []
         : [{ path: ["watches", i, "notify", j], message: `알림 대상 ${n}이(가) notifiers에 없다. 쓸 수 있는 값: ${names.join(", ")}` }],
     ),
   );
+  const reminderProblems = config.forestLotteryReminder.enabled ? config.forestLotteryReminder.notify.flatMap((n, i) =>
+    names.includes(n) ? [] : [{ path: ["forestLotteryReminder", "notify", i], message: `알림 대상 ${n}이(가) notifiers에 없다. 쓸 수 있는 값: ${names.join(", ")}` }],
+  ) : [];
+  return [...watchProblems, ...reminderProblems];
 }
 
 /** 예약처가 선언한 비밀 값(`ProviderInfo.secrets`)이 환경에 있는지 본다. 그 예약처를 가리키는 감시 조건이 있을 때만 확인한다. 값은 셸·변수 확장 없이 그대로 읽으므로 메시지에도 싣지 않는다. */

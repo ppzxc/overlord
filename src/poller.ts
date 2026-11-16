@@ -129,7 +129,8 @@ async function runProvider(
       userAgentSuffix: config.userAgentSuffix,
       blockedPaths: info.blockedPaths,
       cookieSession: info.cookieSession,
-      pacing: { clock, random, signal },
+      // 요청이 끝날 때마다 알린다. 요청 수가 많아 바퀴가 15분을 넘겨도 진행 중이면 멈춘 것이 아니다. 요청 하나가 걸려 있으면 알림이 끊겨 멈춘 것으로 본다.
+      pacing: { clock, random, signal, onRequestDone: () => deps.liveness?.beat(providerId, LOOP_TURN) },
     }),
   };
   // "알렸음" 상태(영속하지 않는다): 감시 조건 이름 → 알림 대상 이름 → 조회 단위 키 → 이미 알린 자리 이름.

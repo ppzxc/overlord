@@ -19,6 +19,8 @@ export interface Pacing {
   clock: Clock;
   random: () => number;
   signal: AbortSignal;
+  /** 요청 하나가 (성공이든 실패든) 끝날 때마다 부른다. 바퀴가 길어도 진행 중임을 알리는 데 쓴다. */
+  onRequestDone?: () => void;
 }
 
 export function userAgent(version: string, suffix: string): string {
@@ -128,6 +130,7 @@ export function createHttpClient(opts: {
         return await send(method, url, body, reqOpts.contentType, reqOpts.headers, reqOpts.followRedirects);
       } finally {
         lastAt = pacing.clock.now().getTime();
+        pacing.onRequestDone?.();
       }
     });
     queue = run.catch(() => {});

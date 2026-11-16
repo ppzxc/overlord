@@ -8,16 +8,24 @@ import {
   type ProviderInfo,
 } from "../types.js";
 import { facilities } from "../catalogs/goraebul.js";
+import { fieldsRef } from "../facility.js";
 import { seatPrefix } from "../goraebul-seat.js";
 
-const BASE = "https://stay.yd.go.kr/pages";
-const NAV_CODE = "gor1501675800";
+const ORIGIN = "https://stay.yd.go.kr";
+
+/** 시설의 예약 화면 주소 기준. 고래불은 루트(`/pages`), 웰빙문화테마마을과 바다숲향기마을은 `/wellbeing/pages`, `/village/pages`다. 같은 엔진이다. */
+function baseOf(facility: string) {
+  const ref = fieldsRef(INFO, facility, ["navCode"]);
+  return { base: `${ORIGIN}${ref.pathPrefix ?? ""}/pages`, navCode: ref.navCode };
+}
 
 const seatNumber = (prefix: string, n: number) => `${prefix}${String(n).padStart(2, "0")}`;
 
 const INFO: ProviderInfo = {
   id: "goraebul",
   facilities,
+  // 웰빙문화테마마을·바다숲향기마을이 늘기 전 설정은 `facility`가 없다. 그 설정은 고래불을 가리킨다.
+  defaultFacilityCode: "goraebul",
   maxNights: 2,
   openingRule: { openDaysBefore: 30, openTime: "10:00", sameDayCutoff: "18:00" },
   // robots.txt가 막은 경로다.
@@ -74,11 +82,12 @@ async function fetchPage(url: string, ctx: AdapterContext): Promise<string> {
 }
 
 const fetchLayout = (q: AvailabilityQuery, ctx: AdapterContext) =>
-  fetchPage(`${BASE}/zoneAreaAjax.htm?res_Day=${q.checkIn}&room_Code=${q.zone}&site_date=${q.nights}`, ctx);
+  fetchPage(`${baseOf(q.facility).base}/zoneAreaAjax.htm?res_Day=${q.checkIn}&room_Code=${q.zone}&site_date=${q.nights}`, ctx);
 
-const calendarUrl = (month: string) => {
+const calendarUrl = (facility: string, month: string) => {
   const [year, mm] = month.split("-");
-  return `${BASE}/sub.htm?nav_code=${NAV_CODE}&view_cate=${year}&view_cate2=${Number(mm)}`;
+  const { base, navCode } = baseOf(facility);
+  return `${base}/sub.htm?nav_code=${navCode}&view_cate=${year}&view_cate2=${Number(mm)}`;
 };
 
 /**
@@ -89,7 +98,7 @@ const calendarUrl = (month: string) => {
 const MIN_CALENDAR_CELLS = 28;
 const monthOf = (date: string) => date.slice(0, 7);
 
-function parseCalendar(html: string, month: string): Map<string, Set<string>> {
+function parseCalendar(html: string, month: string, base: string): Map<string, Set<string>> {
   const $ = cheerio.load(html);
   const cells = $("table.t_calendar td").filter((_, td) => $(td).find("span.day").length > 0);
   if (cells.length < MIN_CALENDAR_CELLS) throw new AdapterError("unrecognized", `캘린더 날짜 칸이 ${cells.length}개뿐이다`);
@@ -108,7 +117,7 @@ function parseCalendar(html: string, month: string): Map<string, Set<string>> {
         if (!$(li).text().includes("(마감)")) throw new AdapterError("unrecognized", `캘린더 ${day}일 구역 칸을 읽지 못했다`);
         return;
       }
-      const zone = new URL($(li).find("a").attr("href") ?? "", BASE).searchParams.get("type");
+      const zone = new URL($(li).find("a").attr("href") ?? "", `${base}/`).searchParams.get("type");
       if (!zone) throw new AdapterError("unrecognized", `캘린더 ${day}일 구역 링크에 type이 없다`);
       if (+remaining >= 1) zones.add(zone);
     });
@@ -128,26 +137,29 @@ export const goraebulAdapter: ProviderAdapter = {
   /** 캘린더를 월마다 한 번 읽어 1박 잔여가 있는 (구역, 입실일)만 자세히 조회한다. 나머지는 빈 결과다. */
   async queryAvailabilityBatch(units, ctx) {
     const results = new Map<AvailabilityQuery, AvailableSite[] | AdapterError>();
-    const months = [...new Set(units.map((u) => monthOf(u.checkIn)))].sort();
+    // 시설마다 캘린더가 따로다. (시설, 달)마다 한 번 읽는다.
+    const keyOf = (facility: string, date: string) => `${facility}|${monthOf(date)}`;
+    const targets = new Map<string, { facility: string; month: string }>();
+    for (const u of units) targets.set(keyOf(u.facility, u.checkIn), { facility: u.facility, month: monthOf(u.checkIn) });
     const calendars = new Map<string, Map<string, Set<string>>>();
     const failedMonths = new Map<string, AdapterError>();
-    for (const month of months) {
+    for (const [key, { facility, month }] of [...targets].sort(([a], [b]) => a.localeCompare(b))) {
       try {
-        calendars.set(month, parseCalendar(await fetchPage(calendarUrl(month), ctx), month));
+        calendars.set(key, parseCalendar(await fetchPage(calendarUrl(facility, month), ctx), month, baseOf(facility).base));
       } catch (e) {
         // 한 달이 실패해도 다른 달은 계속 본다. 차단은 전체가 멈춘다.
         if (!(e instanceof AdapterError) || e.kind === "blocked") throw e;
-        failedMonths.set(month, e);
+        failedMonths.set(key, e);
       }
     }
     for (const q of units) {
-      const failed = failedMonths.get(monthOf(q.checkIn));
+      const failed = failedMonths.get(keyOf(q.facility, q.checkIn));
       if (failed) {
         results.set(q, failed);
         continue;
       }
       // N박 연속으로 비려면 입실일 1박은 비어 있어야 하므로 1박 잔여로 거를 수 있다.
-      if (!calendars.get(monthOf(q.checkIn))?.get(q.checkIn)?.has(q.zone)) {
+      if (!calendars.get(keyOf(q.facility, q.checkIn))?.get(q.checkIn)?.has(q.zone)) {
         results.set(q, []);
         continue;
       }
@@ -167,6 +179,7 @@ export const goraebulAdapter: ProviderAdapter = {
 
   deepLink(q: AvailabilityQuery): string {
     const col = new Date(`${q.checkIn}T00:00:00Z`).getUTCDay();
-    return `${BASE}/sub.htm?nav_code=${NAV_CODE}&mode=step01&type=${q.zone}&today=${q.checkIn}&col=${col}`;
+    const { base, navCode } = baseOf(q.facility);
+    return `${base}/sub.htm?nav_code=${navCode}&mode=step01&type=${q.zone}&today=${q.checkIn}&col=${col}`;
   },
 };

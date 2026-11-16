@@ -130,6 +130,8 @@ export interface ProviderInfo {
   secrets?: string[];
   /** 켜면 시설이 하나뿐이어도 감시 조건이 `facility`를 골라야 하고, `catalog <예약처>`는 시설 목록을 먼저 보인다. 시설이 늘어날 예약처용이다. */
   facilityRequired?: boolean;
+  /** 감시 조건이 `facility`를 생략했을 때 쓰는 시설 코드. 시설이 늘기 전에 만든 설정을 깨지 않으려는 예약처가 선언한다. `facilityRequired`보다 약하다(둘 다면 선택을 요구한다). */
+  defaultFacilityCode?: string;
   /**
    * `seats:`를 읽는 방식. 생략하면 `token`(`A02`, `A10-A15`)이다. `name`은 자리 이름 정확 일치이고 범위 토큰을 받지 않는다.
    * `name`이면 정적 카탈로그에 자리 목록이 없으므로 설정 로드는 자리를 확인하지 않고(어댑터가 `seatNames`로 알려 주면 코어가 조회 뒤에 확인한다), 구역 오류 메시지에 코드와 라벨을 함께 싣는다.

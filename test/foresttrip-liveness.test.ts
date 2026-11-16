@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { TransportRequest, TransportResponse } from "../src/types.js";
 import { facilities } from "../src/catalogs/foresttrip.js";
+import { LIVENESS_GRACE_MS } from "../src/liveness.js";
+import { MAX_REQUEST_WAIT_MS } from "../src/http.js";
 import { configWith, settle, startPoller } from "./harness.js";
 import { FOREST_ENV, foresttripServer } from "./foresttrip-server.js";
 
-// 운영 설정과 같은 모양의 숲나들e 감시 16건(시설·구역)은 첫 바퀴가 유예(15분)보다 길다. 그래도 요청이 계속 진행되는 동안은 멈춘 것으로 보면 안 된다.
+// 운영 설정과 같은 모양의 숲나들e 감시 16건은 첫 바퀴가 유예(15분)보다 길다.
 // 첫 바퀴는 시설마다 정책 1번 + 구역마다 상품 목록 1번(캐시가 비어 있다) + 잔여 호출이 나가고, 요청 사이에는 5~8초 간격이 있다.
+// 그래도 요청이 계속 진행되는 동안은 멈춘 것으로 보면 안 되고, 요청 하나가 유예보다 오래 걸리면 멈춘 것으로 봐야 한다.
 const NOW = "2026-11-16T15:00:00+09:00";
 const GOODS = "/rep/or/sssn/selectRsrvtGoodsListForMonthRsrvt.do";
 const AVAIL = "/rep/or/selectRsrvtAvailInfoListForMonthRsrvt.do";
@@ -13,27 +16,27 @@ const pathOf = (r: TransportRequest) => new URL(r.url).pathname;
 const bodyOf = (r: TransportRequest) => JSON.parse(r.body ?? "{}") as Record<string, unknown>;
 const json = (body: unknown): TransportResponse => ({ status: 200, body: JSON.stringify(body) });
 
-// 운영 설정(자리 필터 없이 센다. 필터가 있으면 호출이 더 적다).
-const WATCHES: [facility: string, zones: string[]][] = [
-  ["hyangrosan", ["01001"]],
-  ["songjeong", ["01001"]],
-  ["gusugok", ["01001", "01003"]],
-  ["daebongkaempingraendeu", ["01001", "01003"]],
-  ["daeyasan", ["01001", "01002", "01003", "02006"]],
-  ["deokyusan", ["01003"]],
-  ["bihaksan", ["01001", "01002", "01010", "02008"]],
-  ["jangtaesan", ["01001", "01002", "01003"]],
-  ["hadongpyeonbaek", ["01001", "01010"]],
-  ["sacheonkeibeulka", ["01001"]],
-  ["namhaepyeonbaek", ["01001"]],
-  ["wonsando", ["01001"]],
-  ["jindo", ["01001"]],
-  ["sinsido", ["01001"]],
-  ["byeonsan", ["01001"]],
-  ["anmyeondo", ["01001"]],
+/** 운영 설정의 숲나들e 감시(시설과 구역). 자리 필터는 빼고 센다. 필터가 있으면 호출이 더 적다. */
+const WATCHES: { facility: string; zones: string[] }[] = [
+  { facility: "hyangrosan", zones: ["01001"] },
+  { facility: "songjeong", zones: ["01001"] },
+  { facility: "gusugok", zones: ["01001", "01003"] },
+  { facility: "daebongkaempingraendeu", zones: ["01001", "01003"] },
+  { facility: "daeyasan", zones: ["01001", "01002", "01003", "02006"] },
+  { facility: "deokyusan", zones: ["01003"] },
+  { facility: "bihaksan", zones: ["01001", "01002", "01010", "02008"] },
+  { facility: "jangtaesan", zones: ["01001", "01002", "01003"] },
+  { facility: "hadongpyeonbaek", zones: ["01001", "01010"] },
+  { facility: "sacheonkeibeulka", zones: ["01001"] },
+  { facility: "namhaepyeonbaek", zones: ["01001"] },
+  { facility: "wonsando", zones: ["01001"] },
+  { facility: "jindo", zones: ["01001"] },
+  { facility: "sinsido", zones: ["01001"] },
+  { facility: "byeonsan", zones: ["01001"] },
+  { facility: "anmyeondo", zones: ["01001"] },
 ];
 
-const watch = ([facility, zones]: (typeof WATCHES)[number]) => `
+const watchYaml = ({ facility, zones }: (typeof WATCHES)[number]) => `
   - name: ${facility} 토요일
     provider: foresttrip
     facility: ${facility}
@@ -55,39 +58,62 @@ const intercept = (req: TransportRequest): TransportResponse | undefined => {
   return undefined;
 };
 
-/** 요청 하나가 응답하는 데 걸리는 시간(ms). 가짜 서버는 0이고 운영은 재 본 적이 없다. */
-const LATENCY_MS = Number(process.env.LATENCY_MS ?? 2000);
+/** 요청 하나가 응답하는 데 걸리는 시간. 가짜 서버는 0이다. 운영 응답 시간은 재 본 적이 없어 1.2초 남짓을 넘기는 값으로 둔다. */
+const NORMAL_LATENCY_MS = 2_000;
+
+/**
+ * 감시 16건의 첫 바퀴를 끝까지 돌린다. `latencyOf(n)`은 n번째 요청이 걸리는 시간이다.
+ * 요청이 도는 동안 워치독이 보았을 멈춤(`stalled`)을 처음 본 것만 `seen`에 남긴다. 운영 워치독은 60초마다 이것을 보고 멈춤이면 프로세스를 끝낸다.
+ */
+async function runFirstCycle(latencyOf: (n: number) => number) {
+  const insttIds = WATCHES.map(({ facility }) => (facilities.find((x) => x.code === facility)!.ref as { insttId: string }).insttId);
+  const ref: { poller?: ReturnType<typeof startPoller> } = {};
+  let requests = 0;
+  let seen: string[] = [];
+  const server = foresttripServer({
+    today: "2026-11-16",
+    extraInstts: insttIds,
+    intercept: (req) => {
+      const clock = ref.poller!.clock;
+      const ms = latencyOf(++requests);
+      if (ms <= MAX_REQUEST_WAIT_MS) void clock.sleep(ms); // 가짜 시계가 요청 사이의 짧은 대기를 바로 지난 것으로 치는 범위
+      else {
+        clock.freezeTimers = true; // 이 요청이 걸려 있는 동안 시각만 흐르고 다른 타이머는 깨우지 않는다.
+        void clock.advance(ms);
+      }
+      const stalled = ref.poller!.liveness.stalled();
+      if (stalled.length > 0 && seen.length === 0) seen = stalled;
+      return intercept(req);
+    },
+  });
+  const poller = (ref.poller = startPoller(() => ({ status: 404, body: "" }), { yaml: configWith(...WATCHES.map(watchYaml)), server, env: FOREST_ENV, now: NOW }));
+  const started = poller.clock.now().getTime();
+  try {
+    let last = -1;
+    while (poller.allRequests.length !== last) {
+      last = poller.allRequests.length;
+      await settle();
+    }
+    return {
+      seen,
+      elapsedMs: poller.clock.now().getTime() - started,
+      cycleDone: poller.logs.some((l) => l.msg === "cycle done" && l.fields?.provider === "foresttrip"),
+    };
+  } finally {
+    await poller.stop();
+  }
+}
 
 describe("숲나들e 첫 바퀴와 살아있음 신호", () => {
   it("첫 바퀴가 유예보다 길어도 요청이 진행되는 동안은 예약처가 멈춘 것으로 보이지 않는다", async () => {
-    const insttIds = WATCHES.map(([f]) => (facilities.find((x) => x.code === f)!.ref as { insttId: string }).insttId);
-    let spend: (ms: number) => void = () => {};
-    let seen: string[] = []; // 요청을 보내는 도중에 워치독이 보았을 멈춤. 운영 워치독은 60초마다 이것을 본다.
-    let probe: () => string[] = () => [];
-    const server = foresttripServer({
-      today: "2026-11-16",
-      extraInstts: insttIds,
-      intercept: (req) => {
-        spend(LATENCY_MS);
-        const stalled = probe();
-        if (stalled.length > 0 && seen.length === 0) seen = stalled;
-        return intercept(req);
-      },
-    });
-    const p = startPoller(() => ({ status: 404, body: "" }), { yaml: configWith(...WATCHES.map(watch)), server, env: FOREST_ENV, now: NOW });
-    spend = (ms) => void p.clock.sleep(ms);
-    probe = () => p.liveness.stalled();
-    const started = p.clock.now().getTime();
-    let last = -1;
-    while (p.allRequests.length !== last) {
-      last = p.allRequests.length;
-      await settle();
-    }
-    const elapsedMin = (p.clock.now().getTime() - started) / 60_000;
-    const cycleDone = p.logs.some((l) => l.msg === "cycle done" && l.fields?.provider === "foresttrip");
-    console.log(`[loop] 요청 ${p.allRequests.length}번, 가짜 시계 ${elapsedMin.toFixed(1)}분, 바퀴 끝남=${cycleDone}, stalled=${JSON.stringify(p.liveness.stalled())}`);
-    expect(seen).toEqual([]); // 운영에서는 이 순간 process.exit(1)이 불린다.
-    expect(cycleDone).toBe(true);
-    await p.stop();
+    const run = await runFirstCycle(() => NORMAL_LATENCY_MS);
+    expect(run.elapsedMs).toBeGreaterThan(LIVENESS_GRACE_MS); // 이 시나리오가 유예를 넘는 바퀴라는 전제
+    expect(run.cycleDone).toBe(true);
+    expect(run.seen).toEqual([]); // 운영에서는 이 순간 process.exit(1)이 불린다.
+  });
+
+  it("요청 하나가 유예보다 오래 걸려 있으면 여전히 멈춘 것으로 본다", async () => {
+    const run = await runFirstCycle((n) => (n === 10 ? LIVENESS_GRACE_MS + 60_000 : 0));
+    expect(run.seen).toEqual(["foresttrip"]);
   });
 });
